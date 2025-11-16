@@ -1,4 +1,4 @@
-import { normalizeTicketmasterEvent } from '../../src/app/lib/utils/normalisation';
+import { normaliseTicketmasterEvent } from '../../src/app/lib/utils/normalisation';
 import {
     mockTicketmasterEvent,
     mockFreeEvent,
@@ -6,9 +6,9 @@ import {
 } from '../mocks/ticketmaster.mocks';
 
 describe('Ticketmaster Normalisation', () => {
-    describe('normalizeTicketmasterEvent', () => {
-        it('should normalize a complete event with all fields', () => {
-            const result = normalizeTicketmasterEvent(mockTicketmasterEvent);
+    describe('normaliseTicketmasterEvent', () => {
+        it('should normalise a complete event with all fields', () => {
+            const result = normaliseTicketmasterEvent(mockTicketmasterEvent);
 
             expect(result).toMatchObject({
                 title: 'Taylor Swift | The Eras Tour',
@@ -44,7 +44,7 @@ describe('Ticketmaster Normalisation', () => {
         });
 
         it('should handle free events correctly', () => {
-            const result = normalizeTicketmasterEvent(mockFreeEvent);
+            const result = normaliseTicketmasterEvent(mockFreeEvent);
 
             expect(result.isFree).toBe(true);
             expect(result.priceMin).toBe(0);
@@ -52,7 +52,7 @@ describe('Ticketmaster Normalisation', () => {
         });
 
         it('should handle minimal events with missing optional fields', () => {
-            const result = normalizeTicketmasterEvent(mockMinimalEvent);
+            const result = normaliseTicketmasterEvent(mockMinimalEvent);
 
             expect(result.title).toBe('Mystery Event');
             expect(result.category).toBe('Other'); // Default category
@@ -65,24 +65,24 @@ describe('Ticketmaster Normalisation', () => {
         });
 
         it('should default to midday when no time specified', () => {
-            const result = normalizeTicketmasterEvent(mockMinimalEvent);
+            const result = normaliseTicketmasterEvent(mockMinimalEvent);
 
             expect(result.startDate.getHours()).toBe(12);
             expect(result.startDate.getMinutes()).toBe(0);
         });
 
-        it('should normalize category names consistently', () => {
+        it('should normalise category names consistently', () => {
             const eventWithTheatre = {
                 ...mockMinimalEvent,
                 classifications: [{ segment: { name: 'Arts & Theatre' } }],
             };
 
-            const result = normalizeTicketmasterEvent(eventWithTheatre);
+            const result = normaliseTicketmasterEvent(eventWithTheatre);
             expect(result.category).toBe('Theatre');
         });
 
         it('should handle events with multiple images', () => {
-            const result = normalizeTicketmasterEvent(mockTicketmasterEvent);
+            const result = normaliseTicketmasterEvent(mockTicketmasterEvent);
 
             // Should pick the largest image (1024x768, not 205x115)
             expect(result.imageUrl).toContain('image.jpg');

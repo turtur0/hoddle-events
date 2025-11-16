@@ -1,7 +1,7 @@
 // lib/utils/normalization.ts
 import { TicketmasterEvent, NormalisedEvent } from '../types';
 
-export function normalizeTicketmasterEvent(
+export function normaliseTicketmasterEvent(
   event: TicketmasterEvent
 ): NormalisedEvent {
   // Extract category from classifications
@@ -38,7 +38,7 @@ export function normalizeTicketmasterEvent(
   return {
     title: event.name,
     description: event.description,
-    category: normalizeCategory(category),
+    category: normaliseCategory(category),
     
     startDate,
     endDate,
@@ -70,8 +70,8 @@ function parseTicketmasterDate(date: string, time?: string): Date {
   return new Date(`${date}T12:00:00`);
 }
 
-function normalizeCategory(category: string): string {
-  // Standardize category names
+function normaliseCategory(category: string): string {
+  // Standardise category names
   const categoryMap: Record<string, string> = {
     'Music': 'Music',
     'Sports': 'Sports',
