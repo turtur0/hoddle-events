@@ -4,17 +4,8 @@ import { Calendar, MapPin, DollarSign } from "lucide-react";
 import { Card, CardContent, CardFooter } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { IEvent } from "@/app/lib/models/Event";
-import { format } from "date-fns";
-
-// Create a serialized version of IEvent for client components
-type SerializedEvent = Omit<IEvent, 'startDate' | 'endDate' | 'scrapedAt' | 'lastUpdated'> & {
-  _id: string;
-  startDate: string;
-  endDate?: string;
-  scrapedAt: string;
-  lastUpdated: string;
-};
+import { SerializedEvent } from "@/app/lib/models/Event";
+import { format, isSameDay, isSameMonth } from "date-fns";
 
 interface EventCardProps {
   event: SerializedEvent;
@@ -27,13 +18,33 @@ export function EventCard({ event }: EventCardProps) {
       return `$${event.priceMin} - $${event.priceMax}`;
     }
     if (event.priceMin) return `From $${event.priceMin}`;
-    return "Price varies";
+    return "Check website";
   };
 
   const formatDate = () => {
     try {
-      const date = new Date(event.startDate); // Parse string to Date
-      return format(date, "EEE, MMM d, yyyy");
+      const start = new Date(event.startDate); // Now works with string
+      
+      // Single day event
+      if (!event.endDate) {
+        return format(start, "EEE, MMM d, yyyy");
+      }
+      
+      const end = new Date(event.endDate); // Now works with string
+      
+      // Multi-day event on same day (shouldn't happen, but handle it)
+      if (isSameDay(start, end)) {
+        return format(start, "EEE, MMM d, yyyy");
+      }
+      
+      // Multi-day event in same month
+      if (isSameMonth(start, end)) {
+        return `${format(start, "MMM d")} - ${format(end, "d, yyyy")}`;
+      }
+      
+      // Multi-day event spanning months
+      return `${format(start, "MMM d")} - ${format(end, "MMM d, yyyy")}`;
+      
     } catch {
       return "Date TBA";
     }
@@ -57,6 +68,15 @@ export function EventCard({ event }: EventCardProps) {
               <Calendar className="h-16 w-16 text-muted-foreground" />
             </div>
           )}
+          
+          {/* Multi-day badge */}
+          {event.endDate && (
+            <div className="absolute top-2 right-2">
+              <Badge variant="secondary" className="bg-background/90 backdrop-blur">
+                Multi-day
+              </Badge>
+            </div>
+          )}
         </div>
 
         <CardContent className="p-4">
@@ -72,19 +92,19 @@ export function EventCard({ event }: EventCardProps) {
 
           {/* Date */}
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <Calendar className="h-4 w-4" />
-            <span>{formatDate()}</span>
+            <Calendar className="h-4 w-4 flex-shrink-0" />
+            <span className="line-clamp-1">{formatDate()}</span>
           </div>
 
           {/* Venue */}
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <MapPin className="h-4 w-4" />
+            <MapPin className="h-4 w-4 flex-shrink-0" />
             <span className="line-clamp-1">{event.venue.name}</span>
           </div>
 
           {/* Price */}
           <div className="flex items-center gap-2 text-sm font-semibold">
-            <DollarSign className="h-4 w-4" />
+            <DollarSign className="h-4 w-4 flex-shrink-0" />
             <span>{formatPrice()}</span>
           </div>
         </CardContent>

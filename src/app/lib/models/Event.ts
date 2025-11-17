@@ -23,6 +23,7 @@ export interface IEvent {
   
   source: 'ticketmaster' | 'eventbrite' | 'artscentre';
   sourceId: string;
+  
   scrapedAt: Date;
   lastUpdated: Date;
 }
@@ -35,7 +36,7 @@ const EventSchema = new Schema<IEvent>({
   },
   description: {
     type: String,
-    required: false, // ← Changed from true
+    required: false,
     default: 'No description available',
   },
   category: {
@@ -50,13 +51,13 @@ const EventSchema = new Schema<IEvent>({
   },
   endDate: {
     type: Date,
-    required: false, // Already optional, but be explicit
+    required: false,
   },
   
   venue: {
     name: { type: String, required: true },
-    address: { type: String, required: false, default: 'TBA' }, // ← Made optional
-    suburb: { type: String, required: false, default: 'Melbourne' }, // ← Made optional
+    address: { type: String, required: false, default: 'TBA' },
+    suburb: { type: String, required: false, default: 'Melbourne' },
   },
   
   priceMin: Number,
@@ -82,6 +83,7 @@ const EventSchema = new Schema<IEvent>({
     type: String,
     required: true,
   },
+  
   scrapedAt: {
     type: Date,
     default: Date.now,
@@ -94,12 +96,35 @@ const EventSchema = new Schema<IEvent>({
   timestamps: true,
 });
 
-// Create indexes for search and filtering
+// Text search index
 EventSchema.index({ title: 'text', description: 'text', 'venue.name': 'text' });
-EventSchema.index({ startDate: 1, category: 1 });
-EventSchema.index({ source: 1, sourceId: 1 }, { unique: true });
 
-// Prevent model recompilation in development
+// Compound index for filtering
+EventSchema.index({ startDate: 1, category: 1 });
+
+// UPDATED: Use title + venue + source as unique constraint
+// This prevents "HAIR - THE MUSICAL" at "Comedy Theatre" from being added multiple times
+EventSchema.index(
+  { 
+    title: 1, 
+    'venue.name': 1, 
+    source: 1 
+  }, 
+  { unique: true }
+);
+
+// Also keep sourceId index for reference (non-unique now)
+EventSchema.index({ source: 1, sourceId: 1 });
+
 const Event: Model<IEvent> = mongoose.models.Event || mongoose.model<IEvent>('Event', EventSchema);
 
 export default Event;
+
+// NEW: Add serialized type for client components
+export interface SerializedEvent extends Omit<IEvent, 'startDate' | 'endDate' | 'scrapedAt' | 'lastUpdated'> {
+  _id: string;
+  startDate: string;
+  endDate?: string;
+  scrapedAt: string;
+  lastUpdated: string;
+}

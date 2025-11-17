@@ -1,5 +1,5 @@
 import { connectDB } from "./lib/db";
-import Event from "./lib/models/Event";
+import Event, { SerializedEvent } from "./lib/models/Event"; // Add SerializedEvent import
 import { EventCard } from "@/components/event-card";
 import { EventCardSkeleton } from "@/components/event-card-skeleton";
 import { EmptyState } from "@/components/empty-state";
@@ -16,12 +16,22 @@ async function EventsGrid() {
     .limit(12)
     .lean();
 
-  // Convert MongoDB documents to plain objects with string IDs
-  const eventsData = events.map((event) => ({
-    ...event,
+  // Convert MongoDB documents to serialized format
+  const eventsData: SerializedEvent[] = events.map((event) => ({
     _id: event._id.toString(),
+    title: event.title,
+    description: event.description,
+    category: event.category,
     startDate: event.startDate.toISOString(),
     endDate: event.endDate?.toISOString(),
+    venue: event.venue,
+    priceMin: event.priceMin,
+    priceMax: event.priceMax,
+    isFree: event.isFree,
+    bookingUrl: event.bookingUrl,
+    imageUrl: event.imageUrl,
+    source: event.source,
+    sourceId: event.sourceId,
     scrapedAt: event.scrapedAt.toISOString(),
     lastUpdated: event.lastUpdated.toISOString(),
   }));
@@ -57,7 +67,7 @@ function EventsGridSkeleton() {
 export default function Home() {
   return (
     <>
-      <main className="container py-8 w-full">
+      <main className="container py-8">
         {/* Hero Section */}
         <div className="mb-12">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
