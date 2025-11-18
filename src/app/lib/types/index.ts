@@ -17,9 +17,3 @@ export type {
   TicketmasterEvent,
   TicketmasterResponse,
 } from './ticketmaster';
-
-// Eventbrite types
-export type {
-  EventbriteEvent,
-  EventbriteResponse,
-} from './eventbrite';
