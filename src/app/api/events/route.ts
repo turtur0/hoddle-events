@@ -1,3 +1,5 @@
+// app/api/events/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/app/lib/db';
 import Event, { IEvent } from '@/app/lib/models/Event';
@@ -188,7 +190,6 @@ export async function GET(request: NextRequest) {
     const events: AggregatedEvent[] = results[0]?.events || [];
     const totalEvents = results[0]?.totalCount[0]?.count || 0;
 
-    // Serialize dates
     const serializedEvents = events.map((event: AggregatedEvent) => ({
       _id: event._id.toString(),
       title: event.title,

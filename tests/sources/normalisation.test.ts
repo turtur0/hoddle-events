@@ -15,7 +15,7 @@ describe('Ticketmaster Normalisation', () => {
       expect(normalised).toMatchObject({
         title: 'Test Concert',
         description: 'An amazing test concert',
-        category: 'Music',
+        category: 'music', // Changed from 'Music'
         source: 'ticketmaster',
         sourceId: 'TM001',
         isFree: false,
@@ -30,7 +30,7 @@ describe('Ticketmaster Normalisation', () => {
       expect(normalised.priceMin).toBe(50);
       expect(normalised.priceMax).toBe(150);
       expect(normalised.bookingUrl).toBe('https://ticketmaster.com/test');
-      expect(normalised.imageUrl).toBe('https://example.com/image1.jpg'); // Highest resolution
+      expect(normalised.imageUrl).toBe('https://example.com/image1.jpg');
     });
 
     it('should parse start date and time correctly', () => {
@@ -46,9 +46,9 @@ describe('Ticketmaster Normalisation', () => {
 
     it('should include scrapedAt timestamp', () => {
       const normalised = normaliseTicketmasterEvent(mockTicketmasterEvent);
-      
+
       expect(normalised.scrapedAt).toBeInstanceOf(Date);
-      expect(normalised.scrapedAt.getTime()).toBeCloseTo(Date.now(), -2); // Within 100ms
+      expect(normalised.scrapedAt.getTime()).toBeCloseTo(Date.now(), -2);
     });
   });
 
@@ -79,7 +79,7 @@ describe('Ticketmaster Normalisation', () => {
 
       expect(normalised.title).toBe('Minimal Event');
       expect(normalised.description).toBe('No description available');
-      expect(normalised.category).toBe('Other');
+      expect(normalised.category).toBe('other'); // Changed from 'Other'
       expect(normalised.venue.name).toBe('Venue TBA');
       expect(normalised.venue.address).toBe('TBA');
       expect(normalised.venue.suburb).toBe('Melbourne');
@@ -100,7 +100,7 @@ describe('Ticketmaster Normalisation', () => {
 
       expect(normalised.startDate).toBeInstanceOf(Date);
       expect(normalised.endDate).toBeInstanceOf(Date);
-      
+
       expect(normalised.startDate.getDate()).toBe(20);
       expect(normalised.endDate?.getDate()).toBe(22);
     });
@@ -133,37 +133,41 @@ describe('Ticketmaster Normalisation', () => {
   });
 
   describe('Category Normalisation', () => {
-    it('should normalise "Arts & Theatre" to "Theatre"', () => {
+    it('should normalise "Arts & Theatre" to "theatre"', () => {
       const theatreEvent = {
         ...mockTicketmasterEvent,
         classifications: [{ segment: { name: 'Arts & Theatre' } }],
       };
 
       const normalised = normaliseTicketmasterEvent(theatreEvent);
-      expect(normalised.category).toBe('Theatre');
+      expect(normalised.category).toBe('theatre'); // Changed from 'Theatre'
     });
 
-    it('should normalise "Miscellaneous" to "Other"', () => {
+    it('should normalise "Miscellaneous" to "other"', () => {
       const miscEvent = {
         ...mockTicketmasterEvent,
         classifications: [{ segment: { name: 'Miscellaneous' } }],
       };
 
       const normalised = normaliseTicketmasterEvent(miscEvent);
-      expect(normalised.category).toBe('Other');
+      expect(normalised.category).toBe('other'); // Changed from 'Other'
     });
 
-    it('should keep known categories unchanged', () => {
-      const categories = ['Music', 'Sports', 'Film'];
-      
-      categories.forEach(cat => {
+    it('should normalise known categories to lowercase', () => {
+      const categoryMappings = [
+        { input: 'Music', expected: 'music' },
+        { input: 'Sports', expected: 'sports' },
+        { input: 'Film', expected: 'arts' }, // Film maps to arts category
+      ];
+
+      categoryMappings.forEach(({ input, expected }) => {
         const event = {
           ...mockTicketmasterEvent,
-          classifications: [{ segment: { name: cat } }],
+          classifications: [{ segment: { name: input } }],
         };
 
         const normalised = normaliseTicketmasterEvent(event);
-        expect(normalised.category).toBe(cat);
+        expect(normalised.category).toBe(expected);
       });
     });
   });
@@ -191,8 +195,8 @@ describe('Ticketmaster Normalisation', () => {
       };
 
       const normalised = normaliseTicketmasterEvent(multiPriceEvent);
-      expect(normalised.priceMin).toBe(30); // Lowest min
-      expect(normalised.priceMax).toBe(200); // Highest max
+      expect(normalised.priceMin).toBe(30);
+      expect(normalised.priceMax).toBe(200);
     });
 
     it('should ignore invalid price values', () => {
@@ -241,7 +245,7 @@ describe('Ticketmaster Normalisation', () => {
     it('should generate fallback booking URL if missing', () => {
       const noUrlEvent = { ...mockMinimalEvent, url: '' };
       const normalised = normaliseTicketmasterEvent(noUrlEvent);
-      
+
       expect(normalised.bookingUrl).toBe(
         'https://www.ticketmaster.com.au/event/TM003'
       );
