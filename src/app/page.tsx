@@ -1,13 +1,10 @@
-import { connectDB } from "./lib/db";
-import Event, { SerializedEvent } from "./lib/models/Event";
 import { EventCard } from "@/components/event-card";
 import { EventCardSkeleton } from "@/components/event-card-skeleton";
 import { EmptyState } from "@/components/empty-state";
 import { Pagination } from "@/components/pagination";
 import { SearchBar } from "@/components/search-bar";
 import { Suspense } from "react";
-
-const EVENTS_PER_PAGE = 12;
+import { SerializedEvent } from "./lib/models/Event";
 
 async function EventsGrid({ 
   page, 
@@ -16,53 +13,28 @@ async function EventsGrid({
   page: number; 
   searchQuery: string;
 }) {
-  await connectDB();
-
-  const skip = (page - 1) * EVENTS_PER_PAGE;
-
-  // Build query
-  const query: any = {
-    startDate: { $gte: new Date() },
-  };
-
-  // Add text search if query exists
+  // Build API URL
+  const params = new URLSearchParams({
+    page: page.toString(),
+  });
+  
   if (searchQuery.trim()) {
-    query.$text = { $search: searchQuery.trim() };
+    params.set('q', searchQuery.trim());
   }
 
-  // Get total count for pagination
-  const totalEvents = await Event.countDocuments(query);
+  // Fetch from API route (uses relevance scoring)
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const response = await fetch(`${baseUrl}/api/events?${params.toString()}`, {
+    cache: 'no-store', // Always get fresh data
+  });
 
-  // Fetch paginated events
-  const events = await Event.find(query)
-    .sort(
-      searchQuery.trim() 
-        ? { score: { $meta: 'textScore' }, startDate: 1 } 
-        : { startDate: 1 }
-    )
-    .skip(skip)
-    .limit(EVENTS_PER_PAGE)
-    .lean();
+  if (!response.ok) {
+    throw new Error('Failed to fetch events');
+  }
 
-  const eventsData: SerializedEvent[] = events.map((event) => ({
-    _id: event._id.toString(),
-    title: event.title,
-    description: event.description,
-    category: event.category,
-    subcategory: event.subcategory,
-    startDate: event.startDate.toISOString(),
-    endDate: event.endDate?.toISOString(),
-    venue: event.venue,
-    priceMin: event.priceMin,
-    priceMax: event.priceMax,
-    isFree: event.isFree,
-    bookingUrl: event.bookingUrl,
-    imageUrl: event.imageUrl,
-    source: event.source,
-    sourceId: event.sourceId,
-    scrapedAt: event.scrapedAt.toISOString(),
-    lastUpdated: event.lastUpdated.toISOString(),
-  }));
+  const data = await response.json();
+  const eventsData: SerializedEvent[] = data.events;
+  const { totalEvents, totalPages } = data.pagination;
 
   // Show empty state for no results
   if (eventsData.length === 0) {
@@ -81,8 +53,6 @@ async function EventsGrid({
       />
     );
   }
-
-  const totalPages = Math.ceil(totalEvents / EVENTS_PER_PAGE);
 
   return (
     <>

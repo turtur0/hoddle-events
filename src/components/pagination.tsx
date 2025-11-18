@@ -1,8 +1,8 @@
 'use client';
 
-import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button } from './ui/button';
 
 interface PaginationProps {
     currentPage: number;
@@ -10,13 +10,21 @@ interface PaginationProps {
 }
 
 export function Pagination({ currentPage, totalPages }: PaginationProps) {
+    const router = useRouter();
+    const pathname = usePathname();
     const searchParams = useSearchParams();
 
     // Create URL with page parameter
     const createPageURL = (page: number) => {
         const params = new URLSearchParams(searchParams.toString());
         params.set('page', page.toString());
-        return `?${params.toString()}`;
+        return `${pathname}?${params.toString()}`;
+    };
+
+    // Navigate to page
+    const goToPage = (page: number) => {
+        const url = createPageURL(page);
+        router.push(url, { scroll: false }); // Prevent scroll to top
     };
 
     // Don't show pagination if only 1 page
@@ -28,20 +36,15 @@ export function Pagination({ currentPage, totalPages }: PaginationProps) {
     return (
         <div className="flex items-center justify-center gap-2">
             {/* Previous Button */}
-            <Link
-                href={createPageURL(currentPage - 1)}
-                className={`
-          flex items-center gap-1 px-4 py-2 rounded-md border
-          ${hasPrevious
-                        ? 'hover:bg-accent cursor-pointer'
-                        : 'opacity-50 pointer-events-none'
-                    }
-        `}
-                aria-disabled={!hasPrevious}
+            <Button
+                variant="outline"
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={!hasPrevious}
+                className="flex items-center gap-1"
             >
                 <ChevronLeft className="h-4 w-4" />
                 <span>Previous</span>
-            </Link>
+            </Button>
 
             {/* Page Numbers */}
             <div className="flex items-center gap-1">
@@ -67,39 +70,32 @@ export function Pagination({ currentPage, totalPages }: PaginationProps) {
 
                     if (!showPage) return null;
 
+                    const isCurrentPage = page === currentPage;
+
                     return (
-                        <Link
+                        <Button
                             key={page}
-                            href={createPageURL(page)}
-                            className={`
-                px-4 py-2 rounded-md border min-w-10 text-center
-                ${page === currentPage
-                                    ? 'bg-primary text-primary-foreground'
-                                    : 'hover:bg-accent'
-                                }
-              `}
+                            variant={isCurrentPage ? "default" : "outline"}
+                            onClick={() => goToPage(page)}
+                            className="min-w-10"
+                            disabled={isCurrentPage}
                         >
                             {page}
-                        </Link>
+                        </Button>
                     );
                 })}
             </div>
 
             {/* Next Button */}
-            <Link
-                href={createPageURL(currentPage + 1)}
-                className={`
-          flex items-center gap-1 px-4 py-2 rounded-md border
-          ${hasNext
-                        ? 'hover:bg-accent cursor-pointer'
-                        : 'opacity-50 pointer-events-none'
-                    }
-        `}
-                aria-disabled={!hasNext}
+            <Button
+                variant="outline"
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={!hasNext}
+                className="flex items-center gap-1"
             >
                 <span>Next</span>
                 <ChevronRight className="h-4 w-4" />
-            </Link>
+            </Button>
         </div>
     );
 }

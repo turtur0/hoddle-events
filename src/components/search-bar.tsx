@@ -13,20 +13,36 @@ export function SearchBar() {
   
   const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
   const [isSearching, setIsSearching] = useState(false);
+  const [lastSearchTerm, setLastSearchTerm] = useState(searchParams.get('q') || ''); // Track last search
 
   const updateSearchParams = useCallback((value: string) => {
     const params = new URLSearchParams(searchParams.toString());
     
     if (value.trim()) {
       params.set('q', value.trim());
-      params.set('page', '1');
+      
+      // Only reset to page 1 if the search query actually changed
+      if (value.trim() !== lastSearchTerm.trim()) {
+        params.set('page', '1');
+        setLastSearchTerm(value.trim());
+      }
     } else {
       params.delete('q');
+      params.set('page', '1'); // Reset to page 1 when clearing search
+      setLastSearchTerm('');
     }
     
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
     setIsSearching(false);
-  }, [searchParams, pathname, router]);
+  }, [searchParams, pathname, router, lastSearchTerm]);
+
+  useEffect(() => {
+    // Update lastSearchTerm when URL changes (e.g., browser back button)
+    const currentQuery = searchParams.get('q') || '';
+    if (currentQuery !== lastSearchTerm) {
+      setLastSearchTerm(currentQuery);
+    }
+  }, [searchParams, lastSearchTerm]);
 
   useEffect(() => {
     if (searchTerm !== (searchParams.get('q') || '')) {
