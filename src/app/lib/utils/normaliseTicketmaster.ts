@@ -158,25 +158,37 @@ function extractPriceInfo(event: TicketmasterEvent): {
     return { priceMin: undefined, priceMax: undefined, isFree: false };
   }
 
-  const validPrices = event.priceRanges.filter(
-    p => p.min != null && !isNaN(p.min) && p.max != null && !isNaN(p.max)
-  );
+  // Collect all valid min and max prices separately
+  const validMins: number[] = [];
+  const validMaxs: number[] = [];
 
-  if (!validPrices.length) {
+  for (const range of event.priceRanges) {
+    // Add valid min prices
+    if (range.min != null && !isNaN(range.min)) {
+      validMins.push(range.min);
+    }
+
+    // Add valid max prices
+    if (range.max != null && !isNaN(range.max)) {
+      validMaxs.push(range.max);
+    }
+  }
+
+  // If no valid prices found at all
+  if (validMins.length === 0 && validMaxs.length === 0) {
     return { priceMin: undefined, priceMax: undefined, isFree: false };
   }
 
-  const priceMin = Math.min(...validPrices.map(p => p.min));
-  const priceMax = Math.max(...validPrices.map(p => p.max));
+  const priceMin = validMins.length > 0 ? Math.min(...validMins) : undefined;
+  const priceMax = validMaxs.length > 0 ? Math.max(...validMaxs) : undefined;
   const isFree = priceMin === 0;
 
   return {
-    priceMin: priceMin > 0 ? Math.round(priceMin) : undefined,
-    priceMax: priceMax > 0 ? Math.round(priceMax) : undefined,
+    priceMin: priceMin !== undefined && priceMin > 0 ? Math.round(priceMin) : undefined,
+    priceMax: priceMax !== undefined && priceMax > 0 ? Math.round(priceMax) : undefined,
     isFree,
   };
 }
-
 /**
  * Parse Ticketmaster date with optional time
  */

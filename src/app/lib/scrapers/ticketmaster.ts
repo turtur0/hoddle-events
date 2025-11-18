@@ -109,7 +109,7 @@ export async function fetchAllTicketmasterEvents(): Promise<TicketmasterEvent[]>
     let hasMore = true;
     let totalRawEventsFetched = 0;
     let duplicatesSkipped = 0;
-    const MAX_PAGES = 1;
+    const MAX_PAGES = 10;
 
     console.log('Fetching unique Ticketmaster events...\n');
 

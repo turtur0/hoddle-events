@@ -1,161 +1,281 @@
-import { TicketmasterEvent } from '@/app/lib/types';
-import { mockDuplicateEvents } from '../mocks/ticketmaster.mocks';
+import { findDuplicates, normaliseVenue, tokenizeTitle, calculateSimilarity, createFingerprint } from '@/app/lib/utils/deduplication';
 
-/**
- * Extract the deduplication functions from ticketmaster.ts for testing
- * (In production, you might want to export these from the scraper file)
- */
-function createEventKey(event: TicketmasterEvent): string {
-  const venueName = event._embedded?.venues?.[0]?.name || 'unknown-venue';
-  const normalizedName = event.name
-    .toLowerCase()
-    .replace(/[^\w\s]/g, '')
-    .trim()
-    .replace(/\s+/g, '-');
-  
-  return `${normalizedName}::${venueName}`;
-}
+describe('Deduplication Algorithm', () => {
+    describe('normaliseVenue', () => {
+        test('removes common prefixes and suffixes', () => {
+            expect(normaliseVenue('The Corner Hotel')).toBe('corner');
+            expect(normaliseVenue('Corner Hotel')).toBe('corner');
+            expect(normaliseVenue('The Corner')).toBe('corner');
+        });
 
-describe('Event Deduplication', () => {
-  describe('Event Key Generation', () => {
-    it('should create consistent keys for same event', () => {
-      const [event1, event2] = mockDuplicateEvents;
-      
-      const key1 = createEventKey(event1);
-      const key2 = createEventKey(event2);
-      
-      expect(key1).toBe(key2);
-      expect(key1).toBe('hair-the-musical::Comedy Theatre');
+        test('handles different casings', () => {
+            expect(normaliseVenue('THE CORNER HOTEL')).toBe('corner');
+            expect(normaliseVenue('The Corner Hotel')).toBe('corner');
+        });
     });
 
-    it('should normalize case and special characters', () => {
-      const event1: TicketmasterEvent = {
-        id: 'TEST1',
-        name: 'HAMILTON: The Musical!!!',
-        url: 'https://test.com',
-        dates: { start: { localDate: '2025-12-01' } },
-        _embedded: { venues: [{ name: 'Princess Theatre', city: { name: 'Melbourne' } }] },
-      };
-
-      const event2: TicketmasterEvent = {
-        id: 'TEST2',
-        name: 'Hamilton the Musical',
-        url: 'https://test.com',
-        dates: { start: { localDate: '2025-12-02' } },
-        _embedded: { venues: [{ name: 'Princess Theatre', city: { name: 'Melbourne' } }] },
-      };
-
-      expect(createEventKey(event1)).toBe(createEventKey(event2));
+    describe('tokenizeTitle', () => {
+        test('removes stop words', () => {
+            const tokens = tokenizeTitle('The Rolling Stones Live in Concert');
+            expect(tokens.has('rolling')).toBe(true);
+            expect(tokens.has('stones')).toBe(true);
+            expect(tokens.has('concert')).toBe(true);
+            expect(tokens.has('the')).toBe(false);
+            expect(tokens.has('in')).toBe(false);
+        });
     });
 
-    it('should create different keys for different venues', () => {
-      const event1: TicketmasterEvent = {
-        id: 'TEST1',
-        name: 'Test Show',
-        url: 'https://test.com',
-        dates: { start: { localDate: '2025-12-01' } },
-        _embedded: { venues: [{ name: 'Venue A', city: { name: 'Melbourne' } }] },
-      };
+    describe('findDuplicates - Real World Scenarios', () => {
+        test('detects very similar titles with minor differences', () => {
+            const events = [
+                {
+                    _id: '1',
+                    title: 'The Rolling Stones Live in Concert',
+                    startDate: new Date('2025-12-01T19:00:00'),
+                    venue: { name: 'Rod Laver Arena', address: '123 St', suburb: 'Melbourne' },
+                    source: 'ticketmaster' as const,
+                    sourceId: 'tm-001',
+                },
+                {
+                    _id: '2',
+                    title: 'Rolling Stones Live Concert',
+                    startDate: new Date('2025-12-01T19:00:00'),
+                    venue: { name: 'Rod Laver Arena', address: '456 St', suburb: 'Melbourne' },
+                    source: 'eventbrite' as const,
+                    sourceId: 'eb-001',
+                },
+            ];
 
-      const event2: TicketmasterEvent = {
-        id: 'TEST2',
-        name: 'Test Show',
-        url: 'https://test.com',
-        dates: { start: { localDate: '2025-12-01' } },
-        _embedded: { venues: [{ name: 'Venue B', city: { name: 'Melbourne' } }] },
-      };
+            const duplicates = findDuplicates(events);
+            expect(duplicates.length).toBe(1);
+            expect(duplicates[0].confidence).toBeGreaterThan(0.85);
+        });
 
-      expect(createEventKey(event1)).not.toBe(createEventKey(event2));
+        test('detects duplicates with different word order', () => {
+            const events = [
+                {
+                    _id: '1',
+                    title: 'Melbourne Comedy Festival Gala',
+                    startDate: new Date('2025-12-01T19:00:00'),
+                    venue: { name: 'Forum Theatre', address: '123 St', suburb: 'Melbourne' },
+                    source: 'ticketmaster' as const,
+                    sourceId: 'tm-001',
+                },
+                {
+                    _id: '2',
+                    title: 'Comedy Festival Melbourne Gala',
+                    startDate: new Date('2025-12-01T19:00:00'),
+                    venue: { name: 'Forum Theatre', address: '456 St', suburb: 'Melbourne' },
+                    source: 'eventbrite' as const,
+                    sourceId: 'eb-001',
+                },
+            ];
+
+            const duplicates = findDuplicates(events);
+            expect(duplicates.length).toBe(1);
+            expect(duplicates[0].confidence).toBeGreaterThan(0.75);
+        });
+
+        test('handles moderate title differences correctly', () => {
+            const events = [
+                {
+                    _id: '1',
+                    title: 'Rock Music Festival',
+                    startDate: new Date('2025-12-01T19:00:00'),
+                    venue: { name: 'Rod Laver Arena', address: '123 St', suburb: 'Melbourne' },
+                    source: 'ticketmaster' as const,
+                    sourceId: 'tm-001',
+                },
+                {
+                    _id: '2',
+                    title: 'Rock Festival',
+                    startDate: new Date('2025-12-01T19:00:00'),
+                    venue: { name: 'Rod Laver Arena', address: '456 St', suburb: 'Melbourne' },
+                    source: 'eventbrite' as const,
+                    sourceId: 'eb-001',
+                },
+            ];
+
+            const duplicates = findDuplicates(events);
+            expect(duplicates.length).toBe(1);
+            // This is a medium confidence match (70-80%)
+            expect(duplicates[0].confidence).toBeGreaterThan(0.7);
+            expect(duplicates[0].confidence).toBeLessThan(0.85);
+            expect(duplicates[0].shouldMerge).toBe(true);
+        });
+
+        test('correctly identifies non-duplicates at same venue', () => {
+            const events = [
+                {
+                    _id: '1',
+                    title: 'Classical Music Concert',
+                    startDate: new Date('2025-12-01T19:00:00'),
+                    venue: { name: 'Rod Laver Arena', address: '123 St', suburb: 'Melbourne' },
+                    source: 'ticketmaster' as const,
+                    sourceId: 'tm-001',
+                },
+                {
+                    _id: '2',
+                    title: 'Heavy Metal Festival',
+                    startDate: new Date('2025-12-01T19:00:00'),
+                    venue: { name: 'Rod Laver Arena', address: '456 St', suburb: 'Melbourne' },
+                    source: 'eventbrite' as const,
+                    sourceId: 'eb-001',
+                },
+            ];
+
+            const duplicates = findDuplicates(events);
+            expect(duplicates.length).toBe(0);
+        });
+
+        test('handles special characters and punctuation', () => {
+            const events = [
+                {
+                    _id: '1',
+                    title: "The Blues Brothers' Tribute Show",
+                    startDate: new Date('2025-12-01T19:00:00'),
+                    venue: { name: 'Corner Hotel', address: '123 St', suburb: 'Melbourne' },
+                    source: 'ticketmaster' as const,
+                    sourceId: 'tm-001',
+                },
+                {
+                    _id: '2',
+                    title: 'Blues Brothers Tribute Show',
+                    startDate: new Date('2025-12-01T19:00:00'),
+                    venue: { name: 'The Corner Hotel', address: '456 St', suburb: 'Melbourne' },
+                    source: 'eventbrite' as const,
+                    sourceId: 'eb-001',
+                },
+            ];
+
+            const duplicates = findDuplicates(events);
+            expect(duplicates.length).toBe(1);
+            expect(duplicates[0].confidence).toBeGreaterThan(0.85);
+        });
+
+        test('respects time window for duplicates', () => {
+            const events = [
+                {
+                    _id: '1',
+                    title: 'Rock Concert',
+                    startDate: new Date('2025-12-01T19:00:00'),
+                    venue: { name: 'Rod Laver Arena', address: '123 St', suburb: 'Melbourne' },
+                    source: 'ticketmaster' as const,
+                    sourceId: 'tm-001',
+                },
+                {
+                    _id: '2',
+                    title: 'Rock Concert',
+                    startDate: new Date('2025-12-01T22:00:00'), // 3 hours later (within 4-hour window)
+                    venue: { name: 'Rod Laver Arena', address: '456 St', suburb: 'Melbourne' },
+                    source: 'eventbrite' as const,
+                    sourceId: 'eb-001',
+                },
+                {
+                    _id: '3',
+                    title: 'Rock Concert',
+                    startDate: new Date('2025-12-02T02:00:00'), // 7 hours later (outside 4-hour window from event 1, but within window from event 2)
+                    venue: { name: 'Rod Laver Arena', address: '789 St', suburb: 'Melbourne' },
+                    source: 'artscentre' as const,
+                    sourceId: 'ac-001',
+                },
+            ];
+
+            const duplicates = findDuplicates(events);
+
+            // Event 1 and 2 are within window (3 hours apart)
+            // Event 2 and 3 are within window (4 hours apart)
+            // Event 1 and 3 are NOT within window (7 hours apart)
+            // So we should get 2 duplicate pairs
+            expect(duplicates.length).toBe(2);
+
+            // Verify the pairs
+            const hasPair12 = duplicates.some(
+                d => (d.event1Id === '1' && d.event2Id === '2') || (d.event1Id === '2' && d.event2Id === '1')
+            );
+            const hasPair23 = duplicates.some(
+                d => (d.event1Id === '2' && d.event2Id === '3') || (d.event1Id === '3' && d.event2Id === '2')
+            );
+            const hasPair13 = duplicates.some(
+                d => (d.event1Id === '1' && d.event2Id === '3') || (d.event1Id === '3' && d.event2Id === '1')
+            );
+
+            expect(hasPair12).toBe(true);
+            expect(hasPair23).toBe(true);
+            expect(hasPair13).toBe(false); // Should NOT find this pair (7 hours apart)
+        });
+
+        test('does not compare events from same source', () => {
+            const events = [
+                {
+                    _id: '1',
+                    title: 'Rock Concert',
+                    startDate: new Date('2025-12-01T19:00:00'),
+                    venue: { name: 'Rod Laver Arena', address: '123 St', suburb: 'Melbourne' },
+                    source: 'ticketmaster' as const,
+                    sourceId: 'tm-001',
+                },
+                {
+                    _id: '2',
+                    title: 'Rock Concert',
+                    startDate: new Date('2025-12-01T19:00:00'),
+                    venue: { name: 'Rod Laver Arena', address: '456 St', suburb: 'Melbourne' },
+                    source: 'ticketmaster' as const, // Same source
+                    sourceId: 'tm-002',
+                },
+            ];
+
+            const duplicates = findDuplicates(events);
+            expect(duplicates.length).toBe(0); // Should not detect as duplicate
+        });
     });
 
-    it('should handle events with no venue', () => {
-      const event: TicketmasterEvent = {
-        id: 'TEST',
-        name: 'Online Event',
-        url: 'https://test.com',
-        dates: { start: { localDate: '2025-12-01' } },
-      };
+    describe('Confidence Levels', () => {
+        test('categorizes duplicates by confidence level', () => {
+            const events = [
+                // High confidence (exact match)
+                {
+                    _id: '1',
+                    title: 'Taylor Swift Concert',
+                    startDate: new Date('2025-12-01T19:00:00'),
+                    venue: { name: 'MCG', address: '123 St', suburb: 'Melbourne' },
+                    source: 'ticketmaster' as const,
+                    sourceId: 'tm-001',
+                },
+                {
+                    _id: '2',
+                    title: 'Taylor Swift Concert',
+                    startDate: new Date('2025-12-01T19:00:00'),
+                    venue: { name: 'MCG', address: '456 St', suburb: 'Melbourne' },
+                    source: 'eventbrite' as const,
+                    sourceId: 'eb-001',
+                },
+                // Medium confidence
+                {
+                    _id: '3',
+                    title: 'Ed Sheeran Live Tour',
+                    startDate: new Date('2025-12-15T19:00:00'),
+                    venue: { name: 'Rod Laver Arena', address: '123 St', suburb: 'Melbourne' },
+                    source: 'ticketmaster' as const,
+                    sourceId: 'tm-002',
+                },
+                {
+                    _id: '4',
+                    title: 'Ed Sheeran Tour',
+                    startDate: new Date('2025-12-15T19:00:00'),
+                    venue: { name: 'Rod Laver Arena', address: '456 St', suburb: 'Melbourne' },
+                    source: 'eventbrite' as const,
+                    sourceId: 'eb-002',
+                },
+            ];
 
-      const key = createEventKey(event);
-      expect(key).toBe('online-event::unknown-venue');
+            const duplicates = findDuplicates(events);
+
+            const highConfidence = duplicates.filter(d => d.confidence >= 0.9);
+            const mediumConfidence = duplicates.filter(d => d.confidence >= 0.8 && d.confidence < 0.9);
+
+            expect(highConfidence.length).toBeGreaterThan(0);
+            expect(duplicates.every(d => d.shouldMerge)).toBe(true);
+        });
     });
-
-    it('should handle extra whitespace', () => {
-      const event: TicketmasterEvent = {
-        id: 'TEST',
-        name: '  Too   Many    Spaces  ',
-        url: 'https://test.com',
-        dates: { start: { localDate: '2025-12-01' } },
-        _embedded: { venues: [{ name: 'Test Venue', city: { name: 'Melbourne' } }] },
-      };
-
-      const key = createEventKey(event);
-      expect(key).toBe('too-many-spaces::Test Venue');
-    });
-  });
-
-  describe('Date Merging Logic', () => {
-    it('should identify events with different dates as duplicates', () => {
-      const [event1, event2] = mockDuplicateEvents;
-      
-      // These should be considered duplicates despite different dates
-      expect(createEventKey(event1)).toBe(createEventKey(event2));
-      
-      // Verify they have different dates
-      expect(event1.dates.start.localDate).not.toBe(event2.dates.start.localDate);
-    });
-
-    it('should track both start and end dates', () => {
-      const event1 = mockDuplicateEvents[0];
-      const event2 = mockDuplicateEvents[1];
-
-      // In a real implementation, you'd merge these
-      // This test documents the expected behavior
-      expect(event1.dates.start.localDate).toBe('2025-12-10');
-      expect(event2.dates.start.localDate).toBe('2025-12-11');
-    });
-  });
-
-  describe('Real-World Edge Cases', () => {
-    it('should handle events with emoji and unicode', () => {
-      const event: TicketmasterEvent = {
-        id: 'TEST',
-        name: '🎵 Music Festival 2025 🎸',
-        url: 'https://test.com',
-        dates: { start: { localDate: '2025-12-01' } },
-        _embedded: { venues: [{ name: 'Test Venue', city: { name: 'Melbourne' } }] },
-      };
-
-      const key = createEventKey(event);
-      expect(key).toMatch(/music-festival-2025/);
-    });
-
-    it('should handle events with numbers and dates in title', () => {
-      const event: TicketmasterEvent = {
-        id: 'TEST',
-        name: 'NYE 2025/26 Celebration',
-        url: 'https://test.com',
-        dates: { start: { localDate: '2025-12-31' } },
-        _embedded: { venues: [{ name: 'Fed Square', city: { name: 'Melbourne' } }] },
-      };
-
-      const key = createEventKey(event);
-      expect(key).toBe('nye-202526-celebration::Fed Square');
-    });
-
-    it('should handle very long event names', () => {
-      const longName = 'The Absolutely Most Amazing Spectacular Show of the Century That You Have Ever Seen in Your Entire Life';
-      const event: TicketmasterEvent = {
-        id: 'TEST',
-        name: longName,
-        url: 'https://test.com',
-        dates: { start: { localDate: '2025-12-01' } },
-        _embedded: { venues: [{ name: 'Small Venue', city: { name: 'Melbourne' } }] },
-      };
-
-      const key = createEventKey(event);
-      expect(key.length).toBeGreaterThan(0);
-      expect(key).toContain('::Small Venue');
-    });
-  });
 });
