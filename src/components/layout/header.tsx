@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Calendar, Search } from "lucide-react";
-import { ThemeToggle } from "./theme-toggle";
-import { Button } from "./ui/button";
+import { ThemeToggle } from "../theme/theme-toggle";
+import { Button } from "../ui/button";
 
 export function Header() {
   return (

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Calendar, MapPin, DollarSign, ExternalLink, ArrowLeft } from "lucide-react";
 import { connectDB } from "@/app/lib/db";
 import Event from "@/app/lib/models/Event";
-import { Header } from "@/components/header";
+import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";

@@ -1,9 +1,9 @@
-import { EventCard } from "@/components/event-card";
-import { EventCardSkeleton } from "@/components/event-card-skeleton";
-import { EmptyState } from "@/components/empty-state";
-import { Pagination } from "@/components/pagination";
-import { SearchBar } from "@/components/search-bar";
-import { EventFilters } from "@/components/event-filters";
+import { EventCard } from "@/components/events/event-card";
+import { EventCardSkeleton } from "@/components/events/event-card-skeleton";
+import { EmptyState } from "@/components/other/empty-state";
+import { Pagination } from "@/components/other/pagination";
+import { SearchBar } from "@/components/search/search-bar";
+import { EventFilters } from "@/components/events/event-filters";
 import { Suspense } from "react";
 import { SerializedEvent } from "./lib/models/Event";
 

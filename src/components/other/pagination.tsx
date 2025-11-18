@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Button } from './ui/button';
+import { Button } from '../ui/button';
 
 interface PaginationProps {
     currentPage: number;

@@ -1,9 +1,9 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Calendar, MapPin, DollarSign } from "lucide-react";
-import { Card, CardContent, CardFooter } from "./ui/card";
-import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
+import { Card, CardContent, CardFooter } from "../ui/card";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
 import { SerializedEvent } from "@/app/lib/models/Event";
 import { format, isSameDay, isSameMonth } from "date-fns";
 import { getCategoryLabel } from "@/app/lib/categories";

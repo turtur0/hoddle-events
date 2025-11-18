@@ -1,5 +1,5 @@
-import { Card, CardContent, CardFooter } from "./ui/card";
-import { Skeleton } from "./ui/skeleton";
+import { Card, CardContent, CardFooter } from "../ui/card";
+import { Skeleton } from "../ui/skeleton";
 
 export function EventCardSkeleton() {
   return (
