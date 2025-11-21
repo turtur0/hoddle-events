@@ -20,13 +20,10 @@ export interface NormalisedEvent {
   bookingUrl: string;
   imageUrl?: string;
 
-  source: 'ticketmaster' | 'artscentre';
+  source: 'ticketmaster' | 'artscentre' | 'marriner';
   sourceId: string;
   scrapedAt: Date;
   lastUpdated: Date;
-
-  scrapeMode?: 'react-page' | 'captcha-blocked' | 'sitemap-fallback';
-  fallback?: boolean;
 }
 
 // Ticketmaster API response types

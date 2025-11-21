@@ -22,7 +22,7 @@ export interface IEvent {
   bookingUrl: string;
   imageUrl?: string;
   
-  source: 'ticketmaster' | 'eventbrite' | 'artscentre';
+  source: 'ticketmaster' | 'marriner' | 'artscentre';
   sourceId: string;
   
   scrapedAt: Date;

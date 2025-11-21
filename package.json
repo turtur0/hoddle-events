@@ -12,8 +12,8 @@
     "test:coverage": "jest --coverage",
     "scrape": "tsx scripts/scrape-all.ts",
     "scrape:ticketmaster": "tsx scripts/scrape-ticketmaster.ts",
-    "scrape:artscentre": "tsx scripts/scrape-artscentre.ts --test",
-    "debug": "tsx scripts/debug-sitemap.ts https://marrinergroup.com.au/shows"
+    "scrape:marriner": "tsx scripts/scrape-marriner.ts",
+    "debug": "tsx scripts/diagnostic-marriner.ts"
   },
   "dependencies": {
     "@radix-ui/react-dropdown-menu": "^2.1.16",

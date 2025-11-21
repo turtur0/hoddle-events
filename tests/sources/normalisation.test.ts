@@ -1,4 +1,4 @@
-import { normaliseTicketmasterEvent } from '@/app/lib/utils/normaliseTicketmaster';
+import { normaliseTicketmasterEvent } from '@/app/lib/scrapers';
 import {
   mockTicketmasterEvent,
   mockFreeEvent,

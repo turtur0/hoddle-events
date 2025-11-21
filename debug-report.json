@@ -1,0 +1,339 @@
+{
+  "url": "https://marrinergroup.com.au/shows",
+  "timestamp": "2025-11-21T02:47:21.009Z",
+  "pageTitle": "Shows & Tickets | Marriner Group",
+  "showSummary": {
+    "totalShowLinks": 24,
+    "totalImages": 2,
+    "totalTimeElements": 0,
+    "totalPriceElements": 0
+  },
+  "selectorAnalysis": {
+    "showContainers": [
+      {
+        "selector": "a[href*=\"/shows/\"]",
+        "matchCount": 24,
+        "samples": [
+          "Text: \"\" | HTML: \"...\"",
+          "Text: \"Tickets\" | HTML: \"Tickets...\"",
+          "Text: \"More Info\" | HTML: \"More Info...\""
+        ]
+      },
+      {
+        "selector": "[class*=\"show\"]",
+        "matchCount": 10,
+        "samples": [
+          "Text: \"Shows & Tickets\n\n\t\t\t\t\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\n\t\t\t\t\t\t\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\n\t\t\t\t\tWhat's On\n\n\t\t\t\t\t\n\t\t\t\t\t\n\" | HTML: \"\n\t\t\t\t\t\t<a href=\"https://marrinergroup.com.au/shows\" class=\"has-child\">Shows &amp; Tickets</a>\n\n\t\t\t\t\t\t\t\t\t\t\t\t\t<button><i class=\"icon\"></i></button>\n\t\t\t\t...\"",
+          "Text: \"Opera Australia: Carmen\n\n\t\t\t\n\t\t\t\tRegent Theatre\n\t\t\t\t15 Nov 2025 — 25 Nov 2025\n\t\t\t\n\n\t\t\t\n\t\t\t\t\t\t\t\t\tTick\" | HTML: \"\n\t\t\t<div class=\"show\">\n\t\t\n\t\t<a href=\"https://marrinergroup.com.au/shows/opera-australia-carmen\" title=\"Opera Australia: Carmen at Regent Theatre\" clas...\"",
+          "Text: \"Opera Australia: Carmen\n\n\t\t\t\n\t\t\t\tRegent Theatre\n\t\t\t\t15 Nov 2025 — 25 Nov 2025\n\t\t\t\n\n\t\t\t\n\t\t\t\t\t\t\t\t\tTick\" | HTML: \"\n\t\t\n\t\t<a href=\"https://marrinergroup.com.au/shows/opera-australia-carmen\" title=\"Opera Australia: Carmen at Regent Theatre\" class=\"image\" style=\"backg...\""
+        ]
+      },
+      {
+        "selector": "[class*=\"event\"]",
+        "matchCount": 1,
+        "samples": [
+          "Text: \"Event Venues\n\n\t\t\t\t\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\n\t\t\t\t\t\t\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\n\t\t\t\t\tPlaza Ballroom\n\n\t\t\t\t\t\n\t\t\t\t\" | HTML: \"\n\t\t\t\t\t\t<a href=\"https://marrinergroup.com.au/events\" class=\"has-child\">Event Venues</a>\n\n\t\t\t\t\t\t\t\t\t\t\t\t\t<button><i class=\"icon\"></i></button>\n\t\t\t\t\t\t\n\t\t\t...\""
+        ]
+      },
+      {
+        "selector": "[class*=\"card\"]",
+        "matchCount": 0,
+        "samples": []
+      },
+      {
+        "selector": "article",
+        "matchCount": 0,
+        "samples": []
+      }
+    ],
+    "titles": [
+      {
+        "selector": "h1",
+        "matchCount": 1,
+        "samples": [
+          "Text: \"Shows & Tickets\" | HTML: \"Shows &amp; Tickets...\""
+        ]
+      },
+      {
+        "selector": "h2",
+        "matchCount": 0,
+        "samples": []
+      },
+      {
+        "selector": "h3",
+        "matchCount": 1,
+        "samples": [
+          "Text: \"Be among the first to hear about new shows announcing and get priority access to tickets and special\" | HTML: \"Be among the first to hear about new shows announcing and get priority access to tickets and special offers when you subscribe to Marriner Group....\""
+        ]
+      },
+      {
+        "selector": "h4",
+        "matchCount": 8,
+        "samples": [
+          "Text: \"Opera Australia: Carmen\" | HTML: \"Opera Australia: Carmen...\"",
+          "Text: \"Kokoroko\" | HTML: \"Kokoroko...\"",
+          "Text: \"Sharon Van Etten & The Attachment Theory\" | HTML: \"Sharon Van Etten &amp; The Attachment Theory...\""
+        ]
+      },
+      {
+        "selector": "[class*=\"title\"]",
+        "matchCount": 8,
+        "samples": [
+          "Text: \"Opera Australia: Carmen\" | HTML: \"Opera Australia: Carmen...\"",
+          "Text: \"Kokoroko\" | HTML: \"Kokoroko...\"",
+          "Text: \"Sharon Van Etten & The Attachment Theory\" | HTML: \"Sharon Van Etten &amp; The Attachment Theory...\""
+        ]
+      },
+      {
+        "selector": "[class*=\"heading\"]",
+        "matchCount": 0,
+        "samples": []
+      },
+      {
+        "selector": ".name",
+        "matchCount": 0,
+        "samples": []
+      }
+    ],
+    "venues": [
+      {
+        "selector": "[class*=\"venue\"]",
+        "matchCount": 0,
+        "samples": []
+      },
+      {
+        "selector": "[data-venue]",
+        "matchCount": 0,
+        "samples": []
+      },
+      {
+        "selector": ".venue",
+        "matchCount": 0,
+        "samples": []
+      },
+      {
+        "selector": ".location",
+        "matchCount": 8,
+        "samples": [
+          "Text: \"Regent Theatre\" | HTML: \"Regent Theatre...\"",
+          "Text: \"Forum Melbourne\" | HTML: \"Forum Melbourne...\"",
+          "Text: \"Forum Melbourne\" | HTML: \"Forum Melbourne...\""
+        ]
+      },
+      {
+        "selector": "[class*=\"location\"]",
+        "matchCount": 8,
+        "samples": [
+          "Text: \"Regent Theatre\" | HTML: \"Regent Theatre...\"",
+          "Text: \"Forum Melbourne\" | HTML: \"Forum Melbourne...\"",
+          "Text: \"Forum Melbourne\" | HTML: \"Forum Melbourne...\""
+        ]
+      }
+    ],
+    "dates": [
+      {
+        "selector": "time",
+        "matchCount": 0,
+        "samples": []
+      },
+      {
+        "selector": "[class*=\"date\"]",
+        "matchCount": 9,
+        "samples": [
+          "Text: \"\" | HTML: \"\n\t\t\t\t\t<input id=\"dateFrom\" placeholder=\"From\" class=\"flatpickr\" name=\"dateFrom\" type=\"text\" value=\"2025-11-21\">\n\t\t\t\t\t<input id=\"dateTo\" placeholder=\"T...\"",
+          "Text: \"15 Nov 2025 — 25 Nov 2025\" | HTML: \"15 Nov 2025 — 25 Nov 2025...\"",
+          "Text: \"21 Nov 2025\" | HTML: \"21 Nov 2025...\""
+        ]
+      },
+      {
+        "selector": "[data-date]",
+        "matchCount": 0,
+        "samples": []
+      },
+      {
+        "selector": ".date",
+        "matchCount": 8,
+        "samples": [
+          "Text: \"15 Nov 2025 — 25 Nov 2025\" | HTML: \"15 Nov 2025 — 25 Nov 2025...\"",
+          "Text: \"21 Nov 2025\" | HTML: \"21 Nov 2025...\"",
+          "Text: \"22 Nov 2025\" | HTML: \"22 Nov 2025...\""
+        ]
+      }
+    ],
+    "prices": [
+      {
+        "selector": "[class*=\"price\"]",
+        "matchCount": 0,
+        "samples": []
+      },
+      {
+        "selector": "[class*=\"ticket\"]",
+        "matchCount": 9,
+        "samples": [
+          "Text: \"Tickets\" | HTML: \"Tickets...\"",
+          "Text: \"Tickets\" | HTML: \"Tickets...\""
+        ]
+      },
+      {
+        "selector": ".price",
+        "matchCount": 0,
+        "samples": []
+      },
+      {
+        "selector": ":contains(\"$\")",
+        "matchCount": 3,
+        "samples": [
+          "Text: \"Shows & Tickets | Marriner Group\n\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\t\n\n\t\n\t\n\t\n\t\twindow.dataLayer = wi\" | HTML: \"<head>\n\t<title>Shows &amp; Tickets | Marriner Group</title>\n\n\t<meta charset=\"utf8\">\n\t<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n\t<meta name...\"",
+          "Text: \"Shows & Tickets\n\n\t\t\t\t\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\n\t\t\t\t\t\t\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\n\t\t\t\t\tWhat's On\n\n\t\t\t\t\t\n\t\t\t\t\t\n\" | HTML: \"\n\t\t<header>\n\t<div class=\"container\">\n\t\t<div class=\"row\">\n\t\t\t<a href=\"https://marrinergroup.com.au\" title=\"Marriner Group\" class=\"logo\"><img src=\"https...\""
+        ]
+      }
+    ],
+    "images": [
+      {
+        "selector": "img[src*=\"show\"]",
+        "matchCount": 0,
+        "samples": []
+      },
+      {
+        "selector": "img[src*=\"event\"]",
+        "matchCount": 0,
+        "samples": []
+      },
+      {
+        "selector": "[class*=\"hero\"] img",
+        "matchCount": 0,
+        "samples": []
+      },
+      {
+        "selector": "img",
+        "matchCount": 2,
+        "samples": [
+          "Text: \"\" | HTML: \"...\"",
+          "Text: \"\" | HTML: \"...\""
+        ]
+      }
+    ]
+  },
+  "sampleElements": {
+    "showContainers": [
+      {
+        "tagName": "li",
+        "classes": [
+          "has-child",
+          "shows"
+        ],
+        "attributes": {
+          "href": "",
+          "src": "",
+          "data-*": ""
+        },
+        "text": "Shows & Tickets\n\n\t\t\t\t\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\n\t\t\t\t\t\t\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\n\t\t\t\t\tWha",
+        "html": "\n\t\t\t\t\t\t<a href=\"https://marrinergroup.com.au/shows\" class=\"has-child\">Shows &amp; Tickets</a>\n\n\t\t\t\t\t\t\t\t\t\t\t\t\t<button><i class=\"icon\"></i></button>\n\t\t\t\t"
+      },
+      {
+        "tagName": "div",
+        "classes": [
+          "shows-grid"
+        ],
+        "attributes": {
+          "href": "",
+          "src": "",
+          "data-*": ""
+        },
+        "text": "Opera Australia: Carmen\n\n\t\t\t\n\t\t\t\tRegent Theatre\n\t\t\t\t15 Nov 2025 — 25 Nov 2025\n\t\t",
+        "html": "\n\t\t\t<div class=\"show\">\n\t\t\n\t\t<a href=\"https://marrinergroup.com.au/shows/opera-australia-carmen\" title=\"Opera Australia: Carmen at Regent Theatre\" clas"
+      }
+    ],
+    "titles": [
+      {
+        "tagName": "h4",
+        "classes": [
+          "title"
+        ],
+        "attributes": {
+          "href": "",
+          "src": "",
+          "data-*": ""
+        },
+        "text": "Opera Australia: Carmen",
+        "html": "Opera Australia: Carmen"
+      },
+      {
+        "tagName": "h4",
+        "classes": [
+          "title"
+        ],
+        "attributes": {
+          "href": "",
+          "src": "",
+          "data-*": ""
+        },
+        "text": "Kokoroko",
+        "html": "Kokoroko"
+      }
+    ],
+    "venues": [],
+    "dates": [
+      {
+        "tagName": "div",
+        "classes": [
+          "dates"
+        ],
+        "attributes": {
+          "href": "",
+          "src": "",
+          "data-*": ""
+        },
+        "text": "",
+        "html": "\n\t\t\t\t\t<input id=\"dateFrom\" placeholder=\"From\" class=\"flatpickr\" name=\"dateFrom\" type=\"text\" value=\"2025-11-21\">\n\t\t\t\t\t<input id=\"dateTo\" placeholder=\"T"
+      },
+      {
+        "tagName": "p",
+        "classes": [
+          "date"
+        ],
+        "attributes": {
+          "href": "",
+          "src": "",
+          "data-*": ""
+        },
+        "text": "15 Nov 2025 — 25 Nov 2025",
+        "html": "15 Nov 2025 — 25 Nov 2025"
+      }
+    ],
+    "prices": [],
+    "images": [
+      {
+        "tagName": "img",
+        "classes": [],
+        "attributes": {
+          "href": "",
+          "src": "https://marrinergroup.com.au/img/logo.png",
+          "data-*": ""
+        },
+        "text": "",
+        "html": ""
+      },
+      {
+        "tagName": "img",
+        "classes": [],
+        "attributes": {
+          "href": "",
+          "src": "https://marrinergroup.com.au/img/logo.png",
+          "data-*": ""
+        },
+        "text": "",
+        "html": ""
+      }
+    ]
+  },
+  "domTree": "undefined\n  html\n    head\n      title\n      meta\n      meta\n      meta\n      meta\n      ... and more\n    body #shows\n      header\n        div.container\n      section.page-header\n        h1\n      main\n        div.container\n        div.shows-grid\n        div.loading\n      div #subscribe\n        div.description\n      footer.footer\n        div.container\n      ... and more\n",
+  "recommendations": [
+    "",
+    "--- NEXT STEPS ---",
+    "1. Review \"sampleElements\" section for actual extracted content",
+    "2. Test selectors in browser console with: $('.your-selector')",
+    "3. Look for patterns in class names and data attributes",
+    "4. Check if content is dynamically loaded with JavaScript"
+  ]
+}

@@ -1,4 +1,4 @@
-import { TicketmasterEvent } from '@/app/lib/types';
+import { TicketmasterEvent } from '@/app/lib/scrapers';
 
 describe('Ticketmaster Scraper', () => {
   describe('Environment Configuration', () => {
