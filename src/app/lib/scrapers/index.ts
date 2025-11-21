@@ -7,7 +7,7 @@ export { scrapeMarrinerGroup } from './marriner';
 export * from './types';
 
 interface ScrapeAllOptions {
-  sources?: ('ticketmaster' | 'marriner' | 'artscentre')[];
+  sources?: ('ticketmaster' | 'marriner')[];
   verbose?: boolean;
   marrinerOptions?: {
     maxShows?: number;
@@ -33,19 +33,29 @@ export async function scrapeAll(options?: ScrapeAllOptions): Promise<{
     console.log(`   Sources: ${sources.join(', ')}\n`);
   }
 
-  // Scrape Ticketmaster
+  // Scrape sources in parallel for speed
+  const scrapePromises: Promise<ScrapeResult>[] = [];
+
   if (sources.includes('ticketmaster')) {
-    const result = await scrapeTicketmaster(verbose);
-    results.push(result);
-    allEvents.push(...result.events);
+    scrapePromises.push(scrapeTicketmaster(verbose));
   }
 
-  // Scrape Marriner Group
   if (sources.includes('marriner')) {
-    const result = await scrapeMarriner(verbose, options?.marrinerOptions);
-    results.push(result);
-    allEvents.push(...result.events);
+    scrapePromises.push(scrapeMarriner(verbose, options?.marrinerOptions));
   }
+
+  // Wait for all scrapers to complete
+  const completedResults = await Promise.allSettled(scrapePromises);
+
+  // Process results
+  completedResults.forEach((result) => {
+    if (result.status === 'fulfilled') {
+      results.push(result.value);
+      allEvents.push(...result.value.events);
+    } else {
+      console.error('   ❌ Scraper failed:', result.reason);
+    }
+  });
 
   if (verbose) {
     console.log('\n📊 Scrape Summary:');
@@ -78,6 +88,7 @@ async function scrapeTicketmaster(verbose: boolean): Promise<ScrapeResult> {
         normalised++;
       } catch (e) {
         errors++;
+        if (verbose) console.error(`   ⚠️  Failed to normalise event: ${raw.name}`);
       }
     }
 
@@ -88,10 +99,10 @@ async function scrapeTicketmaster(verbose: boolean): Promise<ScrapeResult> {
       stats: { source: 'ticketmaster', fetched, normalised, errors, duration: Date.now() - start }
     };
   } catch (error) {
-    console.error('   ❌ Ticketmaster failed:', error);
+    if (verbose) console.error('   ❌ Ticketmaster failed:', error);
     return {
       events: [],
-      stats: { source: 'ticketmaster', fetched, normalised, errors: 1, duration: Date.now() - start }
+      stats: { source: 'ticketmaster', fetched, normalised, errors: errors + 1, duration: Date.now() - start }
     };
   }
 }
@@ -110,8 +121,8 @@ async function scrapeMarriner(
 
   try {
     const events = await scrapeMarrinerGroup({
-      maxShows: options?.maxShows || 50,
-      maxDetailFetches: options?.maxDetailFetches,
+      maxShows: options?.maxShows || 100,
+      maxDetailFetches: options?.maxDetailFetches || 100,
       usePuppeteer: options?.usePuppeteer ?? true,
     });
 
@@ -125,10 +136,10 @@ async function scrapeMarriner(
       stats: { source: 'marriner', fetched, normalised, errors, duration: Date.now() - start }
     };
   } catch (error) {
-    console.error('   ❌ Marriner failed:', error);
+    if (verbose) console.error('   ❌ Marriner failed:', error);
     return {
       events: [],
-      stats: { source: 'marriner', fetched, normalised, errors: 1, duration: Date.now() - start }
+      stats: { source: 'marriner', fetched, normalised, errors: errors + 1, duration: Date.now() - start }
     };
   }
 }
