@@ -1,107 +1,103 @@
+// =============================================
+// scripts/scrape-marriner.ts
+// =============================================
 import dotenv from 'dotenv';
 import path from 'path';
+
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
+import { connectDB, disconnectDB } from '@/app/lib/db';
 import { scrapeMarrinerGroup, ScrapeOptions } from '@/app/lib/scrapers/marriner';
+import Event from '@/app/lib/models/Event';
 
-const TEST_OPTIONS: ScrapeOptions = {
-    maxShows: 10,        // limit number of shows fetched
-    maxDetailFetches: 5, // limit detail page fetches
-    usePuppeteer: true,  // use Puppeteer for /shows lazy-load
+const SCRAPE_OPTIONS: ScrapeOptions = {
+  maxShows: 50,          // Fetch up to 50 shows
+  maxDetailFetches: 50,  // Fetch details for all shows
+  usePuppeteer: true,    // Use Puppeteer for lazy-loaded /shows page
 };
 
-(async () => {
-    console.log('🎭 Testing Marriner Hybrid Scraper\n');
-    console.log('📋 Test Options:', TEST_OPTIONS, '\n');
+async function scrapeMarriner() {
+  console.log('🎭 Marriner Group Scraper\n');
+  console.log('📋 Options:', SCRAPE_OPTIONS, '\n');
 
-    try {
-        const startTime = Date.now();
-        const events = await scrapeMarrinerGroup(TEST_OPTIONS);
-        const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+  try {
+    await connectDB();
 
-        console.log(`\n${'='.repeat(70)}`);
-        console.log(`✅ Scraping Complete in ${duration}s`);
-        console.log(`${'='.repeat(70)}\n`);
-        console.log(`📊 Summary: Found ${events.length} upcoming events\n`);
+    // Step 1: Scrape events
+    const startTime = Date.now();
+    const events = await scrapeMarrinerGroup(SCRAPE_OPTIONS);
+    const scrapeDuration = ((Date.now() - startTime) / 1000).toFixed(1);
 
-        if (!events.length) return console.log('⚠️  No events found.\n');
+    console.log(`\n✅ Scraped ${events.length} events in ${scrapeDuration}s\n`);
 
-        // Category breakdown
-        const categoryCount: Record<string, number> = {};
-        events.forEach(event => {
-            const key = event.subcategory
-                ? `${event.category}/${event.subcategory}`
-                : event.category;
-            categoryCount[key] = (categoryCount[key] || 0) + 1;
-        });
-
-        console.log('📊 Category Breakdown:');
-        Object.entries(categoryCount).forEach(([cat, count]) => {
-            console.log(`   ${cat}: ${count}`);
-        });
-        console.log();
-
-        // Display events
-        events.forEach((event, i) => {
-            console.log(`${'─'.repeat(70)}`);
-            console.log(`EVENT ${i + 1}: ${event.title}`);
-
-            // Category & Subcategory
-            const categoryStr = event.subcategory
-                ? `${event.category} → ${event.subcategory}`
-                : event.category;
-            console.log(`🏷️  Category: ${categoryStr}`);
-
-            // Venue
-            console.log(`📍 Venue: ${event.venue.name}`);
-            console.log(`   Address: ${event.venue.address}, ${event.venue.suburb}`);
-
-            // Dates
-            const startStr = event.startDate.toLocaleDateString('en-AU', {
-                weekday: 'short',
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric'
-            });
-            console.log(`📅 Start: ${startStr}`);
-
-            if (event.endDate) {
-                const endStr = event.endDate.toLocaleDateString('en-AU', {
-                    weekday: 'short',
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric'
-                });
-                console.log(`   End:   ${endStr}`);
-
-                // Calculate duration
-                const duration = Math.ceil(
-                    (event.endDate.getTime() - event.startDate.getTime()) / (1000 * 60 * 60 * 24)
-                );
-                console.log(`   Duration: ${duration} days`);
-            }
-
-            // Description
-            const desc = event.description?.substring(0, 100);
-            console.log(`📝 Description: ${desc}${desc && desc.length === 100 ? '...' : ''}`);
-
-            // Image
-            if (event.imageUrl) {
-                console.log(`🖼️  Image: ${event.imageUrl.substring(0, 60)}...`);
-            }
-
-            // Booking
-            console.log(`🔗 Booking: ${event.bookingUrl}`);
-
-            // Source info
-            console.log(`📌 Source: ${event.source} (ID: ${event.sourceId})`);
-            console.log(`   Scraped: ${event.scrapedAt.toLocaleString('en-AU')}`);
-        });
-
-        console.log(`\n${'─'.repeat(70)}\n`);
-
-    } catch (err) {
-        console.error('❌ Test failed:', err);
-        process.exit(1);
+    if (events.length === 0) {
+      console.log('⚠️  No events found. Exiting.\n');
+      return;
     }
-})();
+
+    // Step 2: Process events with deduplication
+    let inserted = 0, updated = 0, skipped = 0;
+
+    for (const event of events) {
+      try {
+        // Check if event already exists by source + sourceId
+        const existing = await Event.findOne({
+          source: 'marriner',
+          sourceId: event.sourceId,
+        });
+
+        if (existing) {
+          // Update existing event (allows missing info to be filled in)
+          const updateData = {
+            ...event,
+            lastUpdated: new Date(),
+            // Preserve existing data if new data is missing
+            description: event.description || existing.description,
+            imageUrl: event.imageUrl || existing.imageUrl,
+            priceMin: event.priceMin ?? existing.priceMin,
+            priceMax: event.priceMax ?? existing.priceMax,
+          };
+
+          await Event.updateOne(
+            { _id: existing._id },
+            { $set: updateData }
+          );
+          updated++;
+          console.log(`   ↻ Updated: ${event.title}`);
+        } else {
+          // Insert new event
+          await Event.create(event);
+          inserted++;
+          console.log(`   + Inserted: ${event.title}`);
+        }
+      } catch (error: any) {
+        // Handle duplicate key errors (should be rare with our check above)
+        if (error.code === 11000) {
+          skipped++;
+          console.log(`   ⊘ Skipped (duplicate): ${event.title}`);
+        } else {
+          console.error(`   ❌ Error processing "${event.title}":`, error.message);
+        }
+      }
+    }
+
+    // Step 3: Summary
+    console.log(`\n${'='.repeat(70)}`);
+    console.log('✅ Database Update Complete');
+    console.log(`${'='.repeat(70)}`);
+    console.log(`📊 Summary:`);
+    console.log(`   • Inserted: ${inserted} new events`);
+    console.log(`   • Updated:  ${updated} existing events`);
+    console.log(`   • Skipped:  ${skipped} duplicates`);
+    console.log(`   • Total:    ${events.length} events processed`);
+    console.log(`   • Duration: ${scrapeDuration}s\n`);
+
+  } catch (error) {
+    console.error('\n❌ Scraping failed:', error);
+    process.exit(1);
+  } finally {
+    await disconnectDB();
+  }
+}
+
+scrapeMarriner();

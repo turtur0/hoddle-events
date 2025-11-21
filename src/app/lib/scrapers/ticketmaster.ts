@@ -43,7 +43,7 @@ export async function fetchAllTicketmasterEvents(): Promise<TicketmasterEvent[]>
     const uniqueEventsMap = new Map<string, TicketmasterEvent>();
     let page = 0;
     let hasMore = true;
-    const MAX_PAGES = 5;
+    const MAX_PAGES = 10;
 
     console.log('   Fetching Ticketmaster events...');
 

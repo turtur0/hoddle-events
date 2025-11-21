@@ -26,6 +26,11 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'images.unsplash.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'admin.marrinergroup.com.au',
+        pathname: '/uploads/**',
+      },
     ],
   },
 };
