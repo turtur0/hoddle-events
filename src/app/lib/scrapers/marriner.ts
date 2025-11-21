@@ -1,6 +1,7 @@
 // ============================================
 // marriner.ts - Enhanced Marriner Group Scraper
 // Extracts full descriptions, videos, and booking info
+// Now properly handles duplicate shows and gets unique events
 // ============================================
 
 import { load, CheerioAPI } from 'cheerio';
@@ -32,17 +33,17 @@ export async function scrapeMarrinerGroup(opts: ScrapeOptions = {}): Promise<Nor
 
     // Get show URLs (Puppeteer for lazy loading)
     const urls = opts.usePuppeteer !== false ? await fetchShowUrls(opts.maxShows || 50) : [];
-    console.log(`   Found ${urls.length} show URLs`);
+    console.log(`   Found ${urls.length} unique show URLs`);
 
     // Fetch details with Cheerio
     const rawShows: RawShow[] = [];
-    const limit = Math.min(opts.maxDetailFetches || urls.length, urls.length);
+    const fetchLimit = opts.maxDetailFetches || urls.length;
 
-    for (let i = 0; i < limit; i++) {
+    for (let i = 0; i < Math.min(fetchLimit, urls.length); i++) {
         const raw = await fetchShowDetails(urls[i]);
         if (raw) {
             rawShows.push(raw);
-            console.log(`   ✓ ${i + 1}/${limit}: ${raw.title}`);
+            console.log(`   ✓ ${i + 1}/${Math.min(fetchLimit, urls.length)}: ${raw.title}`);
         }
         await delay(800);
     }
@@ -52,36 +53,102 @@ export async function scrapeMarrinerGroup(opts: ScrapeOptions = {}): Promise<Nor
     return events;
 }
 
+/**
+ * Fetch unique show URLs from Marriner Group
+ * Uses URL-based deduplication since Marriner shows unique URLs per show
+ */
 async function fetchShowUrls(maxShows: number): Promise<string[]> {
     const puppeteer = await import('puppeteer');
-    const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    const browser = await puppeteer.launch({ 
+        headless: true, 
+        args: ['--no-sandbox', '--disable-setuid-sandbox'] 
+    });
     const page = await browser.newPage();
     await page.setUserAgent(HEADERS['User-Agent']);
     await page.setViewport({ width: 1920, height: 1080 });
     await page.goto(`${BASE_URL}/shows`, { waitUntil: 'networkidle2', timeout: 30000 });
     await delay(2000);
 
+    // Use Set to deduplicate by URL (Marriner has unique URLs per show)
     const urls = new Set<string>();
-    let noChange = 0, attempts = 0;
+    let noChange = 0;
+    let attempts = 0;
 
-    while (noChange < 4 && attempts < 20) {
-        const prev = urls.size;
-        const found = await page.evaluate(() =>
-            Array.from(document.querySelectorAll('a[href*="/shows/"]'))
+    console.log('   Collecting show URLs...');
+
+    while (noChange < 4 && attempts < 20 && urls.size < maxShows * 2) {
+        const prevSize = urls.size;
+        
+        // Get all show links
+        const found = await page.evaluate(() => {
+            const links = Array.from(document.querySelectorAll('a[href*="/shows/"]'));
+            return links
                 .map(a => (a as HTMLAnchorElement).href)
-                .filter(h => h.includes('/shows/') && h !== 'https://marrinergroup.com.au/shows')
-        );
-        found.forEach(u => urls.add(u));
+                .filter(h => h.includes('/shows/') && h !== 'https://marrinergroup.com.au/shows');
+        });
 
-        noChange = urls.size === prev ? noChange + 1 : 0;
+        found.forEach(url => urls.add(url));
+
+        noChange = urls.size === prevSize ? noChange + 1 : 0;
+        
+        console.log(`   Scroll ${attempts + 1}: ${urls.size} URLs`);
+        
+        // Scroll to load more content
         await page.evaluate(() => window.scrollBy({ top: window.innerHeight * 0.8, behavior: 'smooth' }));
         await delay(2000);
         attempts++;
-        if (maxShows && urls.size >= maxShows) break;
     }
 
     await browser.close();
-    return Array.from(urls).slice(0, maxShows);
+    
+    // Deduplicate by extracting show slug from URL
+    const uniqueShows = deduplicateBySlug(Array.from(urls));
+    const result = uniqueShows.slice(0, maxShows);
+    
+    console.log(`   ✅ Collected ${urls.size} total URLs → ${uniqueShows.length} unique shows → taking ${result.length}`);
+    return result;
+}
+
+/**
+ * Deduplicate URLs by show slug (same show, different dates)
+ * Example: /shows/the-nutcracker-123 and /shows/the-nutcracker-456 → keep one
+ */
+function deduplicateBySlug(urls: string[]): string[] {
+    const seenSlugs = new Map<string, string>();
+    
+    for (const url of urls) {
+        // Extract slug (show identifier without date/time codes)
+        const slug = extractShowSlug(url);
+        
+        if (slug && !seenSlugs.has(slug)) {
+            seenSlugs.set(slug, url);
+        }
+    }
+    
+    return Array.from(seenSlugs.values());
+}
+
+/**
+ * Extract show slug from URL
+ * Removes trailing numbers that might be date/time identifiers
+ */
+function extractShowSlug(url: string): string {
+    try {
+        const path = new URL(url).pathname;
+        // Get the last segment: /shows/the-nutcracker-at-princess-theatre-123
+        const lastSegment = path.split('/').pop() || '';
+        
+        // Remove trailing number patterns that look like IDs/dates
+        // Keep the main title part
+        const cleaned = lastSegment
+            .replace(/-\d{2,4}$/g, '') // Remove trailing numbers like -123, -2024
+            .replace(/-on-\d+.*$/g, '') // Remove "-on-MMDD" patterns
+            .replace(/-\d{1,2}-(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec).*$/gi, ''); // Remove date suffixes
+        
+        return cleaned;
+    } catch {
+        return url;
+    }
 }
 
 async function fetchShowDetails(url: string): Promise<RawShow | null> {
@@ -114,7 +181,10 @@ async function fetchShowDetails(url: string): Promise<RawShow | null> {
         const imageUrl = extractImage($);
 
         return { url, title, dateText, venue, description, imageUrl, videoUrl, bookingInfo };
-    } catch { return null; }
+    } catch (err) {
+        console.error(`   ❌ Failed to fetch ${url}:`, err);
+        return null;
+    }
 }
 
 function extractVenueFromText(text: string): string | null {

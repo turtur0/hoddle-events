@@ -1,6 +1,7 @@
 // ============================================
 // whatson.ts - Enhanced What's On Melbourne Scraper
 // Extracts prices, accessibility, duration, and more
+// Fixed pagination to get all results
 // ============================================
 
 import { load, CheerioAPI } from 'cheerio';
@@ -39,6 +40,7 @@ export interface WhatsOnScrapeOptions {
 export async function scrapeWhatsOnMelbourne(opts: WhatsOnScrapeOptions = {}): Promise<NormalisedEvent[]> {
     const categories = opts.categories || ['theatre', 'music'];
     const allEvents: NormalisedEvent[] = [];
+    const seenTitles = new Set<string>(); // Track duplicates across categories
 
     console.log(`🎭 Scraping What's On: ${categories.join(', ')}`);
 
@@ -48,46 +50,106 @@ export async function scrapeWhatsOnMelbourne(opts: WhatsOnScrapeOptions = {}): P
         console.log(`   Found ${urls.length} URLs`);
 
         const limit = opts.maxEventsPerCategory || urls.length;
-        for (let i = 0; i < Math.min(limit, urls.length); i++) {
+        let processedCount = 0;
+        
+        for (let i = 0; i < urls.length && processedCount < limit; i++) {
             const raw = await fetchEventDetails(urls[i]);
             if (raw) {
+                // Skip if we've already seen this event (from another category)
+                const titleKey = raw.title.toLowerCase().trim();
+                if (seenTitles.has(titleKey)) {
+                    console.log(`   ⊘ Skipping duplicate: ${raw.title}`);
+                    continue;
+                }
+                
                 const event = toNormalisedEvent(raw, category);
                 if (event) {
                     allEvents.push(event);
-                    console.log(`   ✓ ${i + 1}/${Math.min(limit, urls.length)}: ${event.title}`);
+                    seenTitles.add(titleKey);
+                    processedCount++;
+                    console.log(`   ✓ ${processedCount}/${limit}: ${event.title}`);
                 }
             }
-            if (i < urls.length - 1) await delay(1500);
+            if (i < urls.length - 1) await delay(800);
         }
     }
 
-    console.log(`\n✅ Total: ${allEvents.length} events`);
+    console.log(`\n✅ Total: ${allEvents.length} unique events`);
     return allEvents;
 }
 
+/**
+ * Collect event URLs with proper pagination handling
+ * Filters out non-event pages (articles, businesses, category pages)
+ */
 async function collectEventUrls(category: string, maxPages: number): Promise<string[]> {
     const urls = new Set<string>();
+    let consecutiveEmptyPages = 0;
 
     for (let page = 1; page <= maxPages; page++) {
         try {
-            const pageUrl = page === 1 ? `${BASE_URL}/tags/${category}` : `${BASE_URL}/tags/${category}?page=${page}`;
+            const pageUrl = `${BASE_URL}/tags/${category}${page > 1 ? `/page-${page}` : ''}`;
             const res = await fetch(pageUrl, { headers: HEADERS });
-            if (!res.ok) break;
+
+            if (!res.ok) {
+                console.log(`   Page ${page}: Failed (${res.status})`);
+                break;
+            }
 
             const $ = load(await res.text());
             const prevSize = urls.size;
 
-            $('.page-preview a.main-link[href*="/things-to-do/"]').each((_, el) => {
-                const href = $(el).attr('href');
-                if (href && !href.includes('/tags/') && !href.includes('/search')) {
-                    urls.add(href.startsWith('http') ? href : `${BASE_URL}${href}`);
+            // The data-listing-type attribute has escaped quotes in the HTML
+            // So we need to check the attribute value which contains the quotes
+            $('.page-preview').each((_, el) => {
+                const listingType = $(el).attr('data-listing-type');
+
+                // The attribute value is actually '"event"' with quotes included
+                if (listingType && listingType.includes('event')) {
+                    const link = $(el).find('a.main-link');
+                    const href = link.attr('href');
+
+                    if (href &&
+                        href.includes('/things-to-do/') &&
+                        !href.includes('/tags/') &&
+                        !href.includes('/search') &&
+                        !href.includes('/article/') &&
+                        !href.includes('/shop/')) {
+                        const fullUrl = href.startsWith('http') ? href : `${BASE_URL}${href}`;
+                        urls.add(fullUrl);
+                    }
                 }
             });
 
-            if (urls.size === prevSize) break;
-            console.log(`   Page ${page}: ${urls.size} URLs`);
-            await delay(1000);
-        } catch { break; }
+            const newUrlsCount = urls.size - prevSize;
+            console.log(`   Page ${page}: +${newUrlsCount} URLs (${urls.size} total)`);
+
+            // If we got no new URLs, increment counter
+            if (newUrlsCount === 0) {
+                consecutiveEmptyPages++;
+                // Stop if we've seen 2 consecutive pages with no new URLs
+                if (consecutiveEmptyPages >= 2) {
+                    console.log(`   Stopping: ${consecutiveEmptyPages} consecutive empty pages`);
+                    break;
+                }
+            } else {
+                consecutiveEmptyPages = 0; // Reset counter when we find URLs
+            }
+
+            // Check if there's a "next" page button
+            const hasNextPage = $('.pagination a[rel="next"]').length > 0 ||
+                $('.pagination .next').length > 0;
+
+            if (!hasNextPage && page > 1) {
+                console.log(`   No more pages available`);
+                break;
+            }
+
+            await delay(800);
+        } catch (err) {
+            console.error(`   Page ${page} error:`, err);
+            break;
+        }
     }
 
     return Array.from(urls);
@@ -96,11 +158,17 @@ async function collectEventUrls(category: string, maxPages: number): Promise<str
 async function fetchEventDetails(url: string): Promise<RawEvent | null> {
     try {
         const res = await fetch(url, { headers: HEADERS });
-        if (!res.ok) return null;
+        if (!res.ok) {
+            console.error(`   ❌ Failed to fetch ${url}: HTTP ${res.status}`);
+            return null;
+        }
 
         const $ = load(await res.text());
         const title = $('h1').first().text().trim();
-        if (!title) return null;
+        if (!title) {
+            console.error(`   ❌ No title found for ${url}`);
+            return null;
+        }
 
         return {
             url,
@@ -114,7 +182,10 @@ async function fetchEventDetails(url: string): Promise<RawEvent | null> {
             accessibility: extractAccessibility($),
             duration: extractDuration($),
         };
-    } catch { return null; }
+    } catch (err) {
+        console.error(`   ❌ Failed to fetch ${url}:`, err);
+        return null;
+    }
 }
 
 function extractDescription($: CheerioAPI): string {
@@ -203,7 +274,10 @@ function extractDuration($: CheerioAPI): string | undefined {
 }
 
 function toNormalisedEvent(raw: RawEvent, categoryTag: string): NormalisedEvent | null {
-    if (!raw.startDate) return null;
+    if (!raw.startDate) {
+        console.log(`   ⚠️  Skipping "${raw.title}" - no start date`);
+        return null;
+    }
 
     const { category, subcategory } = mapWhatsOnCategory(categoryTag, raw.title);
     const suburb = extractSuburb(raw.address || '');
