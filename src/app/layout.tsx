@@ -20,18 +20,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={cn(inter.className, "flex flex-col justify-center w-full items-center")}>
+      <body className={cn(inter.className, "min-h-screen bg-background antialiased")}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          <div className="flex min-h-screen flex-col w-full">
+          <div className="relative flex min-h-screen flex-col">
             <Header />
-            <div className="flex-1">
-              {children}
-            </div>
+            <main className="flex-1 w-full flex justify-center">{children}</main>
             <Footer />
           </div>
         </ThemeProvider>
