@@ -3,9 +3,9 @@
 // Time: O(n * k), Space: O(n)
 // ============================================
 
-import Event from '@/app/lib/models/Event';
-import { findDuplicates, selectPrimaryEvent, mergeEvents } from '@/app/lib/utils/deduplication';
-import type { NormalisedEvent, EventForDedup } from '@/app/lib/scrapers/types';
+import Event from '@/lib/models/Event';
+import { findDuplicates, mergeEvents } from '@/lib/utils/deduplication';
+import type { NormalisedEvent, EventForDedup } from '@/lib/scrapers/types';
 
 interface Stats { inserted: number; updated: number; merged: number; skipped: number }
 
