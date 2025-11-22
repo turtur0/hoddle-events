@@ -1,6 +1,6 @@
 // ============================================
 // scrapers/index.ts
-// Updated to include whatson scraper
+// Updated to include whatson scraper with detail fetching
 // ============================================
 import { NormalisedEvent, ScrapeResult } from './types';
 import { fetchAllTicketmasterEvents, normaliseTicketmasterEvent } from './ticketmaster';
@@ -15,6 +15,7 @@ export * from './types';
 interface ScrapeAllOptions {
   sources?: ('ticketmaster' | 'marriner' | 'whatson')[];
   verbose?: boolean;
+  parallel?: boolean;  // Run scrapers in parallel (default: true)
   marrinerOptions?: {
     maxShows?: number;
     maxDetailFetches?: number;
@@ -32,41 +33,55 @@ export async function scrapeAll(options?: ScrapeAllOptions): Promise<{
 }> {
   const sources = options?.sources || ['ticketmaster', 'marriner', 'whatson'];
   const verbose = options?.verbose ?? true;
+  const parallel = options?.parallel ?? true;
   const results: ScrapeResult[] = [];
   const allEvents: NormalisedEvent[] = [];
 
   if (verbose) {
     console.log('🚀 Starting multi-source scrape...');
-    console.log(`   Sources: ${sources.join(', ')}\n`);
+    console.log(`   Sources: ${sources.join(', ')}`);
+    console.log(`   Mode: ${parallel ? 'parallel' : 'sequential'}\n`);
   }
 
-  // Scrape sources in parallel for speed
-  const scrapePromises: Promise<ScrapeResult>[] = [];
+  // Build scraper tasks
+  const scraperTasks: { name: string; fn: () => Promise<ScrapeResult> }[] = [];
 
   if (sources.includes('ticketmaster')) {
-    scrapePromises.push(scrapeTicketmaster(verbose));
+    scraperTasks.push({ name: 'ticketmaster', fn: () => scrapeTicketmaster(verbose) });
   }
 
   if (sources.includes('marriner')) {
-    scrapePromises.push(scrapeMarriner(verbose, options?.marrinerOptions));
+    scraperTasks.push({ name: 'marriner', fn: () => scrapeMarriner(verbose, options?.marrinerOptions) });
   }
 
   if (sources.includes('whatson')) {
-    scrapePromises.push(scrapeWhatsOn(verbose, options?.whatsonOptions));
+    scraperTasks.push({ name: 'whatson', fn: () => scrapeWhatsOn(verbose, options?.whatsonOptions) });
   }
 
-  // Wait for all scrapers to complete
-  const completedResults = await Promise.allSettled(scrapePromises);
+  if (parallel) {
+    // Run all scrapers in parallel
+    const completedResults = await Promise.allSettled(scraperTasks.map(t => t.fn()));
 
-  // Process results
-  completedResults.forEach((result) => {
-    if (result.status === 'fulfilled') {
-      results.push(result.value);
-      allEvents.push(...result.value.events);
-    } else {
-      console.error('   ❌ Scraper failed:', result.reason);
+    completedResults.forEach((result, i) => {
+      if (result.status === 'fulfilled') {
+        results.push(result.value);
+        allEvents.push(...result.value.events);
+      } else {
+        console.error(`   ❌ ${scraperTasks[i].name} failed:`, result.reason);
+      }
+    });
+  } else {
+    // Run scrapers sequentially (cleaner logs, easier debugging)
+    for (const task of scraperTasks) {
+      try {
+        const result = await task.fn();
+        results.push(result);
+        allEvents.push(...result.events);
+      } catch (error) {
+        console.error(`   ❌ ${task.name} failed:`, error);
+      }
     }
-  });
+  }
 
   if (verbose) {
     console.log('\n📊 Scrape Summary:');
@@ -168,10 +183,18 @@ async function scrapeWhatsOn(
   if (verbose) console.log('🎪 Scraping What\'s On Melbourne...');
 
   try {
-    const events = await scrapeWhatsOnMelbourne(options || {
+    // Default options with fetchDetails ENABLED for full data
+    const defaultOptions: WhatsOnScrapeOptions = {
       categories: ['theatre', 'music'],
       maxPages: 5,
-      maxEventsPerCategory: 50
+      maxEventsPerCategory: 50,
+      fetchDetails: true,  // IMPORTANT: Enable detail fetching by default
+      detailFetchDelay: 1000,
+    };
+
+    const events = await scrapeWhatsOnMelbourne({
+      ...defaultOptions,
+      ...options,  // Allow overrides
     });
 
     fetched = events.length;

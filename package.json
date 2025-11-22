@@ -14,7 +14,7 @@
     "scrape:ticketmaster": "tsx scripts/scrape-ticketmaster.ts",
     "scrape:marriner": "tsx scripts/scrape-marriner.ts",
     "scrape:whatson": "tsx scripts/scrape-whatson.ts",
-    "debug": "tsx scripts/test-whatson-debug.ts"
+    "debug": "tsx scripts/debug-accessibility.ts"
   },
   "dependencies": {
     "@radix-ui/react-dropdown-menu": "^2.1.16",

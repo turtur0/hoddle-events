@@ -7,31 +7,34 @@ import { EventFilters } from "@/components/events/event-filters";
 import { Suspense } from "react";
 import { SerializedEvent } from "./lib/models/Event";
 
-async function EventsGrid({ 
-  page, 
+async function EventsGrid({
+  page,
   searchQuery,
   category,
   subcategory,
   dateFilter,
   freeOnly,
-}: { 
-  page: number; 
+  accessibleOnly, // ← ADDED THIS
+}: {
+  page: number;
   searchQuery: string;
   category: string;
   subcategory: string;
   dateFilter: string;
   freeOnly: boolean;
+  accessibleOnly: boolean; // ← ADDED THIS
 }) {
   // Build API URL with all filters
   const params = new URLSearchParams({
     page: page.toString(),
   });
-  
+
   if (searchQuery.trim()) params.set('q', searchQuery.trim());
   if (category) params.set('category', category);
   if (subcategory) params.set('subcategory', subcategory);
   if (dateFilter) params.set('date', dateFilter);
   if (freeOnly) params.set('free', 'true');
+  if (accessibleOnly) params.set('accessible', 'true'); // ← ADDED THIS
 
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
   const response = await fetch(`${baseUrl}/api/events?${params.toString()}`, {
@@ -48,8 +51,8 @@ async function EventsGrid({
 
   // Show empty state for no results
   if (eventsData.length === 0) {
-    const hasFilters = searchQuery || category || subcategory || dateFilter || freeOnly;
-    
+    const hasFilters = searchQuery || category || subcategory || dateFilter || freeOnly || accessibleOnly; // ← UPDATED
+
     if (hasFilters) {
       return (
         <EmptyState
@@ -106,13 +109,14 @@ function EventsGridSkeleton() {
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ 
-    page?: string; 
+  searchParams: Promise<{
+    page?: string;
     q?: string;
     category?: string;
     subcategory?: string;
     date?: string;
     free?: string;
+    accessible?: string; // ← ADDED THIS
   }>;
 }) {
   const params = await searchParams;
@@ -122,9 +126,10 @@ export default async function Home({
   const subcategory = params.subcategory || '';
   const dateFilter = params.date || '';
   const freeOnly = params.free === 'true';
+  const accessibleOnly = params.accessible === 'true'; // ← ADDED THIS
 
   // Create unique key for Suspense
-  const suspenseKey = `${currentPage}-${searchQuery}-${category}-${subcategory}-${dateFilter}-${freeOnly}`;
+  const suspenseKey = `${currentPage}-${searchQuery}-${category}-${subcategory}-${dateFilter}-${freeOnly}-${accessibleOnly}`; // ← UPDATED
 
   return (
     <main className="container py-8">
@@ -155,13 +160,14 @@ export default async function Home({
           {searchQuery ? 'Search Results' : 'Upcoming Events'}
         </h2>
         <Suspense fallback={<EventsGridSkeleton />} key={suspenseKey}>
-          <EventsGrid 
-            page={currentPage} 
+          <EventsGrid
+            page={currentPage}
             searchQuery={searchQuery}
             category={category}
             subcategory={subcategory}
             dateFilter={dateFilter}
             freeOnly={freeOnly}
+            accessibleOnly={accessibleOnly} // ← ADDED THIS
           />
         </Suspense>
       </div>

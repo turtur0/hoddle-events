@@ -35,6 +35,8 @@ async function main() {
         categories: ['theatre', 'music'],
         maxPages: 5,
         maxEventsPerCategory: 50,
+        fetchDetails: true, 
+        detailFetchDelay: 1000,  // Be polite to the server
       },
     });
 
@@ -45,7 +47,7 @@ async function main() {
 
     // Step 2: Process with deduplication (handles both same-source and cross-source)
     console.log('\n💾 Processing events with deduplication...');
-    
+
     let totalInserted = 0, totalUpdated = 0, totalMerged = 0, totalSkipped = 0;
 
     // Group events by source for organized processing
@@ -61,7 +63,7 @@ async function main() {
     for (const [source, sourceEvents] of eventsBySource) {
       console.log(`\n📊 Processing ${sourceEvents.length} events from ${source}...`);
       const stats = await processEventsWithDeduplication(sourceEvents, source);
-      
+
       totalInserted += stats.inserted;
       totalUpdated += stats.updated;
       totalMerged += stats.merged;

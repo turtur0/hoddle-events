@@ -11,9 +11,11 @@ import { scrapeWhatsOnMelbourne, WhatsOnScrapeOptions } from '@/app/lib/scrapers
 import { processEventsWithDeduplication } from './scrape-with-dedup';
 
 const SCRAPE_OPTIONS: WhatsOnScrapeOptions = {
-    categories: ['theatre', 'music'], // Add more: 'festivals', 'family', etc.
-    maxPages: 2,                      // Max pages to scrape per category
-    maxEventsPerCategory: 25,         // Limit events per category
+        categories: ['theatre', 'music'],
+        maxPages: 2,
+        maxEventsPerCategory: 25,
+        fetchDetails: true, 
+        detailFetchDelay: 1000,  // Be polite to the server
 };
 
 export async function scrapeWhatsOnWithDedup(customOptions?: WhatsOnScrapeOptions) {
