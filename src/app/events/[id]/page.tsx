@@ -1,16 +1,22 @@
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { Calendar, MapPin, DollarSign, ExternalLink, ArrowLeft, Users, Clock, Video, Info } from "lucide-react";
+import { Calendar, MapPin, DollarSign, ArrowLeft, Users, Clock, Video, Info } from "lucide-react";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/lib/auth";
 import { connectDB } from "@/app/lib/db";
 import Event from "@/app/lib/models/Event";
-import { Header } from "@/components/layout/header";
+import UserFavourite from "@/app/lib/models/UserFavourites";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { FavouriteButton } from "@/components/events/fabourite-button";
+import { ViewTracker } from "@/components/events/view-tracker";
+import { BookingLink } from "@/components/events/booking-link";
 import { format, isSameMonth } from "date-fns";
 import { getCategoryLabel } from "@/app/lib/categories";
+import mongoose from "mongoose";
 
 interface EventPageProps {
     params: Promise<{ id: string }>;
@@ -43,6 +49,18 @@ export default async function EventPage({ params }: EventPageProps) {
         notFound();
     }
 
+    // Check if user has favourited this event
+    const session = await getServerSession(authOptions);
+    let isFavourited = false;
+
+    if (session?.user?.id) {
+        const favourite = await UserFavourite.findOne({
+            userId: new mongoose.Types.ObjectId(session.user.id),
+            eventId: new mongoose.Types.ObjectId(id),
+        });
+        isFavourited = !!favourite;
+    }
+
     // Helper to convert Map to object
     const mapToObject = (map: any) => {
         if (!map) return {};
@@ -56,7 +74,7 @@ export default async function EventPage({ params }: EventPageProps) {
         return map;
     };
 
-    // Serialize dates for client components
+    // Serialise dates for client components
     const event = {
         ...eventDoc,
         _id: eventDoc._id.toString(),
@@ -119,6 +137,9 @@ export default async function EventPage({ params }: EventPageProps) {
 
     return (
         <>
+            {/* Track view */}
+            <ViewTracker eventId={event._id} source="direct" />
+
             <main className="container py-8">
                 {/* Back Button */}
                 <Button variant="ghost" asChild className="mb-6">
@@ -141,29 +162,48 @@ export default async function EventPage({ params }: EventPageProps) {
                                     className="object-cover"
                                     priority
                                 />
+                                {/* Favourite button on image */}
+                                <div className="absolute top-4 right-4">
+                                    <FavouriteButton
+                                        eventId={event._id}
+                                        initialFavourited={isFavourited}
+                                        source="direct"
+                                    />
+                                </div>
                             </div>
                         )}
 
                         {/* Title & Category */}
                         <div className="mb-6">
-                            <div className="flex items-center gap-2 mb-3 flex-wrap">
-                                <Badge variant="secondary">
-                                    {getCategoryLabel(event.category)}
-                                </Badge>
-                                {event.subcategories?.map((sub) => (
-                                    <Badge key={sub} variant="outline">
-                                        {sub}
+                            <div className="flex items-center justify-between gap-4 mb-3">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <Badge variant="secondary">
+                                        {getCategoryLabel(event.category)}
                                     </Badge>
-                                ))}
-                                {event.endDate && (
-                                    <Badge variant="outline">
-                                        Multi-day Event
-                                    </Badge>
-                                )}
-                                {event.ageRestriction && (
-                                    <Badge variant="destructive">
-                                        {event.ageRestriction}
-                                    </Badge>
+                                    {event.subcategories?.map((sub) => (
+                                        <Badge key={sub} variant="outline">
+                                            {sub}
+                                        </Badge>
+                                    ))}
+                                    {event.endDate && (
+                                        <Badge variant="outline">
+                                            Multi-day Event
+                                        </Badge>
+                                    )}
+                                    {event.ageRestriction && (
+                                        <Badge variant="destructive">
+                                            {event.ageRestriction}
+                                        </Badge>
+                                    )}
+                                </div>
+                                {/* Favourite button (text variant) if no image */}
+                                {!event.imageUrl && (
+                                    <FavouriteButton
+                                        eventId={event._id}
+                                        initialFavourited={isFavourited}
+                                        source="direct"
+                                        variant="button"
+                                    />
                                 )}
                             </div>
                             <h1 className="text-4xl font-bold mb-2">{event.title}</h1>
@@ -345,17 +385,25 @@ export default async function EventPage({ params }: EventPageProps) {
 
                                 <Separator className="my-4" />
 
+                                {/* Favourite Button */}
+                                <div className="mb-4">
+                                    <FavouriteButton
+                                        eventId={event._id}
+                                        initialFavourited={isFavourited}
+                                        source="direct"
+                                        variant="button"
+                                        className="w-full"
+                                    />
+                                </div>
+
                                 {/* Primary Booking Button */}
-                                <Button asChild className="w-full" size="lg">
-                                    <a
-                                        href={event.bookingUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                    >
-                                        Get Tickets
-                                        <ExternalLink className="h-4 w-4 ml-2" />
-                                    </a>
-                                </Button>
+                                <BookingLink
+                                    eventId={event._id}
+                                    href={event.bookingUrl}
+                                    className="w-full"
+                                >
+                                    Get Tickets
+                                </BookingLink>
 
                                 {/* Additional booking links */}
                                 {hasMultipleSources && Object.keys(bookingUrls).length > 1 && (
@@ -366,22 +414,16 @@ export default async function EventPage({ params }: EventPageProps) {
                                         {Object.entries(bookingUrls).map(([source, url]) => {
                                             if (source === event.primarySource) return null;
                                             return (
-                                                <Button
+                                                <BookingLink
                                                     key={source}
-                                                    asChild
+                                                    eventId={event._id}
+                                                    href={url as string}
                                                     variant="outline"
                                                     size="sm"
                                                     className="w-full"
                                                 >
-                                                    <a
-                                                        href={url as string}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                    >
-                                                        {source.charAt(0).toUpperCase() + source.slice(1)}
-                                                        <ExternalLink className="h-3 w-3 ml-2" />
-                                                    </a>
-                                                </Button>
+                                                    {source.charAt(0).toUpperCase() + source.slice(1)}
+                                                </BookingLink>
                                             );
                                         })}
                                     </div>
@@ -394,7 +436,7 @@ export default async function EventPage({ params }: EventPageProps) {
                         </Card>
                     </div>
                 </div>
-            </main >
+            </main>
         </>
     );
 }

@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/lib/auth";
 import { EventCard } from "@/components/events/event-card";
 import { EventCardSkeleton } from "@/components/events/event-card-skeleton";
 import { EmptyState } from "@/components/other/empty-state";
@@ -9,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Suspense } from "react";
 import { CATEGORIES } from "@/app/lib/categories";
+import { getUserFavourites } from "@/app/actions/interactions";
 
 interface CategoryPageProps {
   params: Promise<{ slug: string }>;
@@ -63,12 +66,14 @@ async function CategoryEventsGrid({
   subcategory,
   dateFilter,
   freeOnly,
+  userFavourites,
 }: {
   categoryValue: string;
   page: number;
   subcategory: string;
   dateFilter: string;
   freeOnly: boolean;
+  userFavourites: Set<string>;
 }) {
   const params = new URLSearchParams({
     page: page.toString(),
@@ -109,7 +114,12 @@ async function CategoryEventsGrid({
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {eventsData.map((event: any) => (
-          <EventCard key={event._id} event={event} />
+          <EventCard
+            key={event._id}
+            event={event}
+            source="category_browse"
+            initialFavourited={userFavourites.has(event._id)}
+          />
         ))}
       </div>
 
@@ -133,7 +143,7 @@ function EventsGridSkeleton() {
 export async function generateMetadata({ params }: CategoryPageProps) {
   const { slug } = await params;
   const info = CATEGORY_INFO[slug];
-  
+
   if (!info) {
     return { title: 'Category Not Found' };
   }
@@ -160,6 +170,15 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const dateFilter = searchParamsResolved.date || '';
   const freeOnly = searchParamsResolved.free === 'true';
 
+  // Get user's favourites if logged in
+  const session = await getServerSession(authOptions);
+  let userFavourites = new Set<string>();
+
+  if (session?.user?.id) {
+    const favouriteIds = await getUserFavourites(session.user.id);
+    userFavourites = new Set(favouriteIds);
+  }
+
   // Find category config for subcategories from your CATEGORIES array
   const categoryConfig = CATEGORIES.find(c => c.value === categoryValue);
 
@@ -185,7 +204,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
       {categoryConfig?.subcategories && categoryConfig.subcategories.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-8">
           <Link href={`/category/${slug}`}>
-            <Badge 
+            <Badge
               variant={!subcategory ? "default" : "outline"}
               className="cursor-pointer"
             >
@@ -194,7 +213,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
           </Link>
           {categoryConfig.subcategories.map((sub) => (
             <Link key={sub} href={`/category/${slug}?subcategory=${encodeURIComponent(sub)}`}>
-              <Badge 
+              <Badge
                 variant={subcategory === sub ? "default" : "outline"}
                 className="cursor-pointer"
               >
@@ -213,6 +232,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
           subcategory={subcategory}
           dateFilter={dateFilter}
           freeOnly={freeOnly}
+          userFavourites={userFavourites}
         />
       </Suspense>
     </main>

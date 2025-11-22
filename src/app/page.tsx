@@ -9,6 +9,9 @@ import { EventCardSkeleton } from "@/components/events/event-card-skeleton";
 import { SearchBar } from "@/components/search/search-bar";
 import { connectDB } from "@/app/lib/db";
 import Event from "@/app/lib/models/Event";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/lib/auth";
+import { getUserFavourites } from "@/app/actions/interactions";
 
 const CATEGORIES = [
   { label: "Music", slug: "music", icon: Music, color: "bg-purple-500/10 text-purple-500 hover:bg-purple-500/20" },
@@ -41,7 +44,7 @@ function mapToObject(map: any): Record<string, string> {
 }
 
 // Fetch featured events (upcoming soon, with good images)
-async function FeaturedEvents() {
+async function FeaturedEvents({ userFavourites }: { userFavourites: Set<string> }) {
   await connectDB();
 
   const events = await Event.find({
@@ -73,12 +76,18 @@ async function FeaturedEvents() {
     accessibility: e.accessibility || [],
     scrapedAt: e.scrapedAt.toISOString(),
     lastUpdated: e.lastUpdated.toISOString(),
+    stats: e.stats || { viewCount: 0, favouriteCount: 0, clickthroughCount: 0 },
   }));
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {serialized.map((event) => (
-        <EventCard key={event._id} event={event} />
+        <EventCard
+          key={event._id}
+          event={event}
+          source="homepage"
+          initialFavourited={userFavourites.has(event._id)}
+        />
       ))}
     </div>
   );
@@ -152,6 +161,15 @@ async function ThisWeekEvents() {
 
 export default async function HomePage() {
   const { totalEvents, sourceCount } = await getStats();
+
+  // Get user's favourites if logged in
+  const session = await getServerSession(authOptions);
+  let userFavourites = new Set<string>();
+
+  if (session?.user?.id) {
+    const favouriteIds = await getUserFavourites(session.user.id);
+    userFavourites = new Set(favouriteIds);
+  }
 
   return (
     <main>
@@ -266,7 +284,7 @@ export default async function HomePage() {
         </div>
 
         <Suspense fallback={<FeaturedEventsSkeleton />}>
-          <FeaturedEvents />
+          <FeaturedEvents userFavourites={userFavourites} />
         </Suspense>
       </section>
 

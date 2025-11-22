@@ -1,3 +1,5 @@
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/lib/auth";
 import { EventCard } from "@/components/events/event-card";
 import { EventCardSkeleton } from "@/components/events/event-card-skeleton";
 import { EmptyState } from "@/components/other/empty-state";
@@ -6,6 +8,7 @@ import { SearchBar } from "@/components/search/search-bar";
 import { EventFilters } from "@/components/events/event-filters";
 import { Suspense } from "react";
 import { SerializedEvent } from "@/app/lib/models/Event";
+import { getUserFavourites } from "@/app/actions/interactions";
 
 async function EventsGrid({
   page,
@@ -15,6 +18,7 @@ async function EventsGrid({
   dateFilter,
   freeOnly,
   accessibleOnly,
+  userFavourites,
 }: {
   page: number;
   searchQuery: string;
@@ -23,6 +27,7 @@ async function EventsGrid({
   dateFilter: string;
   freeOnly: boolean;
   accessibleOnly: boolean;
+  userFavourites: Set<string>;
 }) {
   // Build API URL with all filters
   const params = new URLSearchParams({
@@ -48,6 +53,9 @@ async function EventsGrid({
   const data = await response.json();
   const eventsData: SerializedEvent[] = data.events;
   const { totalEvents, totalPages } = data.pagination;
+
+  // Determine source based on filters
+  const source = searchQuery ? 'search' : category ? 'category_browse' : 'direct';
 
   // Show empty state for no results
   if (eventsData.length === 0) {
@@ -81,7 +89,12 @@ async function EventsGrid({
       {/* Events Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {eventsData.map((event) => (
-          <EventCard key={event._id} event={event} />
+          <EventCard
+            key={event._id}
+            event={event}
+            source={source}
+            initialFavourited={userFavourites.has(event._id)}
+          />
         ))}
       </div>
 
@@ -128,6 +141,15 @@ export default async function EventsPage({
   const freeOnly = params.free === 'true';
   const accessibleOnly = params.accessible === 'true';
 
+  // Get user's favourites if logged in
+  const session = await getServerSession(authOptions);
+  let userFavourites = new Set<string>();
+
+  if (session?.user?.id) {
+    const favouriteIds = await getUserFavourites(session.user.id);
+    userFavourites = new Set(favouriteIds);
+  }
+
   const suspenseKey = `${currentPage}-${searchQuery}-${category}-${subcategory}-${dateFilter}-${freeOnly}-${accessibleOnly}`;
 
   return (
@@ -162,6 +184,7 @@ export default async function EventsPage({
           dateFilter={dateFilter}
           freeOnly={freeOnly}
           accessibleOnly={accessibleOnly}
+          userFavourites={userFavourites}
         />
       </Suspense>
     </main>
