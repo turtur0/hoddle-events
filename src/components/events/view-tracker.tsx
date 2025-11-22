@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { trackView } from '@/app/actions/interactions';
+import { trackView } from '@/actions/interactions';
 
 interface ViewTrackerProps {
     eventId: string;

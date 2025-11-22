@@ -3,19 +3,19 @@ import Image from "next/image";
 import Link from "next/link";
 import { Calendar, MapPin, DollarSign, ArrowLeft, Users, Clock, Video, Info } from "lucide-react";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/lib/auth";
-import { connectDB } from "@/app/lib/db";
-import Event from "@/app/lib/models/Event";
-import UserFavourite from "@/app/lib/models/UserFavourites";
+import { authOptions } from "@/lib/auth";
+import { connectDB } from "@/lib/db";
+import Event from "@/lib/models/Event";
+import UserFavourite from "@/lib/models/UserFavourites";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { FavouriteButton } from "@/components/events/fabourite-button";
+import { FavouriteButton } from "@/components/events/favourite-button";
 import { ViewTracker } from "@/components/events/view-tracker";
 import { BookingLink } from "@/components/events/booking-link";
 import { format, isSameMonth } from "date-fns";
-import { getCategoryLabel } from "@/app/lib/categories";
+import { getCategoryLabel } from "@/lib/categories";
 import mongoose from "mongoose";
 
 interface EventPageProps {

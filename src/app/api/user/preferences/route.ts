@@ -1,9 +1,9 @@
 // src/app/api/user/preferences/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/lib/auth';
-import { connectDB } from '@/app/lib/db';
-import User from '@/app/lib/models/User';
+import { authOptions } from '@/lib/auth';
+import { connectDB } from '@/lib/db';
+import User from '@/lib/models/User';
 
 export async function POST(request: NextRequest) {
   try {

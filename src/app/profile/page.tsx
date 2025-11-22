@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LogOut, Settings, ArrowLeft, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { useEnsureOnboarding } from '@/app/lib/hooks/useAuthRedirect';
+import { useEnsureOnboarding } from '@/lib/hooks/useAuthRedirect';
 
 interface UserPreferences {
   selectedCategories: string[];

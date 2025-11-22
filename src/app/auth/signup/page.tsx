@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle, Loader2 } from 'lucide-react';
-import { useRedirectIfAuthenticated } from '@/app/lib/hooks/useAuthRedirect';
+import { useRedirectIfAuthenticated } from '@/lib/hooks/useAuthRedirect';
 
 export default function SignUp() {
     const router = useRouter();

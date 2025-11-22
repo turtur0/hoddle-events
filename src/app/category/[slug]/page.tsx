@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/lib/auth";
+import { authOptions } from "@/lib/auth";
 import { EventCard } from "@/components/events/event-card";
 import { EventCardSkeleton } from "@/components/events/event-card-skeleton";
 import { EmptyState } from "@/components/other/empty-state";
@@ -10,8 +10,8 @@ import { Pagination } from "@/components/other/pagination";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Suspense } from "react";
-import { CATEGORIES } from "@/app/lib/categories";
-import { getUserFavourites } from "@/app/actions/interactions";
+import { CATEGORIES } from "@/lib/categories";
+import { getUserFavourites } from "@/actions/interactions";
 
 interface CategoryPageProps {
   params: Promise<{ slug: string }>;

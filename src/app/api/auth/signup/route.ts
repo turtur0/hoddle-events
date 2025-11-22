@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { connectDB } from '@/app/lib/db';
-import User from '@/app/lib/models/User';
+import { connectDB } from '@/lib/db';
+import User from '@/lib/models/User';
 
 export async function POST(request: NextRequest) {
     try {

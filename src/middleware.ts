@@ -11,7 +11,18 @@ export async function middleware(request: NextRequest) {
 
     const pathname = request.nextUrl.pathname;
 
-    // Public paths
+    // Public paths that don't require authentication
+    const publicPaths = [
+        '/',
+        '/events',
+        '/category',
+        '/about',
+    ];
+
+    const isPublicPath = publicPaths.some(path =>
+        pathname === path || pathname.startsWith(`${path}/`)
+    );
+
     const isAuthPage = pathname.startsWith('/auth/signin') || pathname.startsWith('/auth/signup');
     const isOnboardingPage = pathname.startsWith('/onboarding');
     const isApiRoute = pathname.startsWith('/api');
@@ -21,24 +32,40 @@ export async function middleware(request: NextRequest) {
         return NextResponse.next();
     }
 
-    // Redirect unauthenticated users to sign in (except auth pages)
-    if (!token && !isAuthPage && !isOnboardingPage) {
-        return NextResponse.redirect(new URL('/auth/signin', request.url));
+    // Allow public paths without authentication
+    if (isPublicPath && !token) {
+        return NextResponse.next();
+    }
+
+    // Protected paths that require authentication
+    const protectedPaths = [
+        '/profile',
+        '/favourites',
+    ];
+
+    const isProtectedPath = protectedPaths.some(path =>
+        pathname === path || pathname.startsWith(`${path}/`)
+    );
+
+    // Redirect unauthenticated users to sign in for protected routes only
+    if (!token && isProtectedPath) {
+        const signInUrl = new URL('/auth/signin', request.url);
+        signInUrl.searchParams.set('callbackUrl', pathname);
+        return NextResponse.redirect(signInUrl);
     }
 
     // Authenticated users
     if (token) {
         // Redirect away from auth pages if already authenticated
         if (isAuthPage) {
-            // Check onboarding status
             if (!token.hasCompletedOnboarding) {
                 return NextResponse.redirect(new URL('/onboarding', request.url));
             }
             return NextResponse.redirect(new URL('/', request.url));
         }
 
-        // CRITICAL: Force onboarding for ALL pages if not completed
-        if (!token.hasCompletedOnboarding && !isOnboardingPage) {
+        // Force onboarding for protected pages if not completed
+        if (!token.hasCompletedOnboarding && isProtectedPath) {
             return NextResponse.redirect(new URL('/onboarding', request.url));
         }
 

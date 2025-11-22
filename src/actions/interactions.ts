@@ -1,11 +1,11 @@
 'use server';
 
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/lib/auth';
-import { connectDB } from '@/app/lib/db';
-import UserInteraction from '@/app/lib/models/UserInteraction';
+import { authOptions } from '@/lib/auth';
+import { connectDB } from '@/lib/db';
+import UserInteraction from '@/lib/models/UserInteraction';
 import UserFavourite from '../lib/models/UserFavourites';
-import Event from '@/app/lib/models/Event';
+import Event from '@/lib/models/Event';
 import mongoose from 'mongoose';
 
 type InteractionSource = 'search' | 'recommendation' | 'category_browse' | 'homepage' | 'direct' | 'similar_events';

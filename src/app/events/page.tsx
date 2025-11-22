@@ -1,5 +1,5 @@
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/lib/auth";
+import { authOptions } from "@/lib/auth";
 import { EventCard } from "@/components/events/event-card";
 import { EventCardSkeleton } from "@/components/events/event-card-skeleton";
 import { EmptyState } from "@/components/other/empty-state";
@@ -7,8 +7,8 @@ import { Pagination } from "@/components/other/pagination";
 import { SearchBar } from "@/components/search/search-bar";
 import { EventFilters } from "@/components/events/event-filters";
 import { Suspense } from "react";
-import { SerializedEvent } from "@/app/lib/models/Event";
-import { getUserFavourites } from "@/app/actions/interactions";
+import { SerializedEvent } from "@/lib/models/Event";
+import { getUserFavourites } from "@/actions/interactions";
 
 async function EventsGrid({
   page,

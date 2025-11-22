@@ -7,12 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { EventCard } from "@/components/events/event-card";
 import { EventCardSkeleton } from "@/components/events/event-card-skeleton";
 import { SearchBar } from "@/components/search/search-bar";
-import { connectDB } from "@/app/lib/db";
-import Event from "@/app/lib/models/Event";
+import { connectDB } from "@/lib/db";
+import Event from "@/lib/models/Event";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/lib/auth";
-import { getUserFavourites } from "@/app/actions/interactions";
-
+import { authOptions } from "@/lib/auth";
+import { getUserFavourites } from "@/actions/interactions";
 const CATEGORIES = [
   { label: "Music", slug: "music", icon: Music, color: "bg-purple-500/10 text-purple-500 hover:bg-purple-500/20" },
   { label: "Theatre", slug: "theatre", icon: Theater, color: "bg-red-500/10 text-red-500 hover:bg-red-500/20" },

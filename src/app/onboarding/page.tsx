@@ -7,9 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { CATEGORIES } from '../lib/categories';
+import { CATEGORIES } from '@/lib/categories';
 import { Loader2, ChevronRight, Check } from 'lucide-react';
-import { useRequireOnboarding } from '@/app/lib/hooks/useAuthRedirect';
+import { useRequireOnboarding } from '@/lib/hooks/useAuthRedirect';
 
 const MIN_CATEGORIES = 2;
 
