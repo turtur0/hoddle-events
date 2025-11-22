@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Database, Shield, Clock, Mail, Github, Heart } from "lucide-react";
+import { Database, Shield, Clock, Mail, Github, Heart, ExternalLink } from "lucide-react";
+import Link from "next/link";
 
 export const metadata = {
     title: "About | Melbourne Events",
@@ -28,7 +29,7 @@ export default function AboutPage() {
                             Our Mission
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="prose dark:prose-invert">
+                    <CardContent className="prose dark:prose-invert max-w-none">
                         <p>
                             Melbourne is one of the world's most vibrant cities for live events,
                             but finding what's on can be frustrating. Event information is scattered
@@ -57,31 +58,78 @@ export default function AboutPage() {
                         <div className="space-y-4">
                             <div className="flex items-start gap-4 p-4 rounded-lg bg-muted/50">
                                 <Badge>Primary</Badge>
-                                <div>
-                                    <h4 className="font-semibold">Ticketmaster</h4>
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <h4 className="font-semibold">Ticketmaster</h4>
+                                        <a
+                                            href="https://www.ticketmaster.com.au/"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-primary hover:underline inline-flex items-center gap-1"
+                                        >
+                                            <ExternalLink className="h-3 w-3" />
+                                        </a>
+                                    </div>
                                     <p className="text-sm text-muted-foreground">
                                         Major concerts, sports events, and theatre productions via their official Discovery API.
                                     </p>
                                 </div>
                             </div>
+
                             <div className="flex items-start gap-4 p-4 rounded-lg bg-muted/50">
-                                <Badge variant="secondary">Secondary</Badge>
-                                <div>
-                                    <h4 className="font-semibold">Eventbrite</h4>
+                                <Badge variant="secondary">Venue</Badge>
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <h4 className="font-semibold">Marriner Group</h4>
+                                        <a
+                                            href="https://marrinergroup.com.au/"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-primary hover:underline inline-flex items-center gap-1"
+                                        >
+                                            <ExternalLink className="h-3 w-3" />
+                                        </a>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground mb-2">
+                                        Theatre, musicals, and performing arts from Melbourne's premier entertainment venues.
+                                    </p>
+                                    <div className="flex flex-wrap gap-1">
+                                        <Badge variant="outline" className="text-xs">Regent Theatre</Badge>
+                                        <Badge variant="outline" className="text-xs">Princess Theatre</Badge>
+                                        <Badge variant="outline" className="text-xs">Comedy Theatre</Badge>
+                                        <Badge variant="outline" className="text-xs">Forum Melbourne</Badge>
+                                        <Badge variant="outline" className="text-xs">Plaza Ballroom</Badge>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-start gap-4 p-4 rounded-lg bg-muted/50">
+                                <Badge variant="outline">Secondary</Badge>
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <h4 className="font-semibold">What's On Melbourne</h4>
+                                        <a
+                                            href="https://whatson.melbourne.vic.gov.au/"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-primary hover:underline inline-flex items-center gap-1"
+                                        >
+                                            <ExternalLink className="h-3 w-3" />
+                                        </a>
+                                    </div>
                                     <p className="text-sm text-muted-foreground">
-                                        Community events, workshops, and smaller venue shows via their official API.
+                                        Community events, festivals, and cultural activities curated by the City of Melbourne.
                                     </p>
                                 </div>
                             </div>
-                            <div className="flex items-start gap-4 p-4 rounded-lg bg-muted/50">
-                                <Badge variant="outline">Venue</Badge>
-                                <div>
-                                    <h4 className="font-semibold">Arts Centre Melbourne</h4>
-                                    <p className="text-sm text-muted-foreground">
-                                        Theatre, dance, and performing arts events from Melbourne's premier arts venue.
-                                    </p>
-                                </div>
-                            </div>
+                        </div>
+
+                        <div className="mt-6 p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                            <p className="text-sm text-muted-foreground">
+                                <strong className="text-foreground">Note:</strong> We automatically deduplicate events
+                                that appear across multiple sources, merging information to provide you with the most
+                                complete and accurate event details.
+                            </p>
                         </div>
                     </CardContent>
                 </Card>
@@ -100,24 +148,28 @@ export default function AboutPage() {
                         </p>
                         <ul className="space-y-3">
                             <li className="flex items-start gap-3">
-                                <span className="text-green-500">✓</span>
-                                <span><strong>API-first approach:</strong> We use official APIs wherever available.</span>
+                                <span className="text-green-500 font-bold">✓</span>
+                                <span><strong>API-first approach:</strong> We use official APIs wherever available (Ticketmaster Discovery API).</span>
                             </li>
                             <li className="flex items-start gap-3">
-                                <span className="text-green-500">✓</span>
-                                <span><strong>robots.txt compliance:</strong> We respect crawling restrictions.</span>
+                                <span className="text-green-500 font-bold">✓</span>
+                                <span><strong>robots.txt compliance:</strong> We respect crawling restrictions and terms of service.</span>
                             </li>
                             <li className="flex items-start gap-3">
-                                <span className="text-green-500">✓</span>
-                                <span><strong>Rate limiting:</strong> We never overload source servers.</span>
+                                <span className="text-green-500 font-bold">✓</span>
+                                <span><strong>Rate limiting:</strong> We implement intelligent delays and never overload source servers.</span>
                             </li>
                             <li className="flex items-start gap-3">
-                                <span className="text-green-500">✓</span>
-                                <span><strong>Attribution:</strong> We always link back to the original ticketing source.</span>
+                                <span className="text-green-500 font-bold">✓</span>
+                                <span><strong>Direct attribution:</strong> We always link directly to the original ticketing source for bookings.</span>
                             </li>
                             <li className="flex items-start gap-3">
-                                <span className="text-green-500">✓</span>
-                                <span><strong>No personal data:</strong> We only collect public event information.</span>
+                                <span className="text-green-500 font-bold">✓</span>
+                                <span><strong>No personal data:</strong> We only collect publicly available event information.</span>
+                            </li>
+                            <li className="flex items-start gap-3">
+                                <span className="text-green-500 font-bold">✓</span>
+                                <span><strong>No ticket sales:</strong> We don't sell tickets - all bookings go directly to official sources.</span>
                             </li>
                         </ul>
                     </CardContent>
@@ -132,10 +184,24 @@ export default function AboutPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-muted-foreground">
+                        <p className="text-muted-foreground mb-4">
                             Our database is automatically updated daily via scheduled jobs. This ensures
                             you always see the latest events, accurate pricing, and up-to-date availability.
                         </p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                            <div className="text-center p-3 rounded-lg bg-muted/50">
+                                <p className="text-2xl font-bold text-primary">Daily</p>
+                                <p className="text-sm text-muted-foreground">Ticketmaster</p>
+                            </div>
+                            <div className="text-center p-3 rounded-lg bg-muted/50">
+                                <p className="text-2xl font-bold text-primary">Daily</p>
+                                <p className="text-sm text-muted-foreground">Marriner Group</p>
+                            </div>
+                            <div className="text-center p-3 rounded-lg bg-muted/50">
+                                <p className="text-2xl font-bold text-primary">Daily</p>
+                                <p className="text-sm text-muted-foreground">What's On</p>
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -169,13 +235,13 @@ export default function AboutPage() {
                                 GitHub Repository
                             </a>
                         </div>
-                        <p className="text-sm text-muted-foreground mt-4">
-                            <strong>Venue owners:</strong> If you'd like your events removed from our
-                            aggregator, please contact us and we'll process your request within 48 hours.
+                        <p className="text-sm text-muted-foreground mt-6 p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                            <strong className="text-foreground">Venue owners or event organizers:</strong> If you'd like your events
+                            removed from our aggregator, please contact us and we'll process your request within 48 hours.
                         </p>
                     </CardContent>
-                </Card >
-            </div >
-        </main >
+                </Card>
+            </div>
+        </main>
     );
 }
