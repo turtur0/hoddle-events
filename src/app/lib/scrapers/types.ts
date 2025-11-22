@@ -196,10 +196,20 @@ export interface TicketmasterEvent {
   };
 }
 
-
 // Scraper options
 export interface ScrapeOptions {
   maxCategories?: number;
   maxEventsPerCategory?: number;
   specificCategories?: string[];
+}
+
+export interface ScrapeResult {
+  events: NormalisedEvent[];
+  stats: {
+    source: string;
+    fetched: number;
+    normalised: number;
+    errors: number;
+    duration: number;
+  };
 }

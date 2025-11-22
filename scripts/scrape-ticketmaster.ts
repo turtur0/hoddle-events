@@ -1,6 +1,7 @@
-// =============================================
+// ============================================
 // scripts/scrape-ticketmaster.ts
-// =============================================
+// Ticketmaster scraper with deduplication
+// ============================================
 import dotenv from 'dotenv';
 import path from 'path';
 
@@ -8,45 +9,42 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
 import { connectDB, disconnectDB } from '@/app/lib/db';
 import { fetchAllTicketmasterEvents, normaliseTicketmasterEvent } from '@/app/lib/scrapers';
-import Event from '@/app/lib/models/Event';
+import { processEventsWithDeduplication } from './scrape-with-dedup';
 
-async function scrapeTicketmaster() {
-  console.log('Ticketmaster Scraper\n');
+export async function scrapeTicketmasterWithDedup() {
+  console.log('🎫 Ticketmaster Scraper with Deduplication\n');
 
   try {
     await connectDB();
 
     const rawEvents = await fetchAllTicketmasterEvents();
-    console.log(`\n📦 Fetched ${rawEvents.length} events\n`);
+    console.log(`\n✅ Scraped ${rawEvents.length} events from Ticketmaster`);
 
-    let inserted = 0, updated = 0, skipped = 0;
+    const events = rawEvents.map(raw => normaliseTicketmasterEvent(raw));
 
-    for (const raw of rawEvents) {
-      try {
-        const event = normaliseTicketmasterEvent(raw);
+    const stats = await processEventsWithDeduplication(events, 'ticketmaster');
 
-        const existing = await Event.findOne({
-          source: 'ticketmaster',
-          sourceId: event.sourceId,
-        });
+    console.log(`\n${'='.repeat(70)}`);
+    console.log('✅ Ticketmaster Processing Complete');
+    console.log(`${'='.repeat(70)}`);
+    console.log(`📊 Summary:`);
+    console.log(`   • Inserted: ${stats.inserted} new events`);
+    console.log(`   • Updated:  ${stats.updated} same-source events`);
+    console.log(`   • Merged:   ${stats.merged} cross-source duplicates`);
+    console.log(`   • Skipped:  ${stats.skipped} errors`);
+    console.log(`   • Total:    ${events.length} events processed\n`);
 
-        if (existing) {
-          await Event.updateOne({ _id: existing._id }, { $set: { ...event, lastUpdated: new Date() } });
-          updated++;
-        } else {
-          await Event.create(event);
-          inserted++;
-        }
-      } catch (error: any) {
-        if (error.code === 11000) skipped++;
-        else console.error(`❌ ${raw.name}:`, error.message);
-      }
-    }
-
-    console.log(`\n✅ Done: ${inserted} inserted, ${updated} updated, ${skipped} skipped`);
   } finally {
     await disconnectDB();
   }
 }
 
-scrapeTicketmaster();
+// Allow running directly
+if (require.main === module) {
+  scrapeTicketmasterWithDedup()
+    .then(() => process.exit(0))
+    .catch(err => {
+      console.error('❌ Fatal error:', err);
+      process.exit(1);
+    });
+}

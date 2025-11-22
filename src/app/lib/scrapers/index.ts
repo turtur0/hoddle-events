@@ -1,19 +1,26 @@
+// ============================================
+// scrapers/index.ts
+// Updated to include whatson scraper
+// ============================================
 import { NormalisedEvent, ScrapeResult } from './types';
 import { fetchAllTicketmasterEvents, normaliseTicketmasterEvent } from './ticketmaster';
 import { scrapeMarrinerGroup } from './marriner';
+import { scrapeWhatsOnMelbourne, WhatsOnScrapeOptions } from './whatson';
 
 export { fetchAllTicketmasterEvents, normaliseTicketmasterEvent } from './ticketmaster';
 export { scrapeMarrinerGroup } from './marriner';
+export { scrapeWhatsOnMelbourne } from './whatson';
 export * from './types';
 
 interface ScrapeAllOptions {
-  sources?: ('ticketmaster' | 'marriner')[];
+  sources?: ('ticketmaster' | 'marriner' | 'whatson')[];
   verbose?: boolean;
   marrinerOptions?: {
     maxShows?: number;
     maxDetailFetches?: number;
     usePuppeteer?: boolean;
   };
+  whatsonOptions?: WhatsOnScrapeOptions;
 }
 
 /**
@@ -23,7 +30,7 @@ export async function scrapeAll(options?: ScrapeAllOptions): Promise<{
   events: NormalisedEvent[];
   results: ScrapeResult[];
 }> {
-  const sources = options?.sources || ['ticketmaster', 'marriner'];
+  const sources = options?.sources || ['ticketmaster', 'marriner', 'whatson'];
   const verbose = options?.verbose ?? true;
   const results: ScrapeResult[] = [];
   const allEvents: NormalisedEvent[] = [];
@@ -42,6 +49,10 @@ export async function scrapeAll(options?: ScrapeAllOptions): Promise<{
 
   if (sources.includes('marriner')) {
     scrapePromises.push(scrapeMarriner(verbose, options?.marrinerOptions));
+  }
+
+  if (sources.includes('whatson')) {
+    scrapePromises.push(scrapeWhatsOn(verbose, options?.whatsonOptions));
   }
 
   // Wait for all scrapers to complete
@@ -140,6 +151,43 @@ async function scrapeMarriner(
     return {
       events: [],
       stats: { source: 'marriner', fetched, normalised, errors: errors + 1, duration: Date.now() - start }
+    };
+  }
+}
+
+/**
+ * Scrape What's On Melbourne and return normalised events
+ */
+async function scrapeWhatsOn(
+  verbose: boolean,
+  options?: WhatsOnScrapeOptions
+): Promise<ScrapeResult> {
+  const start = Date.now();
+  let fetched = 0, normalised = 0, errors = 0;
+
+  if (verbose) console.log('🎪 Scraping What\'s On Melbourne...');
+
+  try {
+    const events = await scrapeWhatsOnMelbourne(options || {
+      categories: ['theatre', 'music'],
+      maxPages: 5,
+      maxEventsPerCategory: 50
+    });
+
+    fetched = events.length;
+    normalised = events.length;
+
+    if (verbose) console.log(`   ✅ What's On: ${normalised} events\n`);
+
+    return {
+      events,
+      stats: { source: 'whatson', fetched, normalised, errors, duration: Date.now() - start }
+    };
+  } catch (error) {
+    if (verbose) console.error('   ❌ What\'s On failed:', error);
+    return {
+      events: [],
+      stats: { source: 'whatson', fetched, normalised, errors: errors + 1, duration: Date.now() - start }
     };
   }
 }

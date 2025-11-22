@@ -1,10 +1,11 @@
 // ============================================
-// whatson.ts - Enhanced What's On Melbourne Scraper
-// Extracts prices, accessibility, duration, and more
-// Fixed pagination to get all results
+// whatson.ts - Refactored What's On Melbourne Scraper
+// Extracts data from category listing pages first,
+// then optionally enriches from detail pages
 // ============================================
 
-import { load, CheerioAPI } from 'cheerio';
+import { load, CheerioAPI, Cheerio } from 'cheerio';
+import type { Element } from 'domhandler';
 import { NormalisedEvent } from './types';
 import { mapWhatsOnCategory } from '../utils/category-mapper';
 
@@ -14,63 +15,80 @@ const HEADERS = {
     'Accept': 'text/html,application/xhtml+xml',
 };
 
-interface RawEvent {
+interface ListingEvent {
     url: string;
     title: string;
+    summary: string;
+    startDate?: Date;
+    endDate?: Date;
+    imageUrl?: string;
+    isFree: boolean;
+    tags: string[];
+}
+
+interface DetailedEvent extends ListingEvent {
     description?: string;
     venue?: string;
     address?: string;
-    startDate?: Date;
-    endDate?: Date;
     priceMin?: number;
     priceMax?: number;
     priceDetails?: string;
-    isFree: boolean;
-    imageUrl?: string;
     accessibility?: string[];
-    duration?: string;
 }
 
 export interface WhatsOnScrapeOptions {
     categories?: string[];
     maxPages?: number;
     maxEventsPerCategory?: number;
+    fetchDetails?: boolean; // Whether to fetch individual detail pages
+    detailFetchDelay?: number; // Delay between detail page fetches
 }
 
 export async function scrapeWhatsOnMelbourne(opts: WhatsOnScrapeOptions = {}): Promise<NormalisedEvent[]> {
     const categories = opts.categories || ['theatre', 'music'];
+    const fetchDetails = opts.fetchDetails ?? false;
     const allEvents: NormalisedEvent[] = [];
-    const seenTitles = new Set<string>(); // Track duplicates across categories
+    const seenTitles = new Set<string>();
 
     console.log(`🎭 Scraping What's On: ${categories.join(', ')}`);
+    console.log(`   Detail fetching: ${fetchDetails ? 'enabled' : 'disabled'}`);
 
     for (const category of categories) {
         console.log(`\n📂 ${category}`);
-        const urls = await collectEventUrls(category, opts.maxPages || 10);
-        console.log(`   Found ${urls.length} URLs`);
+        const listingEvents = await collectEventsFromListings(category, opts.maxPages || 10);
+        console.log(`   Found ${listingEvents.length} events from listings`);
 
-        const limit = opts.maxEventsPerCategory || urls.length;
+        const limit = opts.maxEventsPerCategory || listingEvents.length;
         let processedCount = 0;
-        
-        for (let i = 0; i < urls.length && processedCount < limit; i++) {
-            const raw = await fetchEventDetails(urls[i]);
-            if (raw) {
-                // Skip if we've already seen this event (from another category)
-                const titleKey = raw.title.toLowerCase().trim();
-                if (seenTitles.has(titleKey)) {
-                    console.log(`   ⊘ Skipping duplicate: ${raw.title}`);
-                    continue;
-                }
-                
-                const event = toNormalisedEvent(raw, category);
-                if (event) {
-                    allEvents.push(event);
-                    seenTitles.add(titleKey);
-                    processedCount++;
-                    console.log(`   ✓ ${processedCount}/${limit}: ${event.title}`);
-                }
+
+        for (let i = 0; i < listingEvents.length && processedCount < limit; i++) {
+            const listing = listingEvents[i];
+            
+            // Skip duplicates
+            const titleKey = listing.title.toLowerCase().trim();
+            if (seenTitles.has(titleKey)) {
+                console.log(`   ⊘ Skipping duplicate: ${listing.title}`);
+                continue;
             }
-            if (i < urls.length - 1) await delay(800);
+
+            let eventData: DetailedEvent = listing;
+
+            // Optionally fetch detail page for more info
+            if (fetchDetails) {
+                const details = await fetchEventDetails(listing.url);
+                if (details) {
+                    eventData = { ...listing, ...details };
+                }
+                await delay(opts.detailFetchDelay || 800);
+            }
+
+            const event = toNormalisedEvent(eventData, category);
+            if (event) {
+                allEvents.push(event);
+                seenTitles.add(titleKey);
+                processedCount++;
+                console.log(`   ✓ ${processedCount}/${limit}: ${event.title}`);
+            }
         }
     }
 
@@ -79,11 +97,12 @@ export async function scrapeWhatsOnMelbourne(opts: WhatsOnScrapeOptions = {}): P
 }
 
 /**
- * Collect event URLs with proper pagination handling
- * Filters out non-event pages (articles, businesses, category pages)
+ * Collect events directly from category listing pages
+ * Filters out non-event items (businesses, articles, etc.)
  */
-async function collectEventUrls(category: string, maxPages: number): Promise<string[]> {
-    const urls = new Set<string>();
+async function collectEventsFromListings(category: string, maxPages: number): Promise<ListingEvent[]> {
+    const events: ListingEvent[] = [];
+    const seenUrls = new Set<string>();
     let consecutiveEmptyPages = 0;
 
     for (let page = 1; page <= maxPages; page++) {
@@ -97,48 +116,43 @@ async function collectEventUrls(category: string, maxPages: number): Promise<str
             }
 
             const $ = load(await res.text());
-            const prevSize = urls.size;
+            const prevCount = events.length;
 
-            // The data-listing-type attribute has escaped quotes in the HTML
-            // So we need to check the attribute value which contains the quotes
+            // Process each preview item on the page
             $('.page-preview').each((_, el) => {
-                const listingType = $(el).attr('data-listing-type');
+                const $el = $(el);
+                const listingType = $el.attr('data-listing-type');
 
-                // The attribute value is actually '"event"' with quotes included
-                if (listingType && listingType.includes('event')) {
-                    const link = $(el).find('a.main-link');
-                    const href = link.attr('href');
+                // Only process events (not businesses, articles, etc.)
+                // The attribute value contains escaped quotes: "event"
+                if (!listingType || !listingType.includes('event')) {
+                    return;
+                }
 
-                    if (href &&
-                        href.includes('/things-to-do/') &&
-                        !href.includes('/tags/') &&
-                        !href.includes('/search') &&
-                        !href.includes('/article/') &&
-                        !href.includes('/shop/')) {
-                        const fullUrl = href.startsWith('http') ? href : `${BASE_URL}${href}`;
-                        urls.add(fullUrl);
-                    }
+                const event = parseListingItem($, $el);
+                if (event && !seenUrls.has(event.url)) {
+                    events.push(event);
+                    seenUrls.add(event.url);
                 }
             });
 
-            const newUrlsCount = urls.size - prevSize;
-            console.log(`   Page ${page}: +${newUrlsCount} URLs (${urls.size} total)`);
+            const newCount = events.length - prevCount;
+            console.log(`   Page ${page}: +${newCount} events (${events.length} total)`);
 
-            // If we got no new URLs, increment counter
-            if (newUrlsCount === 0) {
+            // Stop if no new events found
+            if (newCount === 0) {
                 consecutiveEmptyPages++;
-                // Stop if we've seen 2 consecutive pages with no new URLs
                 if (consecutiveEmptyPages >= 2) {
                     console.log(`   Stopping: ${consecutiveEmptyPages} consecutive empty pages`);
                     break;
                 }
             } else {
-                consecutiveEmptyPages = 0; // Reset counter when we find URLs
+                consecutiveEmptyPages = 0;
             }
 
-            // Check if there's a "next" page button
+            // Check for next page
             const hasNextPage = $('.pagination a[rel="next"]').length > 0 ||
-                $('.pagination .next').length > 0;
+                $('.pagination .next a').length > 0;
 
             if (!hasNextPage && page > 1) {
                 console.log(`   No more pages available`);
@@ -152,101 +166,146 @@ async function collectEventUrls(category: string, maxPages: number): Promise<str
         }
     }
 
-    return Array.from(urls);
+    return events;
 }
 
-async function fetchEventDetails(url: string): Promise<RawEvent | null> {
+/**
+ * Parse a single listing item from the category page
+ */
+function parseListingItem($: CheerioAPI, $el: Cheerio<Element>): ListingEvent | null {
+    const $link = $el.find('a.main-link');
+    const href = $link.attr('href');
+    
+    if (!href || !href.includes('/things-to-do/')) {
+        return null;
+    }
+
+    const title = $el.find('h2.title').text().trim();
+    if (!title) return null;
+
+    const fullUrl = href.startsWith('http') ? href : `${BASE_URL}${href}`;
+
+    // Extract dates from time elements
+    const dates = parseDatesFromListing($el);
+
+    // Extract image URL
+    const imgSrc = $el.find('.page_image').attr('src');
+    const imageUrl = imgSrc?.startsWith('http') ? imgSrc : imgSrc ? `${BASE_URL}${imgSrc}` : undefined;
+
+    // Extract tags
+    const tags: string[] = [];
+    $el.find('.tag-list a').each((_, tagEl) => {
+        const tag = $(tagEl).text().trim().toLowerCase();
+        if (tag) tags.push(tag);
+    });
+
+    const isFree = tags.includes('free');
+
+    return {
+        url: fullUrl,
+        title,
+        summary: $el.find('p.summary').text().trim() || '',
+        startDate: dates.startDate,
+        endDate: dates.endDate,
+        imageUrl,
+        isFree,
+        tags,
+    };
+}
+
+/**
+ * Parse dates from the listing's tab-overlay
+ */
+function parseDatesFromListing($el: Cheerio<Element>): { startDate?: Date; endDate?: Date } {
+    const timeEls = $el.find('time[datetime]');
+    const dates: Date[] = [];
+
+    timeEls.each((_, el) => {
+        const dt = $el.find(el).attr('datetime');
+        if (dt) {
+            const d = new Date(dt);
+            if (!isNaN(d.getTime())) dates.push(d);
+        }
+    });
+
+    if (dates.length === 0) return {};
+    
+    dates.sort((a, b) => a.getTime() - b.getTime());
+    return {
+        startDate: dates[0],
+        endDate: dates.length > 1 ? dates[dates.length - 1] : undefined,
+    };
+}
+
+/**
+ * Fetch additional details from an event's detail page
+ * Returns null if fetch fails (e.g., 403 error)
+ */
+async function fetchEventDetails(url: string): Promise<Partial<DetailedEvent> | null> {
     try {
         const res = await fetch(url, { headers: HEADERS });
         if (!res.ok) {
-            console.error(`   ❌ Failed to fetch ${url}: HTTP ${res.status}`);
+            // Silently skip failed fetches - we still have listing data
             return null;
         }
 
         const $ = load(await res.text());
-        const title = $('h1').first().text().trim();
-        if (!title) {
-            console.error(`   ❌ No title found for ${url}`);
-            return null;
-        }
 
         return {
-            url,
-            title,
             description: extractDescription($),
             venue: extractVenue($),
             address: extractAddress($),
-            ...extractDates($),
             ...extractPrices($),
-            imageUrl: extractImage($),
             accessibility: extractAccessibility($),
-            duration: extractDuration($),
         };
-    } catch (err) {
-        console.error(`   ❌ Failed to fetch ${url}:`, err);
+    } catch {
         return null;
     }
 }
 
-function extractDescription($: CheerioAPI): string {
+function extractDescription($: CheerioAPI): string | undefined {
     return $('meta[name="description"]').attr('content')?.trim() ||
         $('meta[property="og:description"]').attr('content')?.trim() ||
         $('.listing-description .contents').text().trim().substring(0, 500) ||
-        'No description available';
+        undefined;
 }
 
-function extractVenue($: CheerioAPI): string {
+function extractVenue($: CheerioAPI): string | undefined {
     const locationWidget = $('.location.details-widget p').first().text().trim();
     if (locationWidget) return locationWidget.split('\n')[0].trim();
-    return $('[class*="venue"]').first().text().trim().split('\n')[0] || 'Venue TBA';
+    return $('[class*="venue"]').first().text().trim().split('\n')[0] || undefined;
 }
 
-function extractAddress($: CheerioAPI): string {
+function extractAddress($: CheerioAPI): string | undefined {
     const lines = $('.location.details-widget p').text().trim().split('\n').map(l => l.trim()).filter(Boolean);
-    return lines.slice(1).join(', ') || 'Melbourne VIC';
+    return lines.slice(1).join(', ') || undefined;
 }
 
-function extractDates($: CheerioAPI): { startDate?: Date; endDate?: Date } {
-    const times = $('time[datetime]').map((_, el) => {
-        const dt = $(el).attr('datetime');
-        return dt ? new Date(dt) : null;
-    }).get().filter((d): d is Date => d !== null && !isNaN(d.getTime()));
-
-    if (times.length > 0) {
-        times.sort((a, b) => a.getTime() - b.getTime());
-        return { startDate: times[0], endDate: times.length > 1 ? times[times.length - 1] : undefined };
-    }
-    return {};
-}
-
-function extractPrices($: CheerioAPI): { priceMin?: number; priceMax?: number; priceDetails?: string; isFree: boolean } {
+function extractPrices($: CheerioAPI): { priceMin?: number; priceMax?: number; priceDetails?: string; isFree?: boolean } {
     const widget = $('.price-and-bookings').text();
-    const isFree = /\bfree\b/i.test(widget);
-    if (isFree) return { priceMin: 0, priceMax: 0, isFree: true };
+    if (/\bfree\b/i.test(widget)) {
+        return { priceMin: 0, priceMax: 0, isFree: true };
+    }
 
-    // Extract price range (e.g., "From $78 to $209.05")
     const rangeMatch = widget.match(/From\s*\$(\d+(?:\.\d+)?)\s*to\s*\$(\d+(?:\.\d+)?)/i);
     if (rangeMatch) {
         return {
             priceMin: parseFloat(rangeMatch[1]),
             priceMax: parseFloat(rangeMatch[2]),
             priceDetails: extractPriceTable($),
-            isFree: false,
         };
     }
 
-    // Extract individual prices
     const prices = widget.match(/\$(\d+(?:\.\d+)?)/g)?.map(p => parseFloat(p.replace('$', ''))).filter(p => p > 0) || [];
     if (prices.length > 0) {
         return {
             priceMin: Math.min(...prices),
             priceMax: prices.length > 1 ? Math.max(...prices) : undefined,
             priceDetails: extractPriceTable($),
-            isFree: false,
         };
     }
 
-    return { isFree: false };
+    return {};
 }
 
 function extractPriceTable($: CheerioAPI): string | undefined {
@@ -254,51 +313,40 @@ function extractPriceTable($: CheerioAPI): string | undefined {
     return rows.length > 0 ? rows.join('; ') : undefined;
 }
 
-function extractImage($: CheerioAPI): string | undefined {
-    const img = $('meta[property="og:image"]').attr('content') ||
-        $('.carousel-item img').first().attr('src');
-    return img?.startsWith('http') ? img : img ? `${BASE_URL}${img}` : undefined;
-}
-
 function extractAccessibility($: CheerioAPI): string[] {
     return $('.accessibility-feature__link').map((_, el) => $(el).text().trim()).get();
 }
 
-function extractDuration($: CheerioAPI): string | undefined {
-    const times = $('#date-times-table tbody tr:first-child td li span[aria-hidden="true"]').first().text().trim();
-    if (times && times.includes('-')) {
-        const [start, end] = times.split('-').map(t => t.trim());
-        // Could calculate duration from times if needed
-    }
-    return undefined;
-}
-
-function toNormalisedEvent(raw: RawEvent, categoryTag: string): NormalisedEvent | null {
-    if (!raw.startDate) {
-        console.log(`   ⚠️  Skipping "${raw.title}" - no start date`);
+function toNormalisedEvent(event: DetailedEvent, categoryTag: string): NormalisedEvent | null {
+    if (!event.startDate) {
+        console.log(`   ⚠️  Skipping "${event.title}" - no start date`);
         return null;
     }
 
-    const { category, subcategory } = mapWhatsOnCategory(categoryTag, raw.title);
-    const suburb = extractSuburb(raw.address || '');
+    const { category, subcategory } = mapWhatsOnCategory(categoryTag, event.title);
+    const suburb = extractSuburb(event.address || '');
 
     return {
-        title: raw.title,
-        description: raw.description || 'No description available',
+        title: event.title,
+        description: event.description || event.summary || 'No description available',
         category,
         subcategory,
-        startDate: raw.startDate,
-        endDate: raw.endDate,
-        venue: { name: raw.venue || 'Venue TBA', address: raw.address || 'Melbourne VIC', suburb },
-        priceMin: raw.priceMin,
-        priceMax: raw.priceMax,
-        priceDetails: raw.priceDetails,
-        isFree: raw.isFree,
-        bookingUrl: raw.url,
-        imageUrl: raw.imageUrl,
-        accessibility: raw.accessibility,
+        startDate: event.startDate,
+        endDate: event.endDate,
+        venue: {
+            name: event.venue || 'Venue TBA',
+            address: event.address || 'Melbourne VIC',
+            suburb,
+        },
+        priceMin: event.priceMin,
+        priceMax: event.priceMax,
+        priceDetails: event.priceDetails,
+        isFree: event.isFree,
+        bookingUrl: event.url,
+        imageUrl: event.imageUrl,
+        accessibility: event.accessibility,
         source: 'whatson',
-        sourceId: slugify(raw.title),
+        sourceId: slugify(event.title),
         scrapedAt: new Date(),
         lastUpdated: new Date(),
     };
