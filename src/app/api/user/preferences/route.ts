@@ -1,3 +1,4 @@
+// src/app/api/user/preferences/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
@@ -8,7 +9,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -22,14 +23,13 @@ export async function POST(request: NextRequest) {
     } = await request.json();
 
     // Initialize category weights based on selected categories
-    // Start with equal weights, will be refined by user interaction
     const categoryWeights: Record<string, number> = {};
     selectedCategories.forEach((cat: string) => {
-      categoryWeights[cat] = 0.5; // Neutral starting point
+      categoryWeights[cat] = 0.5;
     });
 
-    const user = await User.findByIdAndUpdate(
-      session.user.id,
+    const user = await User.findOneAndUpdate(
+      { email: session.user.email },
       {
         'preferences.selectedCategories': selectedCategories,
         'preferences.selectedSubcategories': selectedSubcategories,
@@ -40,9 +40,19 @@ export async function POST(request: NextRequest) {
       { new: true }
     );
 
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     return NextResponse.json({
       message: 'Preferences updated',
-      user,
+      hasCompletedOnboarding: true,
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        username: user.username,
+      },
     });
   } catch (error: any) {
     console.error('Preferences update error:', error);
@@ -57,15 +67,19 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     await connectDB();
 
-    const user = await User.findById(session.user.id);
+    const user = await User.findOne({ email: session.user.email });
 
-    return NextResponse.json({ preferences: user?.preferences });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ preferences: user.preferences });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

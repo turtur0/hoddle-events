@@ -1,23 +1,30 @@
 'use client';
 
-import { useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { CATEGORIES } from '../lib/categories';
 import { Loader2, ChevronRight, Check } from 'lucide-react';
+import { useRequireOnboarding } from '@/app/lib/hooks/useAuthRedirect';
 
 const MIN_CATEGORIES = 2;
 
+type Step = 'username' | 'categories' | 'preferences' | 'notifications';
+
 export default function Onboarding() {
-    const { data: session, status, update } = useSession();
     const router = useRouter();
-    const [step, setStep] = useState<'categories' | 'preferences' | 'notifications'>('categories');
+    const { session, status } = useRequireOnboarding();
+    const [step, setStep] = useState<Step>('categories');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+
+    // Username for Google users
+    const [username, setUsername] = useState('');
+    const [needsUsername, setNeedsUsername] = useState(false);
 
     const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
     const [selectedSubcategories, setSelectedSubcategories] = useState<Set<string>>(new Set());
@@ -25,16 +32,26 @@ export default function Onboarding() {
     const [notificationsEnabled, setNotificationsEnabled] = useState(false);
     const [emailFrequency, setEmailFrequency] = useState<'daily' | 'weekly'>('weekly');
 
-    if (status === 'unauthenticated') {
-        router.push('/auth/signin');
-        return null;
+    useEffect(() => {
+        // Check if user signed up with Google and doesn't have username
+        if (session?.user && !session.user.username) {
+            setNeedsUsername(true);
+            setStep('username');
+        }
+    }, [session]);
+
+    if (status === 'loading') {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+        );
     }
 
     const toggleCategory = (categoryValue: string) => {
         const newSet = new Set(selectedCategories);
         if (newSet.has(categoryValue)) {
             newSet.delete(categoryValue);
-            // Remove subcategories of this category
             const category = CATEGORIES.find(c => c.value === categoryValue);
             if (category?.subcategories) {
                 const newSubs = new Set(selectedSubcategories);
@@ -56,6 +73,39 @@ export default function Onboarding() {
             newSet.add(subcategoryValue);
         }
         setSelectedSubcategories(newSet);
+    };
+
+    const handleUsernameSubmit = async () => {
+        if (!username || username.length < 3) {
+            setError('Username must be at least 3 characters');
+            return;
+        }
+
+        if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+            setError('Username can only contain letters, numbers, and underscores');
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const res = await fetch('/api/user/username', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username }),
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed to set username');
+            }
+
+            setError('');
+            setStep('categories');
+        } catch (error: any) {
+            setError(error.message);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleContinueFromCategories = () => {
@@ -89,18 +139,26 @@ export default function Onboarding() {
 
             if (!res.ok) throw new Error('Failed to save preferences');
 
-            await update({ hasCompletedOnboarding: true });
-            router.push('/');
-            router.refresh();
+            // Force reload the session from the server
+            await fetch('/api/auth/session?update=true');
+
+            // Small delay to ensure session is updated
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Hard redirect to ensure fresh session
+            window.location.href = '/';
         } catch (error: any) {
             setError(error.message || 'Failed to save preferences');
-        } finally {
             setIsLoading(false);
         }
     }
 
+    const allSteps: Step[] = needsUsername
+        ? ['username', 'categories', 'preferences', 'notifications']
+        : ['categories', 'preferences', 'notifications'];
+
     return (
-        <div className="bg-linear-to-br from-background via-muted/20 to-background p-4 w-full h-full">
+        <div className="w-full bg-linear-to-br from-background via-muted/20 to-background p-4">
             <div className="max-w-3xl mx-auto py-8">
                 <div className="mb-8 text-center">
                     <h1 className="text-3xl font-bold mb-2">Personalize Your Experience</h1>
@@ -108,6 +166,68 @@ export default function Onboarding() {
                         Tell us what you like, and we'll find the best events for you
                     </p>
                 </div>
+
+                {/* Step 0: Username (Google users only) */}
+                {step === 'username' && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Choose a Username</CardTitle>
+                            <CardDescription>
+                                Pick a unique username for your account (optional)
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {error && (
+                                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
+                                    {error}
+                                </div>
+                            )}
+
+                            <div className="space-y-2">
+                                <label htmlFor="username" className="text-sm font-medium">Username</label>
+                                <Input
+                                    id="username"
+                                    type="text"
+                                    placeholder="johndoe"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    disabled={isLoading}
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Letters, numbers, and underscores only (min. 3 characters)
+                                </p>
+                            </div>
+
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setStep('categories')}
+                                    className="flex-1"
+                                    disabled={isLoading}
+                                >
+                                    Skip
+                                </Button>
+                                <Button
+                                    onClick={handleUsernameSubmit}
+                                    className="flex-1"
+                                    disabled={isLoading}
+                                >
+                                    {isLoading ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Saving...
+                                        </>
+                                    ) : (
+                                        <>
+                                            Continue
+                                            <ChevronRight className="ml-2 h-4 w-4" />
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
 
                 {/* Step 1: Categories & Subcategories */}
                 {step === 'categories' && (
@@ -125,15 +245,14 @@ export default function Onboarding() {
                                 </div>
                             )}
 
-                            {/* Main Categories */}
                             <div className="flex flex-wrap gap-2">
                                 {CATEGORIES.map((category) => (
                                     <button
                                         key={category.value}
                                         onClick={() => toggleCategory(category.value)}
                                         className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedCategories.has(category.value)
-                                            ? 'bg-primary text-primary-foreground shadow-sm'
-                                            : 'bg-muted hover:bg-muted/80'
+                                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                                : 'bg-muted hover:bg-muted/80'
                                             }`}
                                     >
                                         {selectedCategories.has(category.value) && (
@@ -144,7 +263,6 @@ export default function Onboarding() {
                                 ))}
                             </div>
 
-                            {/* Subcategories - Show for selected categories */}
                             {selectedCategories.size > 0 && (
                                 <div className="space-y-6 pt-4 border-t">
                                     <div>
@@ -160,8 +278,8 @@ export default function Onboarding() {
                                                             key={sub}
                                                             onClick={() => toggleSubcategory(sub)}
                                                             className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${selectedSubcategories.has(sub)
-                                                                ? 'bg-primary/20 text-primary border border-primary'
-                                                                : 'bg-background hover:bg-muted border border-border'
+                                                                    ? 'bg-primary/20 text-primary border border-primary'
+                                                                    : 'bg-background hover:bg-muted border border-border'
                                                                 }`}
                                                         >
                                                             {sub}
@@ -174,10 +292,7 @@ export default function Onboarding() {
                                 </div>
                             )}
 
-                            <Button
-                                onClick={handleContinueFromCategories}
-                                className="w-full"
-                            >
+                            <Button onClick={handleContinueFromCategories} className="w-full">
                                 Continue
                                 <ChevronRight className="ml-2 h-4 w-4" />
                             </Button>
@@ -203,18 +318,19 @@ export default function Onboarding() {
 
                                 <div className="flex gap-2 bg-muted p-1 rounded-lg">
                                     {[
-                                        { value: 0, label: 'Niche Gems' },
-                                        { value: 0.5, label: 'Balanced' },
-                                        { value: 1, label: 'Mainstream' },
+                                        { value: 0, label: 'Niche Gems', icon: '🔍' },
+                                        { value: 0.5, label: 'Balanced', icon: '🎯' },
+                                        { value: 1, label: 'Mainstream', icon: '⭐' },
                                     ].map((option) => (
                                         <button
                                             key={option.value}
                                             onClick={() => setPopularityPref(option.value)}
                                             className={`flex-1 py-2 px-3 rounded text-sm font-medium transition-all ${popularityPref === option.value
-                                                ? 'bg-primary text-primary-foreground shadow-sm'
-                                                : 'hover:bg-background'
+                                                    ? 'bg-primary text-primary-foreground shadow-sm'
+                                                    : 'hover:bg-background'
                                                 }`}
                                         >
+                                            <span className="mr-1">{option.icon}</span>
                                             {option.label}
                                         </button>
                                     ))}
@@ -323,17 +439,16 @@ export default function Onboarding() {
 
                 {/* Progress Indicator */}
                 <div className="flex gap-2 mt-8 justify-center">
-                    {(['categories', 'preferences', 'notifications'] as const).map((s, idx) => {
-                        const steps = ['categories', 'preferences', 'notifications'];
-                        const currentIdx = steps.indexOf(step);
+                    {allSteps.map((s, idx) => {
+                        const currentIdx = allSteps.indexOf(step);
                         return (
                             <div
                                 key={s}
                                 className={`h-2 rounded-full transition-all ${step === s
-                                    ? 'bg-primary w-8'
-                                    : idx < currentIdx
-                                        ? 'bg-primary w-2'
-                                        : 'bg-muted w-2'
+                                        ? 'bg-primary w-8'
+                                        : idx < currentIdx
+                                            ? 'bg-primary w-2'
+                                            : 'bg-muted w-2'
                                     }`}
                             />
                         );

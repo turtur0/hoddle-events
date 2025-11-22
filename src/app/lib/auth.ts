@@ -110,13 +110,18 @@ export const authOptions: NextAuthOptions = {
                 token.hasCompletedOnboarding = user.hasCompletedOnboarding;
             }
 
-            // Refresh user data from DB when session updates
-            if (trigger === 'update' || !token.hasCompletedOnboarding) {
-                await connectDB();
-                const dbUser = await User.findOne({ email: token.email });
-                if (dbUser) {
-                    token.username = dbUser.username;
-                    token.hasCompletedOnboarding = dbUser.preferences.selectedCategories.length > 0;
+            // Always refresh onboarding status from DB
+            if (token.email && !token.hasCompletedOnboarding) {
+                try {
+                    await connectDB();
+                    const dbUser = await User.findOne({ email: token.email });
+                    if (dbUser) {
+                        token.username = dbUser.username;
+                        token.hasCompletedOnboarding =
+                            dbUser.preferences?.selectedCategories?.length > 0;
+                    }
+                } catch (error) {
+                    console.error('Error refreshing user data:', error);
                 }
             }
 

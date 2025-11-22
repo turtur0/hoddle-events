@@ -1,24 +1,51 @@
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/lib/auth';
+// src/middleware.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 
 export async function middleware(request: NextRequest) {
-    const session = await getServerSession(authOptions);
+    const token = await getToken({
+        req: request,
+        secret: process.env.NEXTAUTH_SECRET
+    });
+
     const pathname = request.nextUrl.pathname;
 
-    // Redirect unauthenticated users from protected routes
-    if (!session) {
-        if (pathname.startsWith('/profile') || pathname.startsWith('/onboarding')) {
-            return NextResponse.redirect(
-                new URL(`/auth/signin?from=${pathname}`, request.url)
-            );
-        }
+    // Public paths
+    const isAuthPage = pathname.startsWith('/auth/signin') || pathname.startsWith('/auth/signup');
+    const isOnboardingPage = pathname.startsWith('/onboarding');
+    const isApiRoute = pathname.startsWith('/api');
+
+    // Skip middleware for API routes
+    if (isApiRoute) {
+        return NextResponse.next();
     }
 
-    // Redirect authenticated users away from auth pages
-    if (session && (pathname.startsWith('/auth/signin') || pathname.startsWith('/auth/signup'))) {
-        return NextResponse.redirect(new URL('/', request.url));
+    // Redirect unauthenticated users to sign in (except auth pages)
+    if (!token && !isAuthPage && !isOnboardingPage) {
+        return NextResponse.redirect(new URL('/auth/signin', request.url));
+    }
+
+    // Authenticated users
+    if (token) {
+        // Redirect away from auth pages if already authenticated
+        if (isAuthPage) {
+            // Check onboarding status
+            if (!token.hasCompletedOnboarding) {
+                return NextResponse.redirect(new URL('/onboarding', request.url));
+            }
+            return NextResponse.redirect(new URL('/', request.url));
+        }
+
+        // CRITICAL: Force onboarding for ALL pages if not completed
+        if (!token.hasCompletedOnboarding && !isOnboardingPage) {
+            return NextResponse.redirect(new URL('/onboarding', request.url));
+        }
+
+        // Redirect from onboarding if already completed
+        if (token.hasCompletedOnboarding && isOnboardingPage) {
+            return NextResponse.redirect(new URL('/', request.url));
+        }
     }
 
     return NextResponse.next();
@@ -26,9 +53,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
     matcher: [
-        '/profile/:path*',
-        '/onboarding/:path*',
-        '/auth/signin',
-        '/auth/signup',
+        '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
 };
