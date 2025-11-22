@@ -3,7 +3,7 @@ import mongoose, { Schema, Model } from 'mongoose';
 export interface IUserInteraction {
     userId: mongoose.Types.ObjectId;
     eventId: mongoose.Types.ObjectId;
-    interactionType: 'view' | 'favorite' | 'unfavorite' | 'clickthrough';
+    interactionType: 'view' | 'favourite' | 'unfavourite' | 'clickthrough';
     source: 'search' | 'recommendation' | 'category_browse' | 'homepage' | 'direct' | 'similar_events';
     timestamp: Date;
     sessionId?: string;
@@ -24,7 +24,7 @@ const UserInteractionSchema = new Schema<IUserInteraction>({
     },
     interactionType: {
         type: String,
-        enum: ['view', 'favorite', 'unfavorite', 'clickthrough'],
+        enum: ['view', 'favourite', 'unfavourite', 'clickthrough'],
         required: true
     },
     source: {

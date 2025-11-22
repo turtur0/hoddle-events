@@ -1,12 +1,12 @@
 import mongoose, { Schema, Model } from 'mongoose';
 
-export interface IUserFavorite {
+export interface IUserFavourite {
     userId: mongoose.Types.ObjectId;
     eventId: mongoose.Types.ObjectId;
     createdAt: Date;
 }
 
-const UserFavoriteSchema = new Schema<IUserFavorite>({
+const UserFavouriteSchema = new Schema<IUserFavourite>({
     userId: {
         type: Schema.Types.ObjectId,
         ref: 'User',
@@ -20,12 +20,12 @@ const UserFavoriteSchema = new Schema<IUserFavorite>({
     createdAt: { type: Date, default: Date.now },
 });
 
-// Unique constraint: user can only favorite an event once
-UserFavoriteSchema.index({ userId: 1, eventId: 1 }, { unique: true });
-UserFavoriteSchema.index({ userId: 1, createdAt: -1 });
+// Unique constraint: user can only favourite an event once
+UserFavouriteSchema.index({ userId: 1, eventId: 1 }, { unique: true });
+UserFavouriteSchema.index({ userId: 1, createdAt: -1 });
 
-const UserFavorite: Model<IUserFavorite> =
-    mongoose.models.UserFavorite ||
-    mongoose.model<IUserFavorite>('UserFavorite', UserFavoriteSchema);
+const UserFavourite: Model<IUserFavourite> =
+    mongoose.models.UserFavourite ||
+    mongoose.model<IUserFavourite>('UserFavourite', UserFavouriteSchema);
 
-export default UserFavorite;
+export default UserFavourite;

@@ -44,6 +44,13 @@ export interface IEvent {
   scrapedAt: Date;
   lastUpdated: Date;
   mergedFrom?: string[];  // Track which events were merged
+
+  // Stats and Action Tracking
+  stats: {
+    viewCount: number;
+    favouriteCount: number;
+    clickthroughCount: number;
+  };
 }
 
 const EventSchema = new Schema<IEvent>({
@@ -86,6 +93,12 @@ const EventSchema = new Schema<IEvent>({
   scrapedAt: { type: Date, default: Date.now },
   lastUpdated: { type: Date, default: Date.now },
   mergedFrom: [String],
+
+  stats: {
+    viewCount: { type: Number, default: 0 },
+    favouriteCount: { type: Number, default: 0 },
+    clickthroughCount: { type: Number, default: 0 },
+  },
 }, { timestamps: true });
 
 // Indexes
