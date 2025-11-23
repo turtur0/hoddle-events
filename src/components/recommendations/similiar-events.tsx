@@ -1,29 +1,32 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { EventCard } from '../events/event-card';
 import { Loader2 } from 'lucide-react';
 
-export function TrendingSection() {
+interface SimilarEventsProps {
+    eventId: string;
+}
+
+export function SimilarEvents({ eventId }: SimilarEventsProps) {
     const [events, setEvents] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        async function fetchTrending() {
+        async function fetchSimilar() {
             try {
-                const res = await fetch('/api/recommendations?limit=12');
+                const res = await fetch(`/api/recommendations/similar/${eventId}`);
                 const data = await res.json();
-                setEvents(data.recommendations);
+                setEvents(data.similarEvents);
             } catch (error) {
-                console.error('Error fetching trending:', error);
+                console.error('Error fetching similar events:', error);
             } finally {
                 setIsLoading(false);
             }
         }
 
-        fetchTrending();
-    }, []);
+        fetchSimilar();
+    }, [eventId]);
 
     if (isLoading) {
         return (
@@ -40,8 +43,10 @@ export function TrendingSection() {
     return (
         <div className="space-y-4">
             <div>
-                <h2 className="text-2xl font-bold">Trending Now</h2>
-                <p className="text-muted-foreground">Popular events this week</p>
+                <h3 className="text-xl font-bold">Similar Events</h3>
+                <p className="text-sm text-muted-foreground">
+                    {events.length} events you might like
+                </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {events.map(event => (
