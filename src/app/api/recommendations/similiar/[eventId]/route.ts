@@ -1,8 +1,5 @@
-
-// src/app/api/recommendations/similar/[eventId]/route.ts
-
 import { NextRequest, NextResponse } from 'next/server';
-import { getSimilarEvents } from '@/lib/ml/userProfileService';
+import { getSimilarEvents } from '@/lib/ml/recommendationService';
 import { connectDB } from '@/lib/db';
 import mongoose from 'mongoose';
 
@@ -25,22 +22,20 @@ export async function GET(
         );
 
         const formatted = similarEvents.map(({ event, similarity }) => ({
-            event: {
-                _id: event._id.toString(),
-                title: event.title,
-                description: event.description,
-                category: event.category,
-                subcategories: event.subcategories,
-                startDate: event.startDate.toISOString(),
-                endDate: event.endDate?.toISOString(),
-                venue: event.venue,
-                priceMin: event.priceMin,
-                priceMax: event.priceMax,
-                isFree: event.isFree,
-                bookingUrl: event.bookingUrl,
-                imageUrl: event.imageUrl,
-            },
-            similarity,
+            _id: event._id.toString(),
+            title: event.title,
+            description: event.description,
+            category: event.category,
+            subcategories: event.subcategories,
+            startDate: event.startDate.toISOString(),
+            endDate: event.endDate?.toISOString(),
+            venue: event.venue,
+            priceMin: event.priceMin,
+            priceMax: event.priceMax,
+            isFree: event.isFree,
+            bookingUrl: event.bookingUrl,
+            imageUrl: event.imageUrl,
+            similarity: Math.round(similarity * 100), // Convert to percentage
         }));
 
         return NextResponse.json({
