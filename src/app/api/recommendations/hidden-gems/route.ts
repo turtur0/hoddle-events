@@ -1,8 +1,6 @@
 
-// app/api/recommendations/trending/route.ts (UPDATED VERSION)
-
 import { NextRequest, NextResponse } from 'next/server';
-import { getTrendingEvents, getRisingStars } from '@/lib/ml/recommendationService';
+import { getHiddenGems } from '@/lib/ml/popularityService';
 import { connectDB } from '@/lib/db';
 
 export async function GET(req: NextRequest) {
@@ -12,17 +10,8 @@ export async function GET(req: NextRequest) {
         const { searchParams } = new URL(req.url);
         const limit = parseInt(searchParams.get('limit') || '12');
         const category = searchParams.get('category') || undefined;
-        const type = searchParams.get('type') || 'trending'; // 'trending' or 'rising'
 
-        let events;
-
-        if (type === 'rising') {
-            // Rising stars: high velocity, not yet mainstream
-            events = await getRisingStars({ limit, category });
-        } else {
-            // Standard trending: popular + velocity + recency
-            events = await getTrendingEvents({ limit, category });
-        }
+        const events = await getHiddenGems(category, { limit });
 
         const formatted = events.map(event => ({
             _id: event._id.toString(),
@@ -38,24 +27,19 @@ export async function GET(req: NextRequest) {
             isFree: event.isFree,
             bookingUrl: event.bookingUrl,
             imageUrl: event.imageUrl,
-            primarySource: event.primarySource,
             stats: {
-                viewCount: event.stats?.viewCount || 0,
-                favouriteCount: event.stats?.favouriteCount || 0,
-                clickthroughCount: event.stats?.clickthroughCount || 0,
                 popularityPercentile: event.stats?.categoryPopularityPercentile,
             },
         }));
 
         return NextResponse.json({
-            events: formatted,
+            hiddenGems: formatted,
             count: formatted.length,
-            type,
         });
     } catch (error) {
-        console.error('Error getting trending events:', error);
+        console.error('Error getting hidden gems:', error);
         return NextResponse.json(
-            { error: 'Failed to get trending events' },
+            { error: 'Failed to get hidden gems' },
             { status: 500 }
         );
     }

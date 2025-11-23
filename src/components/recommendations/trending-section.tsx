@@ -1,3 +1,4 @@
+// components/recommendations/trending-section.tsx
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
@@ -77,10 +78,10 @@ export function TrendingSection({ userFavourites }: TrendingSectionProps) {
 
     if (isLoading) {
         return (
-            <Card>
+            <Card className="border-orange-500/20 bg-gradient-to-br from-orange-500/5 to-transparent">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-2xl">
-                        <TrendingUp className="h-6 w-6" />
+                        <TrendingUp className="h-6 w-6 text-orange-500" />
                         Trending Now
                     </CardTitle>
                 </CardHeader>
@@ -93,12 +94,30 @@ export function TrendingSection({ userFavourites }: TrendingSectionProps) {
         );
     }
 
+    // Show empty state if no events
     if (!events || events.length === 0) {
-        return null;
+        return (
+            <Card className="border-orange-500/20 bg-gradient-to-br from-orange-500/5 to-transparent">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-2xl mb-2">
+                        <TrendingUp className="h-6 w-6 text-orange-500" />
+                        Trending Now
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                        Popular events everyone's talking about
+                    </p>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-muted-foreground text-center py-8">
+                        No trending events at the moment. Check back soon to see what's hot!
+                    </p>
+                </CardContent>
+            </Card>
+        );
     }
 
     return (
-        <Card className="relative overflow-hidden border-orange-500/20 bg-linear-to-br from-orange-500/5 to-transparent">
+        <Card className="relative overflow-hidden border-orange-500/20 bg-gradient-to-br from-orange-500/5 to-transparent">
             <CardHeader>
                 <div className="flex items-center justify-between">
                     <div>
@@ -116,6 +135,7 @@ export function TrendingSection({ userFavourites }: TrendingSectionProps) {
                             size="icon"
                             onClick={handlePrevious}
                             className="h-9 w-9"
+                            aria-label="Previous event"
                         >
                             <ChevronLeft className="h-4 w-4" />
                         </Button>
@@ -124,6 +144,7 @@ export function TrendingSection({ userFavourites }: TrendingSectionProps) {
                             size="icon"
                             onClick={handleNext}
                             className="h-9 w-9"
+                            aria-label="Next event"
                         >
                             <ChevronRight className="h-4 w-4" />
                         </Button>

@@ -6,6 +6,7 @@ import { EventCard } from '@/components/events/event-card';
 import { Loader2, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 interface ForYouSectionProps {
     userFavourites: Set<string>;
@@ -14,6 +15,7 @@ interface ForYouSectionProps {
 export function ForYouSection({ userFavourites }: ForYouSectionProps) {
     const [events, setEvents] = useState<any[] | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isPersonalized, setIsPersonalized] = useState(false);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isHovered, setIsHovered] = useState(false);
     const [lastFetch, setLastFetch] = useState<string>('');
@@ -49,6 +51,7 @@ export function ForYouSection({ userFavourites }: ForYouSectionProps) {
                 }
 
                 setEvents(data.recommendations || []);
+                setIsPersonalized(data.isPersonalized || false);
                 setLastFetch(data.timestamp || new Date().toISOString());
             } catch (error) {
                 console.error('[ForYou] Error fetching recommendations:', error);
@@ -114,8 +117,36 @@ export function ForYouSection({ userFavourites }: ForYouSectionProps) {
         );
     }
 
+    // Show empty state with call-to-action
     if (!events || events.length === 0) {
-        return null;
+        return (
+            <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-2xl mb-2">
+                        <Heart className="h-6 w-6 text-primary" />
+                        For You
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                        Personalized recommendations based on your favorites
+                    </p>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-center py-8 space-y-4">
+                        <p className="text-muted-foreground">
+                            We're still learning your preferences!
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                            Start favoriting events to get personalized recommendations tailored just for you.
+                        </p>
+                        <Button asChild className="mt-4">
+                            <Link href="/events">
+                                Browse Events
+                            </Link>
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+        );
     }
 
     return (
@@ -128,12 +159,16 @@ export function ForYouSection({ userFavourites }: ForYouSectionProps) {
                             For You
                         </CardTitle>
                         <p className="text-sm text-muted-foreground">
-                            Personalized recommendations based on your favorites
+                            {isPersonalized
+                                ? "Personalized recommendations based on your favorites"
+                                : "Discover great events happening in Melbourne"
+                            }
                         </p>
                         {/* Debug info - remove in production */}
                         {process.env.NODE_ENV === 'development' && (
                             <p className="text-xs text-muted-foreground/50 mt-1">
-                                Last fetched: {new Date(lastFetch).toLocaleTimeString()}
+                                Last fetched: {new Date(lastFetch).toLocaleTimeString()} |
+                                Personalized: {isPersonalized ? 'Yes' : 'No'}
                             </p>
                         )}
                     </div>
@@ -143,6 +178,7 @@ export function ForYouSection({ userFavourites }: ForYouSectionProps) {
                             size="icon"
                             onClick={handlePrevious}
                             className="h-9 w-9"
+                            aria-label="Previous recommendation"
                         >
                             <ChevronLeft className="h-4 w-4" />
                         </Button>
@@ -151,6 +187,7 @@ export function ForYouSection({ userFavourites }: ForYouSectionProps) {
                             size="icon"
                             onClick={handleNext}
                             className="h-9 w-9"
+                            aria-label="Next recommendation"
                         >
                             <ChevronRight className="h-4 w-4" />
                         </Button>
@@ -186,8 +223,8 @@ export function ForYouSection({ userFavourites }: ForYouSectionProps) {
                             key={index}
                             onClick={() => setCurrentIndex(index)}
                             className={`h-1.5 rounded-full transition-all duration-300 ${index === currentIndex
-                                ? 'w-8 bg-primary'
-                                : 'w-1.5 bg-muted-foreground/30 hover:bg-muted-foreground/50'
+                                    ? 'w-8 bg-primary'
+                                    : 'w-1.5 bg-muted-foreground/30 hover:bg-muted-foreground/50'
                                 }`}
                             aria-label={`Go to event ${index + 1}`}
                         />

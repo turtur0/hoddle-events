@@ -242,7 +242,13 @@ function getVenueTierWithFallback(venueName: string, event: IEvent): number {
  * Calculate popularity score from engagement stats
  * Higher score = more mainstream/popular
  */
-function calculatePopularityScore(event: IEvent): number {
+export default function calculatePopularityScore(event: IEvent): number {
+  // Prefer category-relative percentile if available
+  if (event.stats?.categoryPopularityPercentile !== undefined) {
+    return event.stats.categoryPopularityPercentile;
+  }
+
+  // Fallback: Raw calculation (for new events before first popularity update)
   const { viewCount = 0, favouriteCount = 0, clickthroughCount = 0 } = event.stats || {};
 
   // Weighted sum: favorites matter most

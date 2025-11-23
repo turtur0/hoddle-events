@@ -48,10 +48,16 @@ export interface IEvent {
 
   // Stats and Action Tracking
   stats: {
+    categoryPopularityPercentile: number;
     viewCount: number;
     favouriteCount: number;
     clickthroughCount: number;
   };
+
+  // Category-relative popularity
+  categoryPopularityPercentile?: number;  // 0-1 (0 = least popular, 1 = most popular in category)
+  rawPopularityScore?: number;            // Raw score before percentile conversion
+  lastPopularityUpdate?: Date;            // When popularity was last calculated
 }
 
 const EventSchema = new Schema<IEvent>({
@@ -100,6 +106,10 @@ const EventSchema = new Schema<IEvent>({
     favouriteCount: { type: Number, default: 0 },
     clickthroughCount: { type: Number, default: 0 },
   },
+
+    categoryPopularityPercentile: { type: Number, min: 0, max: 1 },
+    rawPopularityScore: { type: Number },
+    lastPopularityUpdate: { type: Date },
 }, { timestamps: true });
 
 // Indexes

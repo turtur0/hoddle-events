@@ -14,7 +14,8 @@
     "scrape:ticketmaster": "tsx scripts/scrape-ticketmaster.ts",
     "scrape:marriner": "tsx scripts/scrape-marriner.ts",
     "scrape:whatson": "tsx scripts/scrape-whatson.ts",
-    "debug": "tsx scripts/debug-recommendations.ts"
+    "debug": "tsx scripts/debug-recommendations.ts",
+    "update-popularity": "tsx scripts/update-popularity.ts"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.3.3",
