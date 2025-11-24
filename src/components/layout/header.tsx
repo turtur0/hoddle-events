@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { Search, ChevronDown, Music, Theater, Trophy, Palette, Users, Sparkles, Menu, LogOut, Settings, User, Heart } from "lucide-react";
 import { ThemeToggle } from "../theme/theme-toggle";
+import { NotificationBell } from "../other/NotificationBell";
 import { Button } from "../ui/button";
 import {
   DropdownMenu,
@@ -145,6 +146,9 @@ export function Header() {
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Notification Bell - Only show for authenticated users */}
+          {session?.user && <NotificationBell />}
 
           {/* Theme Toggle */}
           <ThemeToggle />

@@ -1,41 +1,40 @@
-// ============================================
-// scrape-with-dedup.ts - Clean Deduplication Pipeline
-// Time: O(n * k), Space: O(n)
-// ============================================
 
 import Event from '@/lib/models/Event';
 import { findDuplicates, mergeEvents } from '@/lib/utils/deduplication';
+import { processNewEventNotifications } from '@/lib/services/notificationService';
 import type { NormalisedEvent, EventForDedup } from '@/lib/scrapers/types';
 
-interface Stats { inserted: number; updated: number; merged: number; skipped: number }
+interface Stats {
+    inserted: number;
+    updated: number;
+    merged: number;
+    skipped: number;
+    notifications: number;
+}
 
 /**
- * Process events with cross-source deduplication
+ * Process events with cross-source deduplication and notifications
  */
 export async function processEventsWithDeduplication(
     newEvents: NormalisedEvent[],
     sourceName: string
 ): Promise<Stats> {
     console.log(`\n📊 Processing ${newEvents.length} events from ${sourceName}...`);
-    const stats: Stats = { inserted: 0, updated: 0, merged: 0, skipped: 0 };
+    const stats: Stats = { inserted: 0, updated: 0, merged: 0, skipped: 0, notifications: 0 };
 
     // Load existing events once
     console.log('   📥 Loading existing events...');
     const existing = await Event.find({}).lean();
     console.log(`   Found ${existing.length} existing events`);
 
-    // Helper to get sourceId from Map or plain object
     const getSourceId = (event: any, source: string): string => {
         if (!event.sourceIds) return '';
-        // Handle MongoDB Map
         if (typeof event.sourceIds.get === 'function') {
             return event.sourceIds.get(source) || '';
         }
-        // Handle plain object
         return event.sourceIds[source] || '';
     };
 
-    // Build lookup by source:sourceId for fast same-source checks
     const bySourceId = new Map(
         existing.map(e => [
             `${e.primarySource}:${getSourceId(e, e.primarySource)}`,
@@ -43,7 +42,6 @@ export async function processEventsWithDeduplication(
         ])
     );
 
-    // Convert to dedup format
     const existingDedup: (EventForDedup & { _id: string })[] = existing.map(e => ({
         _id: e._id.toString(),
         title: e.title,
@@ -67,14 +65,13 @@ export async function processEventsWithDeduplication(
         duration: e.duration,
     }));
 
-    // Track batch inserts for intra-batch dedup
     const batchInserted: (EventForDedup & { _id: string })[] = [];
 
     for (const event of newEvents) {
         try {
             const sourceKey = `${event.source}:${event.sourceId}`;
 
-            // Fast path: same source update
+            // Same source update - no notification
             const sameSource = bySourceId.get(sourceKey);
             if (sameSource) {
                 await updateExistingEvent(sameSource._id, event, sourceName);
@@ -83,7 +80,7 @@ export async function processEventsWithDeduplication(
                 continue;
             }
 
-            // Cross-source dedup check
+            // Check for cross-source duplicates
             const tempId = `temp:${event.sourceId}`;
             const eventDedup: EventForDedup & { _id: string } = {
                 _id: tempId,
@@ -101,7 +98,6 @@ export async function processEventsWithDeduplication(
             if (match) {
                 const matchId = match.event1Id === tempId ? match.event2Id : match.event1Id;
 
-                // Find the matching event (from DB or batch)
                 let targetSource: string;
                 let targetId: any;
                 let targetDedup: EventForDedup;
@@ -146,7 +142,7 @@ export async function processEventsWithDeduplication(
                 continue;
             }
 
-            // No duplicate - insert new
+            // No duplicate - insert new and trigger notifications
             const created = await insertNewEvent(event);
             batchInserted.push({
                 _id: created._id.toString(),
@@ -155,6 +151,17 @@ export async function processEventsWithDeduplication(
             });
             stats.inserted++;
             console.log(`   + Inserted: ${event.title}`);
+
+            // Trigger notifications for new event
+            try {
+                const notificationCount = await processNewEventNotifications(created);
+                stats.notifications += notificationCount;
+                if (notificationCount > 0) {
+                    console.log(`   🔔 Sent ${notificationCount} notification(s)`);
+                }
+            } catch (notifError) {
+                console.error(`   ⚠️  Notification error for ${event.title}:`, notifError);
+            }
 
         } catch (err: any) {
             if (err.code === 11000) {
@@ -170,9 +177,6 @@ export async function processEventsWithDeduplication(
     return stats;
 }
 
-/**
- * Update existing event from same source
- */
 async function updateExistingEvent(id: any, event: NormalisedEvent, source: string) {
     const subcategories = [...(event.subcategories || [])];
     if (event.subcategory && !subcategories.includes(event.subcategory)) {
@@ -203,9 +207,6 @@ async function updateExistingEvent(id: any, event: NormalisedEvent, source: stri
     });
 }
 
-/**
- * Merge new event into existing (cross-source)
- */
 async function mergeIntoExisting(
     existingId: any,
     existing: EventForDedup,
@@ -239,7 +240,6 @@ async function mergeIntoExisting(
         },
     };
 
-    // Add source-specific booking URL and sourceId
     updateDoc.$set[`bookingUrls.${newEvent.source}`] = newEvent.bookingUrl;
     updateDoc.$set[`sourceIds.${newEvent.source}`] = newEvent.sourceId;
 
@@ -249,9 +249,6 @@ async function mergeIntoExisting(
     );
 }
 
-/**
- * Insert new event
- */
 async function insertNewEvent(event: NormalisedEvent) {
     const subcategories = [...(event.subcategories || [])];
     if (event.subcategory && !subcategories.includes(event.subcategory)) {
