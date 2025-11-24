@@ -102,7 +102,7 @@ export default function SignUp() {
     }
 
     return (
-        <div className="w-full flex items-center justify-center bg-linear-to-br from-background via-muted/30 to-background p-4">
+        <div className="w-full min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-primary/5 to-background">
             <Card className="w-full max-w-md">
                 <CardHeader className="space-y-1">
                     <CardTitle className="text-2xl font-bold">Create Account</CardTitle>

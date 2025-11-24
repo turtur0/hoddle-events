@@ -12,7 +12,6 @@ import { Loader2, ChevronRight, Check } from 'lucide-react';
 import { useRequireOnboarding } from '@/lib/hooks/useAuthRedirect';
 
 const MIN_CATEGORIES = 2;
-
 type Step = 'username' | 'categories' | 'preferences' | 'notifications';
 
 export default function Onboarding() {
@@ -22,10 +21,8 @@ export default function Onboarding() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
 
-    // Username for Google users
     const [username, setUsername] = useState('');
     const [needsUsername, setNeedsUsername] = useState(false);
-
     const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
     const [selectedSubcategories, setSelectedSubcategories] = useState<Set<string>>(new Set());
     const [popularityPref, setPopularityPref] = useState(0.5);
@@ -33,7 +30,6 @@ export default function Onboarding() {
     const [emailFrequency, setEmailFrequency] = useState<'daily' | 'weekly'>('weekly');
 
     useEffect(() => {
-        // Check if user signed up with Google and doesn't have username
         if (session?.user && !session.user.username) {
             setNeedsUsername(true);
             setStep('username');
@@ -67,11 +63,7 @@ export default function Onboarding() {
 
     const toggleSubcategory = (subcategoryValue: string) => {
         const newSet = new Set(selectedSubcategories);
-        if (newSet.has(subcategoryValue)) {
-            newSet.delete(subcategoryValue);
-        } else {
-            newSet.add(subcategoryValue);
-        }
+        newSet.has(subcategoryValue) ? newSet.delete(subcategoryValue) : newSet.add(subcategoryValue);
         setSelectedSubcategories(newSet);
     };
 
@@ -80,7 +72,6 @@ export default function Onboarding() {
             setError('Username must be at least 3 characters');
             return;
         }
-
         if (!/^[a-zA-Z0-9_]+$/.test(username)) {
             setError('Username can only contain letters, numbers, and underscores');
             return;
@@ -139,13 +130,8 @@ export default function Onboarding() {
 
             if (!res.ok) throw new Error('Failed to save preferences');
 
-            // Force reload the session from the server
             await fetch('/api/auth/session?update=true');
-
-            // Small delay to ensure session is updated
             await new Promise(resolve => setTimeout(resolve, 500));
-
-            // Hard redirect to ensure fresh session
             window.location.href = '/';
         } catch (error: any) {
             setError(error.message || 'Failed to save preferences');
@@ -158,33 +144,33 @@ export default function Onboarding() {
         : ['categories', 'preferences', 'notifications'];
 
     return (
-        <div className="w-full bg-linear-to-br from-background via-muted/20 to-background p-4">
-            <div className="max-w-3xl mx-auto py-8">
-                <div className="mb-8 text-center">
-                    <h1 className="text-3xl font-bold mb-2">Personalize Your Experience</h1>
-                    <p className="text-muted-foreground">
+        <div className="w-full min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
+            <div className="container max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+                <div className="mb-12 text-center">
+                    <h1 className="text-4xl font-bold mb-3">Personalize Your Experience</h1>
+                    <p className="text-lg text-muted-foreground">
                         Tell us what you like, and we'll find the best events for you
                     </p>
                 </div>
 
-                {/* Step 0: Username (Google users only) */}
+                {/* Username Step */}
                 {step === 'username' && (
-                    <Card>
+                    <Card className="border-2">
                         <CardHeader>
-                            <CardTitle>Choose a Username</CardTitle>
-                            <CardDescription>
+                            <CardTitle className="text-2xl">Choose a Username</CardTitle>
+                            <CardDescription className="text-base">
                                 Pick a unique username for your account (optional)
                             </CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-4">
+                        <CardContent className="space-y-6">
                             {error && (
-                                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
+                                <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive">
                                     {error}
                                 </div>
                             )}
 
-                            <div className="space-y-2">
-                                <label htmlFor="username" className="text-sm font-medium">Username</label>
+                            <div className="space-y-3">
+                                <label htmlFor="username" className="text-base font-medium">Username</label>
                                 <Input
                                     id="username"
                                     type="text"
@@ -192,35 +178,38 @@ export default function Onboarding() {
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
                                     disabled={isLoading}
+                                    className="text-base h-12"
                                 />
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-sm text-muted-foreground">
                                     Letters, numbers, and underscores only (min. 3 characters)
                                 </p>
                             </div>
 
-                            <div className="flex gap-2">
+                            <div className="flex gap-3 pt-4">
                                 <Button
                                     variant="outline"
                                     onClick={() => setStep('categories')}
-                                    className="flex-1"
+                                    className="flex-1 h-12"
                                     disabled={isLoading}
+                                    size="lg"
                                 >
                                     Skip
                                 </Button>
                                 <Button
                                     onClick={handleUsernameSubmit}
-                                    className="flex-1"
+                                    className="flex-1 h-12"
                                     disabled={isLoading}
+                                    size="lg"
                                 >
                                     {isLoading ? (
                                         <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                                             Saving...
                                         </>
                                     ) : (
                                         <>
                                             Continue
-                                            <ChevronRight className="ml-2 h-4 w-4" />
+                                            <ChevronRight className="ml-2 h-5 w-5" />
                                         </>
                                     )}
                                 </Button>
@@ -251,8 +240,8 @@ export default function Onboarding() {
                                         key={category.value}
                                         onClick={() => toggleCategory(category.value)}
                                         className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedCategories.has(category.value)
-                                                ? 'bg-primary text-primary-foreground shadow-sm'
-                                                : 'bg-muted hover:bg-muted/80'
+                                            ? 'bg-primary text-primary-foreground shadow-sm'
+                                            : 'bg-muted hover:bg-muted/80'
                                             }`}
                                     >
                                         {selectedCategories.has(category.value) && (
@@ -278,8 +267,8 @@ export default function Onboarding() {
                                                             key={sub}
                                                             onClick={() => toggleSubcategory(sub)}
                                                             className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${selectedSubcategories.has(sub)
-                                                                    ? 'bg-primary/20 text-primary border border-primary'
-                                                                    : 'bg-background hover:bg-muted border border-border'
+                                                                ? 'bg-primary/20 text-primary border border-primary'
+                                                                : 'bg-background hover:bg-muted border border-border'
                                                                 }`}
                                                         >
                                                             {sub}
@@ -326,8 +315,8 @@ export default function Onboarding() {
                                             key={option.value}
                                             onClick={() => setPopularityPref(option.value)}
                                             className={`flex-1 py-2 px-3 rounded text-sm font-medium transition-all ${popularityPref === option.value
-                                                    ? 'bg-primary text-primary-foreground shadow-sm'
-                                                    : 'hover:bg-background'
+                                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                                : 'hover:bg-background'
                                                 }`}
                                         >
                                             <span className="mr-1">{option.icon}</span>
@@ -438,14 +427,14 @@ export default function Onboarding() {
                 )}
 
                 {/* Progress Indicator */}
-                <div className="flex gap-2 mt-8 justify-center">
+                <div className="flex gap-3 mt-12 justify-center">
                     {allSteps.map((s, idx) => {
                         const currentIdx = allSteps.indexOf(step);
                         return (
                             <div
                                 key={s}
                                 className={`h-2 rounded-full transition-all ${step === s
-                                        ? 'bg-primary w-8'
+                                        ? 'bg-primary w-12'
                                         : idx < currentIdx
                                             ? 'bg-primary w-2'
                                             : 'bg-muted w-2'

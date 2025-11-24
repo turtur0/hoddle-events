@@ -145,13 +145,11 @@ export default async function EventPage({ params }: EventPageProps) {
     const hasMultipleSources = event.sources && event.sources.length > 1;
 
     return (
-        <>
-            {/* Track view */}
+        <div className="w-full">
             <ViewTracker eventId={event._id} source="direct" />
 
-            <main className="container py-8">
-                {/* Back Button */}
-                <Button variant="ghost" asChild className="mb-6">
+            <section className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+                <Button variant="ghost" asChild className="mb-8">
                     <Link href="/">
                         <ArrowLeft className="h-4 w-4 mr-2" />
                         Back to Events
@@ -445,15 +443,17 @@ export default async function EventPage({ params }: EventPageProps) {
                         </Card>
                     </div>
                 </div>
+            </section>
 
-                {/* Similar Events Section - Full Width Below Main Content */}
-                <div className="mt-12">
+            {/* Similar Events */}
+            <section className="bg-muted/30">
+                <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
                     <SimilarEvents
                         eventId={event._id}
                         userFavourites={userFavourites}
                     />
                 </div>
-            </main>
-        </>
+            </section>
+        </div>
     );
 }

@@ -153,40 +153,45 @@ export default async function EventsPage({
   const suspenseKey = `${currentPage}-${searchQuery}-${category}-${subcategory}-${dateFilter}-${freeOnly}-${accessibleOnly}`;
 
   return (
-    <main className="container py-8">
-      {/* Page Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">
-          {searchQuery ? `Search: "${searchQuery}"` : 'All Events'}
-        </h1>
-        <p className="text-muted-foreground">
-          Discover concerts, shows, festivals, and events across Melbourne
-        </p>
-      </div>
+    <div className="w-full">
+      {/* Header Section */}
+      <section className="bg-linear-to-b from-primary/5 to-background">
+        <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+          <h1 className="text-4xl sm:text-5xl font-bold mb-3">
+            {searchQuery ? `Search: "${searchQuery}"` : 'All Events'}
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            Discover concerts, shows, festivals, and events across Melbourne
+          </p>
+        </div>
+      </section>
 
-      {/* Search Bar */}
-      <div className="mb-6">
-        <SearchBar />
-      </div>
+      {/* Search & Filters */}
+      <section className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-6">
+          <SearchBar />
+        </div>
+        <div className="mb-8">
+          <EventFilters />
+        </div>
+      </section>
 
-      {/* Filters */}
-      <div className="mb-8">
-        <EventFilters />
-      </div>
+      {/* Events Grid */}
+      <section className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+        <Suspense fallback={<EventsGridSkeleton />} key={suspenseKey}>
+          <EventsGrid
+            page={currentPage}
+            searchQuery={searchQuery}
+            category={category}
+            subcategory={subcategory}
+            dateFilter={dateFilter}
+            freeOnly={freeOnly}
+            accessibleOnly={accessibleOnly}
+            userFavourites={userFavourites}
+          />
 
-      {/* Events Section */}
-      <Suspense fallback={<EventsGridSkeleton />} key={suspenseKey}>
-        <EventsGrid
-          page={currentPage}
-          searchQuery={searchQuery}
-          category={category}
-          subcategory={subcategory}
-          dateFilter={dateFilter}
-          freeOnly={freeOnly}
-          accessibleOnly={accessibleOnly}
-          userFavourites={userFavourites}
-        />
-      </Suspense>
-    </main>
+        </Suspense>
+      </section>
+    </div>
   );
 }

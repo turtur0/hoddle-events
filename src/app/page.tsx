@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { ArrowRight, Music, Theater, Trophy, Palette, Users, Sparkles, Zap, Calendar } from "lucide-react";
+import { ArrowRight, Music, Theater, Trophy, Palette, Users, Sparkles, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -61,40 +61,40 @@ export default async function HomePage() {
   const isLoggedIn = !!session?.user;
 
   return (
-    <main className="w-full flex flex-col items-center">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-linear-to-b from-primary/5 via-background to-background">
-        <div className="container py-12 sm:py-16 md:py-24">
+    <div className="w-full">
+      {/* Hero Section - Full width background */}
+      <section className="relative overflow-hidden bg-gradient-to-b from-primary/5 via-background to-background">
+        <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 md:py-28">
           <div className="max-w-3xl mx-auto text-center">
-            <Badge variant="secondary" className="mb-4">
+            <Badge variant="secondary" className="mb-6">
               <Zap className="h-3 w-3 mr-1" />
               Updated daily from {sourceCount} sources
             </Badge>
-            <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold tracking-tight mb-4 sm:mb-6">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
               Discover What's On in{" "}
               <span className="text-primary">Melbourne</span>
             </h1>
-            <p className="text-lg sm:text-xl text-muted-foreground mb-6 sm:mb-8 px-4">
+            <p className="text-lg sm:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto">
               Your one-stop guide to concerts, theatre, sports, festivals and more.
               Find your next experience from {totalEvents.toLocaleString()}+ events.
             </p>
 
-            <div className="max-w-xl mx-auto mb-6 px-4">
-              <Suspense fallback={<div className="h-12 bg-muted animate-pulse rounded" />}>
+            <div className="max-w-2xl mx-auto mb-8">
+              <Suspense fallback={<div className="h-14 bg-muted animate-pulse rounded-lg" />}>
                 <SearchBar />
               </Suspense>
             </div>
 
-            <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-4 px-4">
-              <Button asChild size="lg" className="w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row justify-center gap-4">
+              <Button asChild size="lg" className="text-base">
                 <Link href="/events">
                   Browse All Events
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                  <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
-              <Button variant="outline" size="lg" asChild className="w-full sm:w-auto">
+              <Button variant="outline" size="lg" asChild className="text-base">
                 <Link href="/category/music">
-                  <Music className="mr-2 h-4 w-4" />
+                  <Music className="mr-2 h-5 w-5" />
                   Live Music
                 </Link>
               </Button>
@@ -104,25 +104,23 @@ export default async function HomePage() {
       </section>
 
       {/* Categories Section */}
-      <section className="container py-8 sm:py-12">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-2">
-          <div>
-            <h2 className="text-2xl font-bold">Browse by Category</h2>
-            <p className="text-muted-foreground">Find events that match your interests</p>
-          </div>
+      <section className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
+        <div className="mb-10">
+          <h2 className="text-3xl font-bold mb-2">Browse by Category</h2>
+          <p className="text-muted-foreground text-lg">Find events that match your interests</p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           {CATEGORIES.map((cat) => {
             const Icon = cat.icon;
             return (
               <Link
                 key={cat.slug}
                 href={`/category/${cat.slug}`}
-                className={`flex flex-col items-center justify-center p-4 sm:p-6 rounded-xl border transition-all hover:scale-105 ${cat.color}`}
+                className={`flex flex-col items-center justify-center p-6 rounded-xl border-2 transition-all hover:scale-105 hover:shadow-md ${cat.color}`}
               >
-                <Icon className="h-6 w-6 sm:h-8 sm:w-8 mb-2" />
-                <span className="font-medium text-center text-xs sm:text-sm">{cat.label}</span>
+                <Icon className="h-8 w-8 mb-3" />
+                <span className="font-medium text-center text-sm">{cat.label}</span>
               </Link>
             );
           })}
@@ -131,7 +129,7 @@ export default async function HomePage() {
 
       {/* For You Section (Logged in users only) */}
       {isLoggedIn && (
-        <section className="container py-8 sm:py-12">
+        <section className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
           <Suspense fallback={<CarouselSkeleton />}>
             <ForYouSection userFavourites={userFavourites} />
           </Suspense>
@@ -139,42 +137,42 @@ export default async function HomePage() {
       )}
 
       {/* Trending Section (Always shown) */}
-      <section className="container py-8 sm:py-12">
+      <section className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
         <Suspense fallback={<CarouselSkeleton />}>
           <TrendingSection userFavourites={userFavourites} />
         </Suspense>
       </section>
 
-      {/* Combined Upcoming Events Section */}
-      <section className="container py-8 sm:py-12">
+      {/* Upcoming Events Section */}
+      <section className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
         <Suspense fallback={<CarouselSkeleton />}>
           <UpcomingEvents userFavourites={userFavourites} />
         </Suspense>
       </section>
 
       {/* Stats Section */}
-      <section className="container py-8 sm:py-12 pb-16">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
-          <Card className="text-center bg-linear-to-br from-primary/10 to-transparent border-primary/20">
-            <CardContent className="pt-6">
-              <p className="text-3xl sm:text-4xl font-bold text-primary">{totalEvents.toLocaleString()}+</p>
-              <p className="text-sm text-muted-foreground">Events Listed</p>
+      <section className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 pb-20">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <Card className="text-center bg-gradient-to-br from-primary/10 to-transparent border-primary/20 border-2">
+            <CardContent className="pt-8 pb-8">
+              <p className="text-5xl font-bold text-primary mb-2">{totalEvents.toLocaleString()}+</p>
+              <p className="text-muted-foreground">Events Listed</p>
             </CardContent>
           </Card>
-          <Card className="text-center bg-linear-to-br from-blue-500/10 to-transparent border-blue-500/20">
-            <CardContent className="pt-6">
-              <p className="text-3xl sm:text-4xl font-bold text-blue-500">{sourceCount}</p>
-              <p className="text-sm text-muted-foreground">Data Sources</p>
+          <Card className="text-center bg-gradient-to-br from-blue-500/10 to-transparent border-blue-500/20 border-2">
+            <CardContent className="pt-8 pb-8">
+              <p className="text-5xl font-bold text-blue-500 mb-2">{sourceCount}</p>
+              <p className="text-muted-foreground">Data Sources</p>
             </CardContent>
           </Card>
-          <Card className="text-center bg-linear-to-br from-green-500/10 to-transparent border-green-500/20">
-            <CardContent className="pt-6">
-              <p className="text-3xl sm:text-4xl font-bold text-green-500">Daily</p>
-              <p className="text-sm text-muted-foreground">Auto Updates</p>
+          <Card className="text-center bg-gradient-to-br from-green-500/10 to-transparent border-green-500/20 border-2">
+            <CardContent className="pt-8 pb-8">
+              <p className="text-5xl font-bold text-green-500 mb-2">Daily</p>
+              <p className="text-muted-foreground">Auto Updates</p>
             </CardContent>
           </Card>
         </div>
       </section>
-    </main>
+    </div>
   );
 }

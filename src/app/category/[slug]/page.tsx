@@ -185,56 +185,61 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const suspenseKey = `${slug}-${currentPage}-${subcategory}-${dateFilter}-${freeOnly}`;
 
   return (
-    <main className="container py-8">
-      {/* Back Link */}
-      <Button variant="ghost" asChild className="mb-6">
-        <Link href="/">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Home
-        </Link>
-      </Button>
+    <div className="w-full">
+      {/* Header Section */}
+      <section className="bg-gradient-to-b from-primary/5 to-background">
+        <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+          <Button variant="ghost" asChild className="mb-6">
+            <Link href="/">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Home
+            </Link>
+          </Button>
 
-      {/* Category Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">{categoryInfo.title}</h1>
-        <p className="text-muted-foreground">{categoryInfo.description}</p>
-      </div>
+          <h1 className="text-4xl sm:text-5xl font-bold mb-3">{categoryInfo.title}</h1>
+          <p className="text-lg text-muted-foreground">{categoryInfo.description}</p>
+        </div>
+      </section>
 
-      {/* Subcategory Pills */}
+      {/* Subcategories */}
       {categoryConfig?.subcategories && categoryConfig.subcategories.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-8">
-          <Link href={`/category/${slug}`}>
-            <Badge
-              variant={!subcategory ? "default" : "outline"}
-              className="cursor-pointer"
-            >
-              All
-            </Badge>
-          </Link>
-          {categoryConfig.subcategories.map((sub) => (
-            <Link key={sub} href={`/category/${slug}?subcategory=${encodeURIComponent(sub)}`}>
+        <section className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-wrap gap-3">
+            <Link href={`/category/${slug}`}>
               <Badge
-                variant={subcategory === sub ? "default" : "outline"}
-                className="cursor-pointer"
+                variant={!subcategory ? "default" : "outline"}
+                className="cursor-pointer text-sm px-4 py-2"
               >
-                {sub}
+                All
               </Badge>
             </Link>
-          ))}
-        </div>
+            {categoryConfig.subcategories.map((sub) => (
+              <Link key={sub} href={`/category/${slug}?subcategory=${encodeURIComponent(sub)}`}>
+                <Badge
+                  variant={subcategory === sub ? "default" : "outline"}
+                  className="cursor-pointer text-sm px-4 py-2"
+                >
+                  {sub}
+                </Badge>
+              </Link>
+            ))}
+          </div>
+        </section>
       )}
 
       {/* Events Grid */}
-      <Suspense fallback={<EventsGridSkeleton />} key={suspenseKey}>
-        <CategoryEventsGrid
-          categoryValue={categoryValue}
-          page={currentPage}
-          subcategory={subcategory}
-          dateFilter={dateFilter}
-          freeOnly={freeOnly}
-          userFavourites={userFavourites}
-        />
-      </Suspense>
-    </main>
+      <section className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16">
+        <Suspense fallback={<EventsGridSkeleton />} key={suspenseKey}>
+          <CategoryEventsGrid
+            categoryValue={categoryValue}
+            page={currentPage}
+            subcategory={subcategory}
+            dateFilter={dateFilter}
+            freeOnly={freeOnly}
+            userFavourites={userFavourites}
+          />
+        </Suspense>
+      </section>
+    </div>
   );
 }
