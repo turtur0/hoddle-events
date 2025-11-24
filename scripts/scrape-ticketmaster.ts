@@ -1,7 +1,3 @@
-// ============================================
-// scripts/scrape-ticketmaster.ts
-// Ticketmaster scraper with deduplication
-// ============================================
 import dotenv from 'dotenv';
 import path from 'path';
 
@@ -12,39 +8,38 @@ import { fetchAllTicketmasterEvents, normaliseTicketmasterEvent } from '@/lib/sc
 import { processEventsWithDeduplication } from './scrape-with-dedup';
 
 export async function scrapeTicketmasterWithDedup() {
-  console.log('🎫 Ticketmaster Scraper with Deduplication\n');
+  console.log('Ticketmaster scraper starting');
 
   try {
     await connectDB();
 
     const rawEvents = await fetchAllTicketmasterEvents();
-    console.log(`\n✅ Scraped ${rawEvents.length} events from Ticketmaster`);
+    console.log(`Scraped ${rawEvents.length} events from Ticketmaster`);
 
-    const events = rawEvents.map(raw => normaliseTicketmasterEvent(raw));
-
+    const events = rawEvents.map((r) => normaliseTicketmasterEvent(r));
     const stats = await processEventsWithDeduplication(events, 'ticketmaster');
 
-    console.log(`\n${'='.repeat(70)}`);
-    console.log('✅ Ticketmaster Processing Complete');
-    console.log(`${'='.repeat(70)}`);
-    console.log(`📊 Summary:`);
-    console.log(`   • Inserted: ${stats.inserted} new events`);
-    console.log(`   • Updated:  ${stats.updated} same-source events`);
-    console.log(`   • Merged:   ${stats.merged} cross-source duplicates`);
-    console.log(`   • Skipped:  ${stats.skipped} errors`);
-    console.log(`   • Total:    ${events.length} events processed\n`);
-
+    console.log('--------------------------------------------------------');
+    console.log('Ticketmaster Processing Complete');
+    console.log('--------------------------------------------------------');
+    console.log('Summary:');
+    console.log(`  Inserted: ${stats.inserted}`);
+    console.log(`  Updated:  ${stats.updated}`);
+    console.log(`  Merged:   ${stats.merged}`);
+    console.log(`  Skipped:  ${stats.skipped}`);
+    console.log(`  Total:    ${events.length}`);
+    console.log('');
+    return stats;
   } finally {
     await disconnectDB();
   }
 }
 
-// Allow running directly
 if (require.main === module) {
   scrapeTicketmasterWithDedup()
     .then(() => process.exit(0))
-    .catch(err => {
-      console.error('❌ Fatal error:', err);
+    .catch((err) => {
+      console.error('Fatal error:', err);
       process.exit(1);
     });
 }

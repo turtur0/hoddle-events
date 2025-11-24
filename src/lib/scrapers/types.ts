@@ -1,7 +1,3 @@
-// ============================================
-// types.ts - Enhanced Scraper Types
-// ============================================
-
 export interface NormalisedEvent {
   title: string;
   description: string;

@@ -1,6 +1,3 @@
-// =============================================
-// scripts/scrape-marriner.ts
-// =============================================
 import dotenv from 'dotenv';
 import path from 'path';
 
@@ -12,45 +9,43 @@ import { scrapeMarrinerGroup } from '@/lib/scrapers';
 import { processEventsWithDeduplication } from './scrape-with-dedup';
 
 const SCRAPE_OPTIONS: ScrapeOptions = {
-  maxShows: 25,          // Fetch up to 50 shows
-  maxDetailFetches: 25,  // Fetch details for all shows
-  usePuppeteer: true,    // Use Puppeteer for lazy-loaded /shows page
+  maxShows: 25,
+  maxDetailFetches: 25,
+  usePuppeteer: true,
 };
 
 export async function scrapeMarrinerWithDedup() {
-  console.log('🎭 Marriner Group Scraper with Deduplication\n');
+  console.log('Marriner Group scraper starting');
 
   try {
     await connectDB();
 
-    // Pass the options to the scraper
     const events = await scrapeMarrinerGroup(SCRAPE_OPTIONS);
-
-    console.log(`\n✅ Scraped ${events.length} events from Marriner`);
+    console.log(`Scraped ${events.length} events from Marriner`);
 
     const stats = await processEventsWithDeduplication(events, 'marriner');
 
-    console.log(`\n${'='.repeat(70)}`);
-    console.log('✅ Marriner Processing Complete');
-    console.log(`${'='.repeat(70)}`);
-    console.log(`📊 Summary:`);
-    console.log(`   • Inserted: ${stats.inserted} new events`);
-    console.log(`   • Updated:  ${stats.updated} same-source events`);
-    console.log(`   • Merged:   ${stats.merged} cross-source duplicates`);
-    console.log(`   • Skipped:  ${stats.skipped} errors`);
-    console.log(`   • Total:    ${events.length} events processed\n`);
-
+    console.log('--------------------------------------------------------');
+    console.log('Marriner Processing Complete');
+    console.log('--------------------------------------------------------');
+    console.log('Summary:');
+    console.log(`  Inserted: ${stats.inserted}`);
+    console.log(`  Updated:  ${stats.updated}`);
+    console.log(`  Merged:   ${stats.merged}`);
+    console.log(`  Skipped:  ${stats.skipped}`);
+    console.log(`  Total:    ${events.length}`);
+    console.log('');
+    return stats;
   } finally {
     await disconnectDB();
   }
 }
 
-// Allow running directly
 if (require.main === module) {
   scrapeMarrinerWithDedup()
     .then(() => process.exit(0))
-    .catch(err => {
-      console.error('❌ Fatal error:', err);
+    .catch((err) => {
+      console.error('Fatal error:', err);
       process.exit(1);
     });
 }
