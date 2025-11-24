@@ -153,26 +153,29 @@ export default async function HomePage() {
       {/* Stats Section */}
       <section className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 pb-20">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <Card className="text-center bg-linear-to-br from-primary/10 to-transparent border-primary/20 border-2">
+          <Card className="text-center border">
             <CardContent className="pt-8 pb-8">
-              <p className="text-5xl font-bold text-primary mb-2">{totalEvents.toLocaleString()}+</p>
+              <p className="text-5xl font-bold mb-2">{totalEvents.toLocaleString()}+</p>
               <p className="text-muted-foreground">Events Listed</p>
             </CardContent>
           </Card>
-          <Card className="text-center bg-linear-to-br from-blue-500/10 to-transparent border-blue-500/20 border-2">
+
+          <Card className="text-center border">
             <CardContent className="pt-8 pb-8">
-              <p className="text-5xl font-bold text-blue-500 mb-2">{sourceCount}</p>
+              <p className="text-5xl font-bold mb-2">{sourceCount}</p>
               <p className="text-muted-foreground">Data Sources</p>
             </CardContent>
           </Card>
-          <Card className="text-center bg-linear-to-br from-green-500/10 to-transparent border-green-500/20 border-2">
+
+          <Card className="text-center border">
             <CardContent className="pt-8 pb-8">
-              <p className="text-5xl font-bold text-green-500 mb-2">Daily</p>
+              <p className="text-5xl font-bold mb-2">Daily</p>
               <p className="text-muted-foreground">Auto Updates</p>
             </CardContent>
           </Card>
         </div>
       </section>
+
     </div>
   );
 }

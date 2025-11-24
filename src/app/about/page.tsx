@@ -19,7 +19,6 @@ export const metadata = {
     title: "About | Melbourne Events",
     description: "Learn about Melbourne Events, our data sources, and ethical practices.",
 };
-
 export default function AboutPage() {
     return (
         <div className="w-full">
@@ -85,7 +84,7 @@ export default function AboutPage() {
                             </p>
                             <div className="space-y-4">
                                 {/* Ticketmaster */}
-                                <div className="p-6 rounded-xl bg-linear-to-br from-primary/5 to-transparent border-2">
+                                <div className="p-6 rounded-xl bg-primary/10 border-2">
                                     <div className="flex items-start gap-4">
                                         <Badge className="mt-1">Primary</Badge>
                                         <div className="flex-1">
@@ -108,7 +107,7 @@ export default function AboutPage() {
                                 </div>
 
                                 {/* Marriner Group */}
-                                <div className="p-6 rounded-xl bg-linear-to-br from-purple-500/5 to-transparent border-2">
+                                <div className="p-6 rounded-xl bg-purple-500/5 border-2">
                                     <div className="flex items-start gap-4">
                                         <Badge variant="secondary" className="mt-1">Venue</Badge>
                                         <div className="flex-1">
@@ -138,7 +137,7 @@ export default function AboutPage() {
                                 </div>
 
                                 {/* What's On */}
-                                <div className="p-6 rounded-xl bg-linear-to-br from-blue-500/5 to-transparent border-2">
+                                <div className="p-6 rounded-xl bg-blue-500/5 border-2">
                                     <div className="flex items-start gap-4">
                                         <Badge variant="outline" className="mt-1">Secondary</Badge>
                                         <div className="flex-1">
@@ -235,14 +234,6 @@ export default function AboutPage() {
                                 Our database is automatically updated daily via scheduled jobs. This ensures
                                 you always see the latest events, accurate pricing, and up-to-date availability.
                             </p>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                {['Ticketmaster', 'Marriner Group', 'What\'s On'].map((source) => (
-                                    <div key={source} className="text-center p-6 rounded-xl bg-linear-to-br from-primary/10 to-transparent border-2">
-                                        <p className="text-4xl font-bold text-primary mb-2">Daily</p>
-                                        <p className="text-sm text-muted-foreground">{source}</p>
-                                    </div>
-                                ))}
-                            </div>
                         </CardContent>
                     </Card>
 
