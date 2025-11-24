@@ -21,6 +21,11 @@ export interface IUser {
             inApp: boolean;
             email: boolean;
             emailFrequency: 'instant' | 'daily' | 'weekly';
+            smartFiltering: {
+                enabled: boolean;
+                minRecommendationScore: number;
+            };
+            keywords: string[]; // e.g., ['taylor swift', 'hamilton']
         };
     };
 
@@ -30,6 +35,7 @@ export interface IUser {
     createdAt: Date;
     updatedAt: Date;
 }
+
 
 const UserSchema = new Schema<IUser>(
     {
@@ -86,7 +92,16 @@ const UserSchema = new Schema<IUser>(
             notifications: {
                 inApp: { type: Boolean, default: true },
                 email: { type: Boolean, default: false },
-                emailFrequency: { type: String, default: 'weekly' },
+                emailFrequency: {
+                    type: String,
+                    enum: ['instant', 'daily', 'weekly'],
+                    default: 'weekly'
+                },
+                smartFiltering: {
+                    enabled: { type: Boolean, default: true },
+                    minRecommendationScore: { type: Number, default: 0.6 },
+                },
+                keywords: { type: [String], default: [] },
             },
         },
 
