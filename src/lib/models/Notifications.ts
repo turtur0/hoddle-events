@@ -4,15 +4,13 @@ import mongoose, { Schema, Model } from 'mongoose';
 export interface INotification {
     userId: mongoose.Types.ObjectId;
     eventId: mongoose.Types.ObjectId;
-    type: 'new_event' | 'event_soon' | 'similar_to_favorite';
-
+    type: 'keyword_match' | 'recommendation' | 'favorite_update';
     title: string;
     message: string;
-    relevanceScore?: number; // Why they got this (for debugging)
-
+    relevanceScore?: number;
     read: boolean;
     createdAt: Date;
-    expiresAt: Date; // Auto-delete after 7 days
+    expiresAt: Date;
 }
 
 const NotificationSchema = new Schema<INotification>({
@@ -20,7 +18,7 @@ const NotificationSchema = new Schema<INotification>({
         type: Schema.Types.ObjectId,
         ref: 'User',
         required: true,
-        index: true, // For fast queries by user
+        index: true,
     },
     eventId: {
         type: Schema.Types.ObjectId,
@@ -29,7 +27,7 @@ const NotificationSchema = new Schema<INotification>({
     },
     type: {
         type: String,
-        enum: ['new_event', 'event_soon', 'similar_to_favorite'],
+        enum: ['keyword_match', 'recommendation', 'favorite_update'],
         required: true,
     },
     title: {
@@ -48,25 +46,28 @@ const NotificationSchema = new Schema<INotification>({
     read: {
         type: Boolean,
         default: false,
-        index: true, // For counting unread
+        index: true,
     },
     createdAt: {
         type: Date,
         default: Date.now,
-        index: true, // For sorting
+        index: true,
     },
     expiresAt: {
         type: Date,
-        default: () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-        index: true, // For TTL
+        default: () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        index: true,
     },
 });
 
 // Compound index for efficient queries
 NotificationSchema.index({ userId: 1, read: 1, createdAt: -1 });
 
-// TTL index: automatically delete old notifications
+// TTL index for automatic cleanup
 NotificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+// Prevent duplicate notifications for same user/event
+NotificationSchema.index({ userId: 1, eventId: 1 }, { unique: true });
 
 const Notification: Model<INotification> =
     mongoose.models.Notification ||
