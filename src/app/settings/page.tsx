@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
+import { Slider } from '@/components/ui/slider';
 import {
     Dialog,
     DialogContent,
@@ -18,7 +19,6 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import {
-    ArrowLeft,
     Loader2,
     Save,
     User,
@@ -28,6 +28,9 @@ import {
     AlertCircle,
     Trash2,
     Lock,
+    Filter,
+    DollarSign,
+    Zap,
 } from 'lucide-react';
 import { BackButton } from '@/components/navigation/back-button';
 import { CATEGORIES } from '@/lib/categories';
@@ -50,8 +53,17 @@ export default function SettingsPage() {
     const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
     const [selectedSubcategories, setSelectedSubcategories] = useState<Set<string>>(new Set());
     const [popularityPref, setPopularityPref] = useState(0.5);
-    const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+
+    // Enhanced Notification Settings
+    const [inAppNotifications, setInAppNotifications] = useState(true);
+    const [emailNotifications, setEmailNotifications] = useState(false);
     const [emailFrequency, setEmailFrequency] = useState<'daily' | 'weekly'>('weekly');
+    const [notificationKeywords, setNotificationKeywords] = useState<string>('');
+    const [useSmartFiltering, setUseSmartFiltering] = useState(true);
+    const [minRecommendationScore, setMinRecommendationScore] = useState(0.6);
+    const [popularityFilter, setPopularityFilter] = useState<'all' | 'mainstream' | 'niche' | 'personalized'>('personalized');
+    const [priceMin, setPriceMin] = useState(0);
+    const [priceMax, setPriceMax] = useState(500);
 
     // Original values for comparison
     const [originalValues, setOriginalValues] = useState<any>(null);
@@ -94,8 +106,18 @@ export default function SettingsPage() {
                 setSelectedCategories(new Set(prefs.selectedCategories));
                 setSelectedSubcategories(new Set(prefs.selectedSubcategories));
                 setPopularityPref(prefs.popularityPreference);
-                setNotificationsEnabled(prefs.notifications.email);
-                setEmailFrequency(prefs.notifications.emailFrequency);
+
+                // Set notification preferences
+                const notifs = prefs.notifications || {};
+                setInAppNotifications(notifs.inApp ?? true);
+                setEmailNotifications(notifs.email ?? false);
+                setEmailFrequency(notifs.emailFrequency || 'weekly');
+                setNotificationKeywords((notifs.keywords || []).join(', '));
+                setUseSmartFiltering(notifs.smartFiltering?.enabled ?? true);
+                setMinRecommendationScore(notifs.smartFiltering?.minRecommendationScore ?? 0.6);
+                setPopularityFilter(notifs.popularityFilter || 'personalized');
+                setPriceMin(prefs.priceRange?.min ?? 0);
+                setPriceMax(prefs.priceRange?.max ?? 500);
 
                 // Store original values
                 setOriginalValues({
@@ -104,8 +126,15 @@ export default function SettingsPage() {
                     selectedCategories: new Set(prefs.selectedCategories),
                     selectedSubcategories: new Set(prefs.selectedSubcategories),
                     popularityPref: prefs.popularityPreference,
-                    notificationsEnabled: prefs.notifications.email,
-                    emailFrequency: prefs.notifications.emailFrequency,
+                    inAppNotifications: notifs.inApp ?? true,
+                    emailNotifications: notifs.email ?? false,
+                    emailFrequency: notifs.emailFrequency || 'weekly',
+                    notificationKeywords: (notifs.keywords || []).join(', '),
+                    useSmartFiltering: notifs.smartFiltering?.enabled ?? true,
+                    minRecommendationScore: notifs.smartFiltering?.minRecommendationScore ?? 0.6,
+                    popularityFilter: notifs.popularityFilter || 'personalized',
+                    priceMin: prefs.priceRange?.min ?? 0,
+                    priceMax: prefs.priceRange?.max ?? 500,
                 });
             } catch (error) {
                 setError('Failed to load settings');
@@ -127,8 +156,15 @@ export default function SettingsPage() {
             !areSetsEqual(selectedCategories, originalValues.selectedCategories) ||
             !areSetsEqual(selectedSubcategories, originalValues.selectedSubcategories) ||
             popularityPref !== originalValues.popularityPref ||
-            notificationsEnabled !== originalValues.notificationsEnabled ||
+            inAppNotifications !== originalValues.inAppNotifications ||
+            emailNotifications !== originalValues.emailNotifications ||
             emailFrequency !== originalValues.emailFrequency ||
+            notificationKeywords !== originalValues.notificationKeywords ||
+            useSmartFiltering !== originalValues.useSmartFiltering ||
+            minRecommendationScore !== originalValues.minRecommendationScore ||
+            popularityFilter !== originalValues.popularityFilter ||
+            priceMin !== originalValues.priceMin ||
+            priceMax !== originalValues.priceMax ||
             currentPassword !== '' ||
             newPassword !== '';
 
@@ -139,8 +175,15 @@ export default function SettingsPage() {
         selectedCategories,
         selectedSubcategories,
         popularityPref,
-        notificationsEnabled,
+        inAppNotifications,
+        emailNotifications,
         emailFrequency,
+        notificationKeywords,
+        useSmartFiltering,
+        minRecommendationScore,
+        popularityFilter,
+        priceMin,
+        priceMax,
         currentPassword,
         newPassword,
         originalValues,
@@ -185,7 +228,6 @@ export default function SettingsPage() {
         setSelectedSubcategories(newSet);
     }
 
-
     async function handleSave() {
         setError('');
         setSuccess(false);
@@ -222,7 +264,13 @@ export default function SettingsPage() {
                 throw new Error(data.error || 'Failed to update account');
             }
 
-            // Update preferences
+            // Parse keywords
+            const keywords = notificationKeywords
+                .split(',')
+                .map(k => k.trim())
+                .filter(k => k.length > 0);
+
+            // Update preferences with enhanced notification settings
             const prefsRes = await fetch('/api/user/preferences', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -230,16 +278,25 @@ export default function SettingsPage() {
                     selectedCategories: Array.from(selectedCategories),
                     selectedSubcategories: Array.from(selectedSubcategories),
                     popularityPreference: popularityPref,
+                    priceRange: {
+                        min: priceMin,
+                        max: priceMax,
+                    },
                     notifications: {
-                        email: notificationsEnabled,
+                        inApp: inAppNotifications,
+                        email: emailNotifications,
                         emailFrequency,
-                        inApp: true,
+                        keywords,
+                        smartFiltering: {
+                            enabled: useSmartFiltering,
+                            minRecommendationScore,
+                        },
+                        popularityFilter,
                     },
                 }),
             });
 
             if (!prefsRes.ok) throw new Error('Failed to save preferences');
-
 
             await update();
 
@@ -255,13 +312,20 @@ export default function SettingsPage() {
                 selectedCategories: new Set(selectedCategories),
                 selectedSubcategories: new Set(selectedSubcategories),
                 popularityPref,
-                notificationsEnabled,
+                inAppNotifications,
+                emailNotifications,
                 emailFrequency,
+                notificationKeywords,
+                useSmartFiltering,
+                minRecommendationScore,
+                popularityFilter,
+                priceMin,
+                priceMax,
             });
 
             setSuccess(true);
 
-            // ✅ Redirect to profile after a short delay
+            // Redirect to profile after a short delay
             setTimeout(() => {
                 router.push('/profile');
             }, 1500);
@@ -272,8 +336,6 @@ export default function SettingsPage() {
             setIsSaving(false);
         }
     }
-
-
 
     async function handleDelete() {
         if (deleteConfirmText !== 'DELETE') {
@@ -289,7 +351,6 @@ export default function SettingsPage() {
 
             if (!res.ok) throw new Error('Failed to delete account');
 
-            // Redirect to home after deletion
             window.location.href = '/';
         } catch (error: any) {
             setError(error.message || 'Failed to delete account');
@@ -529,40 +590,165 @@ export default function SettingsPage() {
                         <CardHeader>
                             <CardTitle className="text-xl flex items-center gap-2">
                                 <Bell className="h-5 w-5" />
-                                Notifications
+                                Notification Preferences
                             </CardTitle>
+                            <CardDescription>
+                                Control when and how you receive notifications about new events
+                            </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            <div className="flex items-center gap-3">
+                            {/* In-App Notifications */}
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-0.5">
+                                    <Label htmlFor="inApp">In-App Notifications</Label>
+                                    <p className="text-sm text-muted-foreground">
+                                        Show notification bell with new event alerts
+                                    </p>
+                                </div>
                                 <Checkbox
-                                    id="email-notifs"
-                                    checked={notificationsEnabled}
-                                    onCheckedChange={(checked) => setNotificationsEnabled(checked === true)}
+                                    id="inApp"
+                                    checked={inAppNotifications}
+                                    onCheckedChange={(checked) => setInAppNotifications(checked === true)}
                                 />
-                                <Label htmlFor="email-notifs" className="cursor-pointer">
-                                    Email updates about new events
-                                </Label>
                             </div>
 
-                            {notificationsEnabled && (
-                                <div className="ml-6 p-4 bg-muted rounded-lg">
-                                    <Label className="block mb-2">Frequency</Label>
-                                    {(['daily', 'weekly'] as const).map((freq) => (
-                                        <div key={freq} className="flex items-center gap-2 mb-2">
-                                            <input
-                                                type="radio"
-                                                id={freq}
-                                                name="frequency"
-                                                checked={emailFrequency === freq}
-                                                onChange={() => setEmailFrequency(freq)}
-                                            />
-                                            <Label htmlFor={freq} className="cursor-pointer">
-                                                {freq === 'daily' ? '📧 Daily' : '📬 Weekly'}
-                                            </Label>
-                                        </div>
-                                    ))}
+                            <Separator />
+
+                            {/* Email Notifications */}
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <Label htmlFor="email">Email Notifications</Label>
+                                        <p className="text-sm text-muted-foreground">
+                                            Receive email digests about new events
+                                        </p>
+                                    </div>
+                                    <Checkbox
+                                        id="email"
+                                        checked={emailNotifications}
+                                        onCheckedChange={(checked) => setEmailNotifications(checked === true)}
+                                    />
                                 </div>
-                            )}
+
+                                {emailNotifications && (
+                                    <div className="ml-6 p-4 bg-muted rounded-lg space-y-3">
+                                        <Label>Email Frequency</Label>
+                                        {(['daily', 'weekly'] as const).map((freq) => (
+                                            <div key={freq} className="flex items-center gap-2">
+                                                <input
+                                                    type="radio"
+                                                    id={`freq-${freq}`}
+                                                    checked={emailFrequency === freq}
+                                                    onChange={() => setEmailFrequency(freq)}
+                                                    className="w-4 h-4"
+                                                />
+                                                <Label htmlFor={`freq-${freq}`} className="cursor-pointer text-sm">
+                                                    {freq === 'daily' ? '📧 Daily digest' : '📬 Weekly digest'}
+                                                </Label>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <Separator />
+
+                            {/* Keywords */}
+                            <div className="space-y-3">
+                                <Label htmlFor="keywords" className="flex items-center gap-2">
+                                    <Filter className="h-4 w-4" />
+                                    Keywords (Optional)
+                                </Label>
+                                <Input
+                                    id="keywords"
+                                    value={notificationKeywords}
+                                    onChange={(e) => setNotificationKeywords(e.target.value)}
+                                    placeholder="e.g., taylor swift, hamilton, comedy"
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Free events always included
+                                </p>
+                            </div>
+
+                            <Separator />
+
+                            {/* Smart Filtering */}
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <Label htmlFor="smartFilter" className="flex items-center gap-2">
+                                            <Zap className="h-4 w-4" />
+                                            Smart Filtering
+                                        </Label>
+                                        <p className="text-sm text-muted-foreground">
+                                            Only notify about events you'll likely enjoy
+                                        </p>
+                                    </div>
+                                    <Checkbox
+                                        id="smartFilter"
+                                        checked={useSmartFiltering}
+                                        onCheckedChange={(checked) => setUseSmartFiltering(checked === true)}
+                                    />
+                                </div>
+
+                                {useSmartFiltering && (
+                                    <div className="ml-6 p-4 bg-muted rounded-lg space-y-4">
+                                        <div>
+                                            <Label className="text-sm mb-2 block">
+                                                Minimum Match Score: {Math.round(minRecommendationScore * 100)}%
+                                            </Label>
+                                            <Slider
+                                                value={[minRecommendationScore]}
+                                                onValueChange={([value]) => setMinRecommendationScore(value)}
+                                                min={0.3}
+                                                max={0.9}
+                                                step={0.1}
+                                                className="w-full"
+                                            />
+                                            <p className="text-xs text-muted-foreground mt-2">
+                                                Higher = fewer, more relevant notifications
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <Separator />
+
+                            {/* Price Range */}
+                            <div className="space-y-3">
+                                <Label className="flex items-center gap-2">
+                                    <DollarSign className="h-4 w-4" />
+                                    Price Range
+                                </Label>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <Label htmlFor="priceMin" className="text-xs">Minimum</Label>
+                                        <Input
+                                            id="priceMin"
+                                            type="number"
+                                            value={priceMin}
+                                            onChange={(e) => setPriceMin(Number(e.target.value))}
+                                            min={0}
+                                            className="mt-1"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="priceMax" className="text-xs">Maximum</Label>
+                                        <Input
+                                            id="priceMax"
+                                            type="number"
+                                            value={priceMax}
+                                            onChange={(e) => setPriceMax(Number(e.target.value))}
+                                            min={0}
+                                            className="mt-1"
+                                        />
+                                    </div>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    Free events always included
+                                </p>
+                            </div>
                         </CardContent>
                     </Card>
 
