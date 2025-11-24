@@ -15,14 +15,21 @@ export async function processNewEventNotifications(event: IEvent): Promise<numbe
             'preferences.notifications.inApp': true,
         }).lean();
 
+        if (users.length === 0) {
+            console.log('  ℹ No users with notifications enabled');
+            return 0;
+        }
+
+        console.log(`  → Checking ${users.length} users for notifications...`);
         let notificationCount = 0;
 
         for (const user of users) {
             const notification = await evaluateEventForUser(user, event);
-
+            
             if (notification) {
                 await createNotification(notification);
                 notificationCount++;
+                console.log(`    ✓ Notified ${user.email}: ${notification.type}`);
             }
         }
 
@@ -109,8 +116,8 @@ async function evaluateEventForUser(
     if (keywords.length > 0) {
         const titleLower = event.title.toLowerCase();
         const descLower = event.description?.toLowerCase() || '';
-        const matchedKeyword = keywords.find((keyword: string) =>
-            titleLower.includes(keyword.toLowerCase()) ||
+        const matchedKeyword = keywords.find((keyword: string) => 
+            titleLower.includes(keyword.toLowerCase()) || 
             descLower.includes(keyword.toLowerCase())
         );
 
@@ -205,6 +212,17 @@ export async function getUnreadNotifications(userId: string) {
     return Notification.find({ userId, read: false })
         .sort({ createdAt: -1 })
         .limit(20)
+        .populate('eventId')
+        .lean();
+}
+
+/**
+ * Get all notifications for user (read and unread)
+ */
+export async function getAllNotifications(userId: string) {
+    return Notification.find({ userId })
+        .sort({ createdAt: -1 })
+        .limit(50)
         .populate('eventId')
         .lean();
 }
