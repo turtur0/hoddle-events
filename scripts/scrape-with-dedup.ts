@@ -1,3 +1,4 @@
+// lib/services/scrape-with-dedup.ts
 import Event from '@/lib/models/Event';
 import { findDuplicates, mergeEvents } from '@/lib/utils/deduplication';
 import { processNewEventNotifications, processFavoritedEventUpdate } from '@/lib/services/notificationService';
@@ -11,226 +12,138 @@ interface Stats {
   notifications: number;
 }
 
+interface EventChanges {
+  priceDropped?: boolean;
+  priceDrop?: number;
+  significantUpdate?: string;
+}
+
+const PRICE_CHANGE_THRESHOLD = 5; // Minimum price change to trigger notification (in dollars)
+const SIGNIFICANT_KEYWORDS = [
+  'cancelled', 'postponed', 'rescheduled', 'sold out',
+  'extra show', 'additional show', 'new date', 'date change'
+];
+
+/**
+ * Process scraped events with deduplication and notification handling.
+ */
 export async function processEventsWithDeduplication(
   newEvents: NormalisedEvent[],
   sourceName: string
 ): Promise<Stats> {
-  console.log(`Processing ${newEvents.length} events from '${sourceName}'...`);
+  console.log(`\n[Dedup] Processing ${newEvents.length} events from '${sourceName}'`);
   const stats: Stats = { inserted: 0, updated: 0, merged: 0, skipped: 0, notifications: 0 };
 
   const existing = await Event.find({}).lean();
-  console.log(`Found ${existing.length} existing events`);
+  console.log(`[Dedup] Found ${existing.length} existing events in database`);
 
-  const getSourceId = (event: any, source: string): string => {
-    if (!event.sourceIds) return '';
-    if (typeof event.sourceIds.get === 'function') return event.sourceIds.get(source) || '';
-    return event.sourceIds[source] || '';
-  };
-
-  const bySourceId = new Map(
-    existing.map((e) => [`${e.primarySource}:${getSourceId(e, e.primarySource)}`, e])
-  );
-
-  const existingDedup: (EventForDedup & { _id: string })[] = existing.map((e) => ({
-    _id: e._id.toString(),
-    title: e.title,
-    startDate: e.startDate,
-    endDate: e.endDate,
-    venue: e.venue,
-    source: e.primarySource,
-    sourceId: getSourceId(e, e.primarySource),
-    description: e.description,
-    category: e.category,
-    subcategories: e.subcategories,
-    imageUrl: e.imageUrl,
-    videoUrl: e.videoUrl,
-    priceMin: e.priceMin,
-    priceMax: e.priceMax,
-    priceDetails: e.priceDetails,
-    isFree: e.isFree,
-    bookingUrl: e.bookingUrl,
-    accessibility: e.accessibility,
-    ageRestriction: e.ageRestriction,
-    duration: e.duration,
-  }));
-
+  // Build lookup structures
+  const bySourceId = buildSourceIdMap(existing);
+  const existingDedup = mapToEventForDedup(existing);
   const batchInserted: (EventForDedup & { _id: string })[] = [];
 
   for (const event of newEvents) {
     try {
-      const sourceKey = `${event.source}:${event.sourceId}`;
-      const sameSource = bySourceId.get(sourceKey);
-
-      if (sameSource) {
-        const notificationCount = await updateExistingEvent(sameSource, event, sourceName);
-        stats.updated++;
-        stats.notifications += notificationCount;
-        console.log(`Updated: ${event.title}`);
-        continue;
-      }
-
-      const tempId = `temp:${event.sourceId}`;
-      const eventDedup: EventForDedup & { _id: string } = {
-        _id: tempId,
-        ...event,
-        subcategories: event.subcategories || (event.subcategory ? [event.subcategory] : []),
-      };
-
-      const pool = [...existingDedup, ...batchInserted, eventDedup];
-      const dupes = findDuplicates(pool);
-
-      const match = dupes
-        .filter((d) => d.event1Id === tempId || d.event2Id === tempId)
-        .sort((a, b) => b.confidence - a.confidence)[0];
-
-      if (match) {
-        const matchId = match.event1Id === tempId ? match.event2Id : match.event1Id;
-
-        const dbMatch = existing.find((e) => e._id.toString() === matchId);
-        const batchMatch = batchInserted.find((e) => e._id === matchId);
-
-        if (!dbMatch && !batchMatch) {
-          console.log(`Skipping duplicate match for ${event.title} (no match found)`);
-          stats.skipped++;
-          continue;
-        }
-
-        const targetId = dbMatch?._id || batchMatch?._id;
-        const targetSource = dbMatch ? dbMatch.primarySource : batchMatch?.source;
-
-        if (targetId) {
-          const targetDedup = dbMatch ? {
-            title: dbMatch.title,
-            startDate: dbMatch.startDate,
-            endDate: dbMatch.endDate,
-            venue: dbMatch.venue,
-            source: dbMatch.primarySource,
-            sourceId: getSourceId(dbMatch, dbMatch.primarySource),
-            description: dbMatch.description,
-            category: dbMatch.category,
-            subcategories: dbMatch.subcategories,
-            imageUrl: dbMatch.imageUrl,
-            videoUrl: dbMatch.videoUrl,
-            priceMin: dbMatch.priceMin,
-            priceMax: dbMatch.priceMax,
-            priceDetails: dbMatch.priceDetails,
-            isFree: dbMatch.isFree,
-            bookingUrl: dbMatch.bookingUrl,
-            accessibility: dbMatch.accessibility,
-            ageRestriction: dbMatch.ageRestriction,
-            duration: dbMatch.duration,
-          } : batchMatch;
-
-          if (targetDedup) {
-            // Pass the full dbMatch event for notification checking
-            const notificationCount = await mergeIntoExisting(
-              targetId,
-              targetDedup,
-              event,
-              sourceName,
-              dbMatch // Pass the full existing event
-            );
-            stats.merged++;
-            stats.notifications += notificationCount;
-            console.log(`Merged: "${event.title}" into ${targetSource} (${match.reason})`);
-          }
-        }
-
-        continue;
-      }
-
-      // Insert new event
-      const created = await insertNewEvent(event);
-      batchInserted.push({
-        _id: created._id.toString(),
-        ...event,
-        subcategories: event.subcategories || (event.subcategory ? [event.subcategory] : []),
+      const result = await processEvent(event, {
+        existing,
+        bySourceId,
+        existingDedup,
+        batchInserted,
+        sourceName
       });
-      stats.inserted++;
-      console.log(`Inserted: ${event.title}`);
 
-      // Send notifications for new events
-      try {
-        const notificationCount = await processNewEventNotifications(created);
-        stats.notifications += notificationCount;
-        if (notificationCount > 0) {
-          console.log(`  → Sent ${notificationCount} notifications`);
-        }
-      } catch (error) {
-        console.error(`  ✗ Notification error:`, error);
-      }
+      updateStats(stats, result);
+      logResult(result, event.title);
     } catch (err: any) {
-      if (err?.code === 11000) {
-        stats.skipped++;
-        console.log(`Duplicate key error for: ${event.title}`);
-      } else {
-        console.error(`Error processing ${event.title}:`, err?.message ?? err);
-        stats.skipped++;
-      }
+      handleProcessingError(err, event.title, stats);
     }
   }
 
+  console.log(`[Dedup] Complete: ${stats.inserted} inserted, ${stats.updated} updated, ${stats.merged} merged, ${stats.notifications} notifications\n`);
   return stats;
 }
 
+/**
+ * Process a single event: update, merge, or insert.
+ */
+async function processEvent(
+  event: NormalisedEvent,
+  context: {
+    existing: any[];
+    bySourceId: Map<string, any>;
+    existingDedup: (EventForDedup & { _id: string })[];
+    batchInserted: (EventForDedup & { _id: string })[];
+    sourceName: string;
+  }
+): Promise<{ action: 'updated' | 'merged' | 'inserted'; notifications: number; data?: any }> {
+  const { existing, bySourceId, existingDedup, batchInserted, sourceName } = context;
+
+  // Check if this exact source/ID already exists
+  const sourceKey = `${event.source}:${event.sourceId}`;
+  const sameSource = bySourceId.get(sourceKey);
+
+  if (sameSource) {
+    const notifications = await updateExistingEvent(sameSource, event);
+    return { action: 'updated', notifications };
+  }
+
+  // Check for duplicates across sources
+  const tempId = `temp:${event.sourceId}`;
+  const eventDedup: EventForDedup & { _id: string } = {
+    _id: tempId,
+    ...event,
+    subcategories: event.subcategories || (event.subcategory ? [event.subcategory] : []),
+  };
+
+  const pool = [...existingDedup, ...batchInserted, eventDedup];
+  const dupes = findDuplicates(pool);
+  const match = dupes
+    .filter(d => d.event1Id === tempId || d.event2Id === tempId)
+    .sort((a, b) => b.confidence - a.confidence)[0];
+
+  if (match) {
+    const matchId = match.event1Id === tempId ? match.event2Id : match.event1Id;
+    const dbMatch = existing.find(e => e._id.toString() === matchId);
+    const batchMatch = batchInserted.find(e => e._id === matchId);
+
+    if (dbMatch || batchMatch) {
+      const targetDedup = dbMatch ? mapToEventForDedup([dbMatch])[0] : batchMatch!;
+      const notifications = await mergeIntoExisting(
+        matchId,
+        targetDedup,
+        event,
+        dbMatch
+      );
+      return { action: 'merged', notifications, data: { reason: match.reason } };
+    }
+  }
+
+  // Insert as new event
+  const created = await insertNewEvent(event);
+  batchInserted.push({
+    _id: created._id.toString(),
+    ...event,
+    subcategories: event.subcategories || (event.subcategory ? [event.subcategory] : []),
+  });
+
+  const notifications = await processNewEventNotifications(created);
+  return { action: 'inserted', notifications };
+}
+
+/**
+ * Update an existing event from the same source.
+ */
 async function updateExistingEvent(
   existing: any,
-  newEvent: NormalisedEvent,
-  source: string
+  newEvent: NormalisedEvent
 ): Promise<number> {
   const subcategories = [...(newEvent.subcategories || [])];
   if (newEvent.subcategory && !subcategories.includes(newEvent.subcategory)) {
     subcategories.push(newEvent.subcategory);
   }
 
-  // Detect significant changes for favorited event notifications
-  const changes: {
-    priceDropped?: boolean;
-    priceDrop?: number;
-    significantUpdate?: string;
-  } = {};
+  const changes = detectSignificantChanges(existing, newEvent);
 
-  // Check for price changes (including when price goes from undefined to defined)
-  const oldPrice = existing.priceMin || 0;
-  const newPrice = newEvent.priceMin || 0;
-
-  // Price was added (0 -> value)
-  if (oldPrice === 0 && newPrice > 0) {
-    changes.significantUpdate = `Price now available: $${newPrice.toFixed(2)}`;
-  }
-  // Price changed significantly
-  else if (oldPrice > 0 && newPrice > 0 && Math.abs(oldPrice - newPrice) >= 5) {
-    const change = newPrice - oldPrice;
-    if (change < 0) {
-      // Price dropped
-      changes.priceDropped = true;
-      changes.priceDrop = Math.abs(change);
-    } else {
-      // Price increased
-      changes.significantUpdate = `Price increased by $${change.toFixed(2)}`;
-    }
-  }
-
-  // Check for significant description changes
-  if (newEvent.description && existing.description) {
-    const oldDesc = existing.description.toLowerCase();
-    const newDesc = newEvent.description.toLowerCase();
-
-    // Look for meaningful keywords in the new description
-    const significantKeywords = [
-      'cancelled', 'postponed', 'rescheduled', 'sold out',
-      'extra show', 'additional show', 'new date', 'date change'
-    ];
-
-    for (const keyword of significantKeywords) {
-      if (!oldDesc.includes(keyword) && newDesc.includes(keyword)) {
-        changes.significantUpdate = `Event status updated: ${keyword}`;
-        break;
-      }
-    }
-  }
-
-  // Update the event in database
   await Event.updateOne(
     { _id: existing._id },
     {
@@ -257,78 +170,21 @@ async function updateExistingEvent(
     }
   );
 
-  // Send notifications for significant changes to favorited events
-  let notificationCount = 0;
-  if (changes.priceDropped || changes.significantUpdate) {
-    try {
-      const updatedEvent = await Event.findById(existing._id).lean();
-      if (updatedEvent) {
-        notificationCount = await processFavoritedEventUpdate(updatedEvent, changes);
-        if (notificationCount > 0) {
-          console.log(`  → Sent ${notificationCount} favorite update notifications`);
-        }
-      }
-    } catch (error) {
-      console.error(`  ✗ Favorite notification error:`, error);
-    }
-  }
-
-  return notificationCount;
+  return await notifyFavoriteUsers(existing._id, changes);
 }
 
+/**
+ * Merge a new event into an existing one from a different source.
+ */
 async function mergeIntoExisting(
   existingId: any,
   existing: any,
   newEvent: NormalisedEvent,
-  source: string,
   fullExistingEvent?: any
 ): Promise<number> {
   const merged = mergeEvents(existing, newEvent);
+  const changes = detectSignificantChanges(existing, newEvent);
 
-  // Detect significant changes BEFORE merging (same logic as updateExistingEvent)
-  const changes: {
-    priceDropped?: boolean;
-    priceDrop?: number;
-    significantUpdate?: string;
-  } = {};
-
-  const oldPrice = existing.priceMin || 0;
-  const newPrice = newEvent.priceMin || 0;
-
-  // Price was added (0 -> value)
-  if (oldPrice === 0 && newPrice > 0) {
-    changes.significantUpdate = `Price now available: $${newPrice.toFixed(2)}`;
-  }
-  // Price changed significantly
-  else if (oldPrice > 0 && newPrice > 0 && Math.abs(oldPrice - newPrice) >= 5) {
-    const change = newPrice - oldPrice;
-    if (change < 0) {
-      changes.priceDropped = true;
-      changes.priceDrop = Math.abs(change);
-    } else {
-      changes.significantUpdate = `Price increased by $${change.toFixed(2)}`;
-    }
-  }
-
-  // Check for significant description changes
-  if (newEvent.description && existing.description) {
-    const oldDesc = existing.description.toLowerCase();
-    const newDesc = newEvent.description.toLowerCase();
-
-    const significantKeywords = [
-      'cancelled', 'postponed', 'rescheduled', 'sold out',
-      'extra show', 'additional show', 'new date', 'date change'
-    ];
-
-    for (const keyword of significantKeywords) {
-      if (!oldDesc.includes(keyword) && newDesc.includes(keyword)) {
-        changes.significantUpdate = `Event status updated: ${keyword}`;
-        break;
-      }
-    }
-  }
-
-  // Perform the merge update
   const updateDoc: any = {
     $set: {
       description: merged.description,
@@ -359,25 +215,12 @@ async function mergeIntoExisting(
 
   await Event.updateOne({ _id: existingId }, updateDoc);
 
-  // Send notifications for significant changes to favorited events
-  let notificationCount = 0;
-  if (changes.priceDropped || changes.significantUpdate) {
-    try {
-      const updatedEvent = await Event.findById(existingId).lean();
-      if (updatedEvent) {
-        notificationCount = await processFavoritedEventUpdate(updatedEvent, changes);
-        if (notificationCount > 0) {
-          console.log(`  → Sent ${notificationCount} favorite update notifications`);
-        }
-      }
-    } catch (error) {
-      console.error(`  ✗ Favorite notification error:`, error);
-    }
-  }
-
-  return notificationCount;
+  return await notifyFavoriteUsers(existingId, changes);
 }
 
+/**
+ * Insert a new event into the database.
+ */
 async function insertNewEvent(event: NormalisedEvent) {
   const subcategories = [...(event.subcategories || [])];
   if (event.subcategory && !subcategories.includes(event.subcategory)) {
@@ -409,4 +252,126 @@ async function insertNewEvent(event: NormalisedEvent) {
     scrapedAt: new Date(),
     lastUpdated: new Date(),
   });
+}
+
+/**
+ * Detect significant changes between old and new event data.
+ */
+function detectSignificantChanges(existing: any, newEvent: NormalisedEvent): EventChanges {
+  const changes: EventChanges = {};
+  const oldPrice = existing.priceMin || 0;
+  const newPrice = newEvent.priceMin || 0;
+
+  // Price was added
+  if (oldPrice === 0 && newPrice > 0) {
+    changes.significantUpdate = `Price now available: $${newPrice.toFixed(2)}`;
+  }
+  // Price changed significantly
+  else if (oldPrice > 0 && newPrice > 0 && Math.abs(oldPrice - newPrice) >= PRICE_CHANGE_THRESHOLD) {
+    const change = newPrice - oldPrice;
+    if (change < 0) {
+      changes.priceDropped = true;
+      changes.priceDrop = Math.abs(change);
+    } else {
+      changes.significantUpdate = `Price increased by $${change.toFixed(2)}`;
+    }
+  }
+
+  // Check for significant description changes
+  if (newEvent.description && existing.description) {
+    const oldDesc = existing.description.toLowerCase();
+    const newDesc = newEvent.description.toLowerCase();
+
+    for (const keyword of SIGNIFICANT_KEYWORDS) {
+      if (!oldDesc.includes(keyword) && newDesc.includes(keyword)) {
+        changes.significantUpdate = `Event status: ${keyword}`;
+        break;
+      }
+    }
+  }
+
+  return changes;
+}
+
+/**
+ * Send notifications to users who favorited this event if there are significant changes.
+ */
+async function notifyFavoriteUsers(eventId: any, changes: EventChanges): Promise<number> {
+  if (!changes.priceDropped && !changes.significantUpdate) return 0;
+
+  try {
+    const updatedEvent = await Event.findById(eventId).lean();
+    if (!updatedEvent) return 0;
+
+    return await processFavoritedEventUpdate(updatedEvent, changes);
+  } catch (error) {
+    console.error('[Dedup] Error sending favorite notifications:', error);
+    return 0;
+  }
+}
+
+// Helper functions
+
+function buildSourceIdMap(events: any[]): Map<string, any> {
+  return new Map(
+    events.map(e => {
+      const sourceId = getSourceId(e, e.primarySource);
+      return [`${e.primarySource}:${sourceId}`, e];
+    })
+  );
+}
+
+function mapToEventForDedup(events: any[]): (EventForDedup & { _id: string })[] {
+  return events.map(e => ({
+    _id: e._id.toString(),
+    title: e.title,
+    startDate: e.startDate,
+    endDate: e.endDate,
+    venue: e.venue,
+    source: e.primarySource,
+    sourceId: getSourceId(e, e.primarySource),
+    description: e.description,
+    category: e.category,
+    subcategories: e.subcategories,
+    imageUrl: e.imageUrl,
+    videoUrl: e.videoUrl,
+    priceMin: e.priceMin,
+    priceMax: e.priceMax,
+    priceDetails: e.priceDetails,
+    isFree: e.isFree,
+    bookingUrl: e.bookingUrl,
+    accessibility: e.accessibility,
+    ageRestriction: e.ageRestriction,
+    duration: e.duration,
+  }));
+}
+
+function getSourceId(event: any, source: string): string {
+  if (!event.sourceIds) return '';
+  if (typeof event.sourceIds.get === 'function') return event.sourceIds.get(source) || '';
+  return event.sourceIds[source] || '';
+}
+
+function updateStats(stats: Stats, result: { action: string; notifications: number }) {
+  if (result.action === 'inserted') stats.inserted++;
+  else if (result.action === 'updated') stats.updated++;
+  else if (result.action === 'merged') stats.merged++;
+  stats.notifications += result.notifications;
+}
+
+function logResult(result: any, title: string) {
+  const action = result.action.charAt(0).toUpperCase() + result.action.slice(1);
+  let log = `[Dedup] ${action}: ${title}`;
+  if (result.data?.reason) log += ` (${result.data.reason})`;
+  if (result.notifications > 0) log += ` [${result.notifications} notifications]`;
+  console.log(log);
+}
+
+function handleProcessingError(err: any, title: string, stats: Stats) {
+  if (err?.code === 11000) {
+    console.log(`[Dedup] Duplicate key error: ${title}`);
+  } else {
+    console.error(`[Dedup] Error processing ${title}:`, err?.message || err);
+  }
+  stats.skipped++;
 }
