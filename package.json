@@ -15,7 +15,7 @@
     "scrape:marriner": "tsx scripts/scrapers/scrape-marriner.ts",
     "scrape:whatson": "tsx scripts/scrapers/scrape-whatson.ts",
     "debug": "tsx scripts/debug/debug-popularity.ts",
-    "update-popularity": "tsx scripts/update-popularity.ts",
+    "update-popularity": "tsx scripts/jobs/update-popularity.ts",
     "test-email": "tsx scripts/debug/test-email.ts"
   },
   "dependencies": {

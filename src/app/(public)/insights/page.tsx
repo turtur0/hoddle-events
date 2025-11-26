@@ -1,5 +1,6 @@
 
 // app/insights/page.tsx
+import { PopularityScatterChart } from '@/components/analytics/PopularityScratterChart';
 import { PriceDistributionChart } from '@/components/analytics/PriceDistributionChart';
 import { TimelineChart } from '@/components/analytics/TimelineChart';
 import { Sparkles } from 'lucide-react';
@@ -29,6 +30,7 @@ export default function InsightsPage() {
                 <div className="space-y-8">
                     <PriceDistributionChart />
                     <TimelineChart />
+                    <PopularityScatterChart />
                 </div>
             </section>
         </div>
