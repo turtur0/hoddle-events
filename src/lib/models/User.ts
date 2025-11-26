@@ -22,7 +22,7 @@ export interface IUser {
         notifications: {
             inApp: boolean;
             email: boolean;
-            emailFrequency: 'instant' | 'daily' | 'weekly';
+            emailFrequency: 'weekly' | 'monthly';
             keywords: string[];
             lastEmailSent?: Date;
             smartFiltering: {
@@ -97,7 +97,7 @@ const UserSchema = new Schema<IUser>(
                 email: { type: Boolean, default: false },
                 emailFrequency: {
                     type: String,
-                    enum: ['instant', 'daily', 'weekly'],
+                    enum: ['weekly', 'monthly'],
                     default: 'weekly'
                 },
                 keywords: { type: [String], default: [] },

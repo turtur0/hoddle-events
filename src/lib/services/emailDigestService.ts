@@ -2,32 +2,27 @@
 import User from '@/lib/models/User';
 import Event from '@/lib/models/Event';
 import { Resend } from 'resend';
-import MonthlyDigestEmail from '@/emails/MonthlyDigestEmail';
+import MonthlyDigestEmail from '@/emails/DigestEmail';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 interface DigestContent {
     keywordMatches: any[];
-    updatedFavorites: any[];
+    updatedFavourites: any[];
     recommendations: { category: string; events: any[] }[];
 }
 
 /**
- * Main function to send digest emails
- * Run this via cron job (weekly on Sunday evening, monthly on 1st)
+ * Send scheduled digest emails to all eligible users.
+ * Called by cron job for weekly/monthly digests.
  */
 export async function sendScheduledDigests(frequency: 'weekly' | 'monthly') {
-    console.log(`[Email Digest] Starting ${frequency} digest send...`);
+    console.log(`[Digest] Starting ${frequency} send`);
 
-    // For monthly, only send on the first Sunday of the month
-    if (frequency === 'monthly') {
-        const today = new Date();
-        const dayOfMonth = today.getDate();
-        // If today is not between 1-7 (first week), skip
-        if (dayOfMonth > 7) {
-            console.log(`[Email Digest] Skipping monthly digest - not first Sunday (day ${dayOfMonth})`);
-            return { sent: 0, skipped: 0, errors: 0 };
-        }
+    // Monthly digests only send on first Sunday of month
+    if (frequency === 'monthly' && !isFirstWeekOfMonth()) {
+        console.log(`[Digest] Skipping monthly - not first week`);
+        return { sent: 0, skipped: 0, errors: 0 };
     }
 
     const users = await User.find({
@@ -35,7 +30,7 @@ export async function sendScheduledDigests(frequency: 'weekly' | 'monthly') {
         'preferences.notifications.emailFrequency': frequency,
     }).lean();
 
-    console.log(`[Email Digest] Found ${users.length} users for ${frequency} digest`);
+    console.log(`[Digest] Found ${users.length} eligible users`);
 
     let sent = 0;
     let skipped = 0;
@@ -45,7 +40,6 @@ export async function sendScheduledDigests(frequency: 'weekly' | 'monthly') {
         try {
             const content = await buildDigestContent(user, frequency);
 
-            // Skip if no content
             if (!hasContent(content)) {
                 skipped++;
                 continue;
@@ -53,7 +47,6 @@ export async function sendScheduledDigests(frequency: 'weekly' | 'monthly') {
 
             await sendDigestEmail(user, content);
 
-            // Update last sent timestamp
             await User.updateOne(
                 { _id: user._id },
                 { $set: { 'preferences.notifications.lastEmailSent': new Date() } }
@@ -61,18 +54,18 @@ export async function sendScheduledDigests(frequency: 'weekly' | 'monthly') {
 
             sent++;
         } catch (error) {
-            console.error(`[Email Digest] Error for user ${user.email}:`, error);
+            console.error(`[Digest] Error for ${user.email}:`, error);
             errors++;
         }
     }
 
-    console.log(`[Email Digest] Complete: ${sent} sent, ${skipped} skipped, ${errors} errors`);
+    console.log(`[Digest] Complete: ${sent} sent, ${skipped} skipped, ${errors} errors`);
     return { sent, skipped, errors };
 }
 
 /**
- * Build personalized digest content for a user
- * EXPORTED for testing
+ * Build personalised digest content for a single user.
+ * Includes keyword matches, updated favourites, and recommendations.
  */
 export async function buildDigestContent(
     user: any,
@@ -82,39 +75,22 @@ export async function buildDigestContent(
     const lookbackDays = frequency === 'weekly' ? 7 : 30;
     const lookbackDate = new Date(now.getTime() - lookbackDays * 24 * 60 * 60 * 1000);
 
-    // Get upcoming events (next 30 days for weekly, next 60 for monthly)
     const lookaheadDays = frequency === 'weekly' ? 30 : 60;
     const maxDate = new Date(now.getTime() + lookaheadDays * 24 * 60 * 60 * 1000);
 
-    // 1. Events matching user's keywords (NEW events only)
-    const keywordMatches = await findKeywordMatches(
-        user,
-        lookbackDate,
-        maxDate
-    );
-
-    // 2. Updates to favorited events
-    const updatedFavorites = await findUpdatedFavorites(
-        user,
-        lookbackDate
-    );
-
-    // 3. Personalized recommendations by category
-    const recommendations = await buildRecommendations(
-        user,
-        maxDate,
-        frequency
-    );
+    const keywordMatches = await findKeywordMatches(user, lookbackDate, maxDate);
+    const updatedFavourites = await findUpdatedFavourites(user, lookbackDate);
+    const recommendations = await buildRecommendations(user, maxDate, frequency);
 
     return {
         keywordMatches,
-        updatedFavorites,
+        updatedFavourites,
         recommendations,
     };
 }
 
 /**
- * Find events matching user's notification keywords
+ * Find events matching user's notification keywords.
  */
 async function findKeywordMatches(
     user: any,
@@ -124,7 +100,6 @@ async function findKeywordMatches(
     const keywords = user.preferences.notifications.keywords || [];
     if (keywords.length === 0) return [];
 
-    // Build regex patterns for each keyword (case-insensitive)
     const regexPatterns = keywords.map((kw: string) => new RegExp(kw, 'i'));
 
     const events = await Event.find({
@@ -144,9 +119,9 @@ async function findKeywordMatches(
 }
 
 /**
- * Find favorited events that have been updated
+ * Find favourited events that have been updated.
  */
-async function findUpdatedFavorites(
+async function findUpdatedFavourites(
     user: any,
     sinceDate: Date
 ): Promise<any[]> {
@@ -155,7 +130,7 @@ async function findUpdatedFavorites(
     const events = await Event.find({
         _id: { $in: user.favorites },
         lastUpdated: { $gte: sinceDate },
-        startDate: { $gte: new Date() }, // Only upcoming events
+        startDate: { $gte: new Date() },
     })
         .sort({ lastUpdated: -1 })
         .limit(10)
@@ -165,7 +140,7 @@ async function findUpdatedFavorites(
 }
 
 /**
- * Build category-based recommendations
+ * Build category-based recommendations.
  */
 async function buildRecommendations(
     user: any,
@@ -202,20 +177,21 @@ async function buildRecommendations(
 }
 
 /**
- * Send the actual email
+ * Send digest email to a single user.
  */
 async function sendDigestEmail(user: any, content: DigestContent) {
-    const unsubscribeUrl = `${process.env.NEXT_PUBLIC_APP_URL}/settings/notifications?unsubscribe=email`;
-    const preferencesUrl = `${process.env.NEXT_PUBLIC_APP_URL}/settings/notifications`;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+    const unsubscribeUrl = `${baseUrl}/settings/notifications?unsubscribe=email`;
+    const preferencesUrl = `${baseUrl}/settings/notifications`;
 
     const { data, error } = await resend.emails.send({
         from: 'Melbourne Events <events@yourdomain.com>',
         to: user.email,
-        subject: `Your ${getDigestTitle(content)} - Melbourne Events`,
+        subject: getDigestSubject(content),
         react: MonthlyDigestEmail({
             userName: user.name,
             keywordMatches: content.keywordMatches,
-            updatedFavorites: content.updatedFavorites,
+            updatedFavorites: content.updatedFavourites,
             recommendations: content.recommendations,
             unsubscribeUrl,
             preferencesUrl,
@@ -230,31 +206,38 @@ async function sendDigestEmail(user: any, content: DigestContent) {
 }
 
 /**
- * Check if digest has any content worth sending
+ * Check if digest has any content worth sending.
  */
 function hasContent(content: DigestContent): boolean {
     return (
         content.keywordMatches.length > 0 ||
-        content.updatedFavorites.length > 0 ||
+        content.updatedFavourites.length > 0 ||
         content.recommendations.length > 0
     );
 }
 
 /**
- * Generate email subject based on content
+ * Generate email subject line based on content.
  */
-function getDigestTitle(content: DigestContent): string {
+function getDigestSubject(content: DigestContent): string {
     const total =
         content.keywordMatches.length +
-        content.updatedFavorites.length +
+        content.updatedFavourites.length +
         content.recommendations.reduce((sum, cat) => sum + cat.events.length, 0);
 
     if (content.keywordMatches.length > 0) {
-        return `${total} events including "${content.keywordMatches[0].title}"`;
+        return `${total} events including "${content.keywordMatches[0].title}" - Melbourne Events`;
     }
 
-    return `${total} curated events for you`;
+    return `${total} curated events for you - Melbourne Events`;
 }
 
-// Also export as default for backward compatibility
+/**
+ * Check if today is in the first week of the month.
+ */
+function isFirstWeekOfMonth(): boolean {
+    const today = new Date();
+    return today.getDate() <= 7;
+}
+
 export default buildDigestContent;

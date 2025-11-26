@@ -1,4 +1,4 @@
-// emails/MonthlyDigestEmail.tsx - FIXED VERSION
+
 import {
     Body,
     Container,
@@ -27,7 +27,7 @@ interface Event {
     category: string;
 }
 
-interface MonthlyDigestEmailProps {
+interface DigestEmailProps {
     userName: string;
     keywordMatches: Event[];
     updatedFavorites: Event[];
@@ -36,14 +36,14 @@ interface MonthlyDigestEmailProps {
     preferencesUrl: string;
 }
 
-export default function MonthlyDigestEmail({
+export default function DigestEmail({
     userName = 'there',
     keywordMatches = [],
     updatedFavorites = [],
     recommendations = [],
     unsubscribeUrl = '',
     preferencesUrl = '',
-}: MonthlyDigestEmailProps) {
+}: DigestEmailProps) {
     const hasContent = keywordMatches.length > 0 ||
         updatedFavorites.length > 0 ||
         recommendations.length > 0;
@@ -57,29 +57,27 @@ export default function MonthlyDigestEmail({
             <Head />
             <Preview>
                 {hasContent
-                    ? `${totalEvents} curated events for you this month`
-                    : 'Your monthly event digest'}
+                    ? `${totalEvents} curated events for you`
+                    : 'Your event digest'}
             </Preview>
             <Body style={main}>
                 <Container style={container}>
-                    {/* Header */}
                     <Section style={header}>
                         <Heading style={h1}>Melbourne Events</Heading>
-                        <Text style={headerSubtext}>Your Monthly Digest</Text>
+                        <Text style={headerSubtext}>Your Event Digest</Text>
                     </Section>
 
-                    {/* Greeting */}
                     <Section style={section}>
                         <Text style={greeting}>Hi {userName},</Text>
                         {hasContent ? (
                             <Text style={intro}>
                                 We've curated {totalEvents} events based on your preferences and interests.
-                                Here's what's coming up this month.
+                                Here's what's coming up.
                             </Text>
                         ) : (
                             <Text style={intro}>
-                                We haven't found any new events matching your preferences this month.
-                                Check back soon—we're always adding new events!
+                                We haven't found any new events matching your preferences.
+                                Check back soon—we're always adding new events.
                             </Text>
                         )}
                     </Section>
@@ -92,7 +90,6 @@ export default function MonthlyDigestEmail({
                         </Section>
                     ) : (
                         <>
-                            {/* Section 1: Keyword Matches */}
                             {keywordMatches.length > 0 && (
                                 <>
                                     <Section style={section}>
@@ -108,13 +105,12 @@ export default function MonthlyDigestEmail({
                                 </>
                             )}
 
-                            {/* Section 2: Updated Favorites */}
                             {updatedFavorites.length > 0 && (
                                 <>
                                     <Section style={section}>
                                         <Heading style={h2}>Updates to Your Saved Events</Heading>
                                         <Text style={sectionSubtext}>
-                                            Changes to events you've favorited
+                                            Changes to events you've favourited
                                         </Text>
                                     </Section>
                                     {updatedFavorites.map((event) => (
@@ -124,7 +120,6 @@ export default function MonthlyDigestEmail({
                                 </>
                             )}
 
-                            {/* Section 3: Personalized Recommendations */}
                             {recommendations.map((categoryGroup, idx) => (
                                 <React.Fragment key={categoryGroup.category}>
                                     <Section style={section}>
@@ -144,18 +139,17 @@ export default function MonthlyDigestEmail({
                         </>
                     )}
 
-                    {/* Footer */}
                     <Hr style={footerDivider} />
                     <Section style={footer}>
                         <Text style={footerText}>
-                            Want to customize what you receive?{' '}
+                            Want to customise what you receive?{' '}
                             <Link href={preferencesUrl} style={footerLink}>
                                 Update your preferences
                             </Link>
                         </Text>
                         <Text style={footerText}>
                             <Link href={unsubscribeUrl} style={unsubscribeLink}>
-                                Unsubscribe from monthly emails
+                                Unsubscribe from emails
                             </Link>
                         </Text>
                         <Text style={footerCopyright}>
@@ -168,7 +162,6 @@ export default function MonthlyDigestEmail({
     );
 }
 
-// Event Card Component
 function EventCard({ event }: { event: Event }) {
     const eventUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/events/${event._id}`;
 
@@ -186,11 +179,8 @@ function EventCard({ event }: { event: Event }) {
         hour12: true,
     });
 
-    // FIXED: Better price formatting with proper undefined handling
     const getPriceDisplay = () => {
-        if (event.isFree) {
-            return 'Free';
-        }
+        if (event.isFree) return 'Free';
 
         if (event.priceMin !== undefined && event.priceMax !== undefined) {
             if (event.priceMin === event.priceMax) {
@@ -203,11 +193,9 @@ function EventCard({ event }: { event: Event }) {
             return `From $${event.priceMin.toFixed(2)}`;
         }
 
-        // If no price info available
         return 'See website for pricing';
     };
 
-    // FIXED: Only render image if URL exists and is valid
     const hasValidImage = event.imageUrl &&
         event.imageUrl.startsWith('http') &&
         !event.imageUrl.includes('placeholder');
@@ -250,7 +238,6 @@ function EventCard({ event }: { event: Event }) {
     );
 }
 
-// Helper Functions
 function getCategoryLabel(category: string): string {
     const labels: Record<string, string> = {
         music: 'Music',
@@ -263,7 +250,6 @@ function getCategoryLabel(category: string): string {
     return labels[category.toLowerCase()] || category;
 }
 
-// Styles
 const main = {
     backgroundColor: '#f5f5f5',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',

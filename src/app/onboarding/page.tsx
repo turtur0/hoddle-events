@@ -55,7 +55,7 @@ export default function Onboarding() {
     // Notifications
     const [inAppNotifications, setInAppNotifications] = useState(true);
     const [emailNotifications, setEmailNotifications] = useState(false);
-    const [emailFrequency, setEmailFrequency] = useState<'daily' | 'weekly'>('weekly');
+    const [emailFrequency, setEmailFrequency] = useState<'weekly' | 'monthly'>('weekly');
     const [notificationKeywords, setNotificationKeywords] = useState('');
     const [useSmartFiltering, setUseSmartFiltering] = useState(true);
     const [minRecommendationScore, setMinRecommendationScore] = useState(0.6);
@@ -468,30 +468,35 @@ export default function Onboarding() {
                                         className="mt-1"
                                     />
                                 </div>
-
-                                {emailNotifications && (
-                                    <div className="ml-4 p-4 bg-background border rounded-lg space-y-3">
-                                        <Label className="text-sm font-medium">Email Frequency</Label>
-                                        <div className="space-y-2">
-                                            {(['daily', 'weekly'] as const).map((freq) => (
-                                                <div key={freq} className="flex items-center gap-3">
-                                                    <input
-                                                        type="radio"
-                                                        id={freq}
-                                                        checked={emailFrequency === freq}
-                                                        onChange={() => setEmailFrequency(freq)}
-                                                        className="w-4 h-4 cursor-pointer"
-                                                    />
-                                                    <Label htmlFor={freq} className="cursor-pointer text-sm flex items-center gap-2">
-                                                        <Mail className="h-3.5 w-3.5" />
-                                                        {freq === 'daily' ? 'Daily digest' : 'Weekly digest'}
-                                                    </Label>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
                             </div>
+
+                            {emailNotifications && (
+                                <div className="ml-4 p-4 bg-background border rounded-lg space-y-3">
+                                    <Label className="text-sm font-medium">Email Frequency</Label>
+                                    <div className="space-y-2">
+                                        {(['weekly', 'monthly'] as const).map((freq) => (
+                                            <div key={freq} className="flex items-center gap-3">
+                                                <input
+                                                    type="radio"
+                                                    id={freq}
+                                                    checked={emailFrequency === freq}
+                                                    onChange={() => setEmailFrequency(freq)}
+                                                    className="w-4 h-4 cursor-pointer"
+                                                />
+                                                <Label htmlFor={freq} className="cursor-pointer text-sm flex items-center gap-2">
+                                                    <Mail className="h-3.5 w-3.5" />
+                                                    {freq === 'weekly'
+                                                        ? 'Weekly digest (Every Sunday at 6 PM)'
+                                                        : 'Monthly digest (First Sunday of month)'}
+                                                </Label>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        Curated events matching your preferences, keyword alerts, and favourite updates
+                                    </p>
+                                </div>
+                            )}
 
                             {/* Keywords */}
                             <div className="space-y-3">

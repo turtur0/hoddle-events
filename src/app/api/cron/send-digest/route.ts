@@ -1,35 +1,31 @@
-// app/api/cron/send-digests/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { sendScheduledDigests } from '@/lib/services/emailDigestService';
 import { connectDB } from '@/lib/db';
 
 export const runtime = 'nodejs';
-export const maxDuration = 300; // 5 minutes
+export const maxDuration = 300;
 
 export async function GET(request: NextRequest) {
-    // Verify cron secret to prevent unauthorized access
     const authHeader = request.headers.get('authorization');
     if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        console.error('[Cron] Unauthorized access attempt');
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        console.error('[Cron] Unauthorised access attempt');
+        return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
     }
 
     const frequency = request.nextUrl.searchParams.get('frequency') as 'weekly' | 'monthly';
 
     if (!frequency || !['weekly', 'monthly'].includes(frequency)) {
         return NextResponse.json(
-            { error: 'Invalid frequency parameter. Must be "weekly" or "monthly"' },
+            { error: 'Invalid frequency. Must be "weekly" or "monthly"' },
             { status: 400 }
         );
     }
 
     try {
-        console.log(`[Cron] Starting ${frequency} digest job...`);
+        console.log(`[Cron] Starting ${frequency} digest job`);
 
-        // Connect to database
         await connectDB();
 
-        // Send digests
         const results = await sendScheduledDigests(frequency);
 
         console.log(`[Cron] Job complete:`, results);
@@ -41,7 +37,7 @@ export async function GET(request: NextRequest) {
             ...results,
         });
     } catch (error: any) {
-        console.error('[Cron] Digest send failed:', error);
+        console.error('[Cron] Job failed:', error);
         return NextResponse.json(
             {
                 success: false,

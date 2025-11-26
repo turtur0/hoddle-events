@@ -1,11 +1,9 @@
-// src/app/api/user/preferences/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { connectDB } from '@/lib/db';
 import User from '@/lib/models/User';
 
-// GET - Fetch user preferences
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
@@ -28,6 +26,7 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -81,7 +80,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Notifications - REMOVED popularityFilter
+    // Email notifications configuration
     if (notifications) {
       if (notifications.inApp !== undefined) {
         updateFields['preferences.notifications.inApp'] = notifications.inApp;
@@ -137,7 +136,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PATCH - Partially update preferences
 export async function PATCH(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -149,14 +147,11 @@ export async function PATCH(request: NextRequest) {
     await connectDB();
 
     const body = await request.json();
-
-    // Build update object dynamically based on provided fields
     const updateFields: Record<string, any> = {};
 
     if (body.selectedCategories !== undefined) {
       updateFields['preferences.selectedCategories'] = body.selectedCategories;
 
-      // Update category weights when selected categories change
       const allCategories = ['music', 'theatre', 'sports', 'arts', 'family', 'other'];
       const categoryWeights: Record<string, number> = {};
       allCategories.forEach((cat: string) => {
@@ -182,17 +177,10 @@ export async function PATCH(request: NextRequest) {
     if (body.popularityPreference !== undefined) {
       updateFields['preferences.popularityPreference'] = body.popularityPreference;
     }
-    if (body.pricePreference !== undefined) {
-      updateFields['preferences.pricePreference'] = body.pricePreference;
-    }
-    if (body.venuePreference !== undefined) {
-      updateFields['preferences.venuePreference'] = body.venuePreference;
-    }
     if (body.locations !== undefined) {
       updateFields['preferences.locations'] = body.locations;
     }
 
-    // Handle notifications with dot notation
     if (body.notifications) {
       const notifs = body.notifications;
       if (notifs.inApp !== undefined) {
@@ -216,9 +204,6 @@ export async function PATCH(request: NextRequest) {
         if (notifs.smartFiltering.minRecommendationScore !== undefined) {
           updateFields['preferences.notifications.smartFiltering.minRecommendationScore'] = notifs.smartFiltering.minRecommendationScore;
         }
-      }
-      if (notifs.popularityFilter !== undefined) {
-        updateFields['preferences.notifications.popularityFilter'] = notifs.popularityFilter;
       }
     }
 

@@ -1,7 +1,7 @@
 // lib/email/emailService.ts - FULLY FIXED VERSION
 import { Resend } from 'resend';
 import { render } from '@react-email/render';
-import MonthlyDigestEmail from '@/emails/MonthlyDigestEmail';
+import MonthlyDigestEmail from '@/emails/DigestEmail';
 import User from '@/lib/models/User';
 import Event from '@/lib/models/Event';
 import UserFavourite from '@/lib/models/UserFavourites';
