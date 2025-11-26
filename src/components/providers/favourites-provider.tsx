@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { getUserFavourites } from '@/actions/interactions';
+import { getUserFavourites } from '@/lib/actions/interactions';
 
 interface FavouritesContextType {
     favourites: Set<string>;

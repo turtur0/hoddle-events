@@ -8,7 +8,7 @@ import { SearchBar } from "@/components/search/search-bar";
 import { EventFilters } from "@/components/events/event-filters";
 import { Suspense } from "react";
 import { SerializedEvent } from "@/lib/models/Event";
-import { getUserFavourites } from "@/actions/interactions";
+import { getUserFavourites } from "@/lib/actions/interactions";
 
 async function EventsGrid({
   page,

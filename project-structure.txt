@@ -1,0 +1,168 @@
+.
+├── scripts
+│   ├── debug
+│   │   ├── debug-popularity.ts
+│   │   ├── debug-website.ts
+│   │   ├── test-email.ts
+│   │   └── test-whatson-debug.ts
+│   ├── scrape-all.ts
+│   ├── scrape-marriner.ts
+│   ├── scrape-ticketmaster.ts
+│   ├── scrape-whatson.ts
+│   ├── scrape-with-dedup.ts
+│   └── update-popularity.ts
+├── src
+│   ├── actions
+│   │   └── interactions.ts
+│   ├── app
+│   │   ├── about
+│   │   │   └── page.tsx
+│   │   ├── api
+│   │   │   ├── auth
+│   │   │   ├── cron
+│   │   │   ├── events
+│   │   │   ├── notifications
+│   │   │   ├── recommendations
+│   │   │   ├── settings
+│   │   │   └── user
+│   │   ├── auth
+│   │   │   ├── signin
+│   │   │   └── signup
+│   │   ├── category
+│   │   │   └── [slug]
+│   │   ├── events
+│   │   │   ├── [id]
+│   │   │   └── page.tsx
+│   │   ├── favourites
+│   │   │   └── page.tsx
+│   │   ├── notifications
+│   │   │   └── page.tsx
+│   │   ├── onboarding
+│   │   │   └── page.tsx
+│   │   ├── profile
+│   │   │   └── page.tsx
+│   │   ├── settings
+│   │   │   └── page.tsx
+│   │   ├── globals.css
+│   │   ├── layout.tsx
+│   │   ├── page.tsx
+│   │   └── sessionProviderWrapper.tsx
+│   ├── components
+│   │   ├── events
+│   │   │   ├── booking-link.tsx
+│   │   │   ├── event-card-skeleton.tsx
+│   │   │   ├── event-card.tsx
+│   │   │   ├── event-filters.tsx
+│   │   │   ├── favourite-button.tsx
+│   │   │   ├── upcoming-events.tsx
+│   │   │   └── view-tracker.tsx
+│   │   ├── layout
+│   │   │   ├── footer.tsx
+│   │   │   └── header.tsx
+│   │   ├── navigation
+│   │   │   └── back-button.tsx
+│   │   ├── other
+│   │   │   ├── empty-state.tsx
+│   │   │   ├── NotificationBell.tsx
+│   │   │   └── pagination.tsx
+│   │   ├── preferences
+│   │   │   ├── category-selector.tsx
+│   │   │   ├── notification-settings.tsx
+│   │   │   ├── popularity-selector.tsx
+│   │   │   └── price-range-selector.tsx
+│   │   ├── providers
+│   │   │   └── favourites-provider.tsx
+│   │   ├── recommendations
+│   │   │   ├── for-you-section.tsx
+│   │   │   ├── similiar-events.tsx
+│   │   │   └── trending-section.tsx
+│   │   ├── search
+│   │   │   └── search-bar.tsx
+│   │   ├── theme
+│   │   │   ├── theme-provider.tsx
+│   │   │   └── theme-toggle.tsx
+│   │   └── ui
+│   │       ├── alert.tsx
+│   │       ├── badge.tsx
+│   │       ├── button.tsx
+│   │       ├── calendar.tsx
+│   │       ├── card.tsx
+│   │       ├── checkbox.tsx
+│   │       ├── dialog.tsx
+│   │       ├── dropdown-menu.tsx
+│   │       ├── input.tsx
+│   │       ├── label.tsx
+│   │       ├── navigation-menu.tsx
+│   │       ├── popover.tsx
+│   │       ├── select.tsx
+│   │       ├── separator.tsx
+│   │       ├── skeleton.tsx
+│   │       ├── slider.tsx
+│   │       ├── switch.tsx
+│   │       └── tabs.tsx
+│   ├── emails
+│   │   └── DigestEmail.tsx
+│   ├── lib
+│   │   ├── constants
+│   │   │   ├── categories.ts
+│   │   │   └── preferences.ts
+│   │   ├── email
+│   │   │   └── emailService.ts
+│   │   ├── hooks
+│   │   │   └── useAuthRedirect.ts
+│   │   ├── ml
+│   │   │   ├── popularityService.ts
+│   │   │   ├── recommendationService.ts
+│   │   │   ├── userProfileService.ts
+│   │   │   └── vectorService.ts
+│   │   ├── models
+│   │   │   ├── Event.ts
+│   │   │   ├── Notifications.ts
+│   │   │   ├── User.ts
+│   │   │   ├── UserFavourites.ts
+│   │   │   └── UserInteraction.ts
+│   │   ├── scrapers
+│   │   │   ├── index.ts
+│   │   │   ├── marriner.ts
+│   │   │   ├── ticketmaster.ts
+│   │   │   ├── types.ts
+│   │   │   └── whatson.ts
+│   │   ├── services
+│   │   │   ├── emailDigestService.ts
+│   │   │   └── notificationService.ts
+│   │   ├── utils
+│   │   │   ├── category-mapper.ts
+│   │   │   └── deduplication.ts
+│   │   ├── auth.ts
+│   │   ├── db.ts
+│   │   ├── next-auth.d.ts
+│   │   └── utils.ts
+│   └── proxy.ts
+├── tests
+│   ├── integration
+│   │   └── db.test.ts
+│   ├── ml
+│   │   ├── userProfileService.test.ts
+│   │   └── vectorService.test.ts
+│   ├── mocks
+│   │   └── ticketmaster.mocks.ts
+│   └── sources
+│       ├── normalisation.test.ts
+│       ├── ticketmaster.test.ts
+│       └── ticketmasterDeduplication.test.ts
+├── components.json
+├── jest.config.js
+├── jest.setup.js
+├── next-env.d.ts
+├── next.config.ts
+├── package-lock.json
+├── package.json
+├── postcss.config.mjs
+├── project-structure.txt
+├── README.md
+├── tailwind.config.ts
+├── tsconfig.json
+├── tsconfig.test.json
+└── vercel.json
+
+53 directories, 113 files

@@ -201,12 +201,12 @@ export function Header() {
             </DropdownMenu>
           ) : (
             <div className="hidden sm:flex gap-2">
-              <Link href="/auth/signin">
+              <Link href="/signin">
                 <Button variant="outline" size="sm">
                   Sign In
                 </Button>
               </Link>
-              <Link href="/auth/signup">
+              <Link href="/signup">
                 <Button variant="outline" size="sm">Sign Up</Button>
               </Link>
             </div>

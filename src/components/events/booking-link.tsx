@@ -1,6 +1,6 @@
 'use client';
 
-import { trackClickthrough } from '@/actions/interactions';
+import { trackClickthrough } from '@/lib/actions/interactions';
 import { Button } from '@/components/ui/button';
 import { ExternalLink } from 'lucide-react';
 

@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Suspense } from "react";
 import { CATEGORIES } from "@/lib/constants/categories";
-import { getUserFavourites } from "@/actions/interactions";
+import { getUserFavourites } from "@/lib/actions/interactions";
 
 interface CategoryPageProps {
   params: Promise<{ slug: string }>;

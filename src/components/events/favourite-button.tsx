@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { toggleFavourite } from '@/actions/interactions';
+import { toggleFavourite } from '@/lib/actions/interactions';
 import { cn } from '@/lib/utils';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
