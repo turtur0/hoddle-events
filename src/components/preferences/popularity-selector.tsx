@@ -1,5 +1,3 @@
-
-// components/preferences/popularity-selector.tsx
 'use client';
 
 import { POPULARITY_OPTIONS } from '@/lib/constants/preferences';
