@@ -16,17 +16,15 @@ interface EventChanges {
   priceDropped?: boolean;
   priceDrop?: number;
   significantUpdate?: string;
+  hasChanges?: boolean;
 }
 
-const PRICE_CHANGE_THRESHOLD = 5; // Minimum price change to trigger notification (in dollars)
+const PRICE_CHANGE_THRESHOLD = 5;
 const SIGNIFICANT_KEYWORDS = [
   'cancelled', 'postponed', 'rescheduled', 'sold out',
   'extra show', 'additional show', 'new date', 'date change'
 ];
 
-/**
- * Process scraped events with deduplication and notification handling.
- */
 export async function processEventsWithDeduplication(
   newEvents: NormalisedEvent[],
   sourceName: string
@@ -37,7 +35,6 @@ export async function processEventsWithDeduplication(
   const existing = await Event.find({}).lean();
   console.log(`[Dedup] Found ${existing.length} existing events in database`);
 
-  // Build lookup structures
   const bySourceId = buildSourceIdMap(existing);
   const existingDedup = mapToEventForDedup(existing);
   const batchInserted: (EventForDedup & { _id: string })[] = [];
@@ -63,9 +60,6 @@ export async function processEventsWithDeduplication(
   return stats;
 }
 
-/**
- * Process a single event: update, merge, or insert.
- */
 async function processEvent(
   event: NormalisedEvent,
   context: {
@@ -75,19 +69,18 @@ async function processEvent(
     batchInserted: (EventForDedup & { _id: string })[];
     sourceName: string;
   }
-): Promise<{ action: 'updated' | 'merged' | 'inserted'; notifications: number; data?: any }> {
-  const { existing, bySourceId, existingDedup, batchInserted, sourceName } = context;
+): Promise<{ action: 'updated' | 'merged' | 'inserted' | 'skipped'; notifications: number; data?: any }> {
+  const { existing, bySourceId, existingDedup, batchInserted } = context;
 
-  // Check if this exact source/ID already exists
   const sourceKey = `${event.source}:${event.sourceId}`;
   const sameSource = bySourceId.get(sourceKey);
 
   if (sameSource) {
     const notifications = await updateExistingEvent(sameSource, event);
-    return { action: 'updated', notifications };
+    // If no changes were made, mark as skipped
+    return { action: notifications === -1 ? 'skipped' : 'updated', notifications: Math.max(0, notifications) };
   }
 
-  // Check for duplicates across sources
   const tempId = `temp:${event.sourceId}`;
   const eventDedup: EventForDedup & { _id: string } = {
     _id: tempId,
@@ -108,17 +101,11 @@ async function processEvent(
 
     if (dbMatch || batchMatch) {
       const targetDedup = dbMatch ? mapToEventForDedup([dbMatch])[0] : batchMatch!;
-      const notifications = await mergeIntoExisting(
-        matchId,
-        targetDedup,
-        event,
-        dbMatch
-      );
-      return { action: 'merged', notifications, data: { reason: match.reason } };
+      const notifications = await mergeIntoExisting(matchId, targetDedup, event, dbMatch);
+      return { action: notifications === -1 ? 'skipped' : 'merged', notifications: Math.max(0, notifications), data: { reason: match.reason } };
     }
   }
 
-  // Insert as new event
   const created = await insertNewEvent(event);
   batchInserted.push({
     _id: created._id.toString(),
@@ -131,59 +118,68 @@ async function processEvent(
 }
 
 /**
- * Update an existing event from the same source.
+ * Only update if there are actual changes
  */
-async function updateExistingEvent(
-  existing: any,
-  newEvent: NormalisedEvent
-): Promise<number> {
+async function updateExistingEvent(existing: any, newEvent: NormalisedEvent): Promise<number> {
+  const changes = detectAllChanges(existing, newEvent);
+
+  // If nothing changed, skip the update
+  if (!changes.hasChanges) {
+    return -1; // Signal that no update was needed
+  }
+
   const subcategories = [...(newEvent.subcategories || [])];
   if (newEvent.subcategory && !subcategories.includes(newEvent.subcategory)) {
     subcategories.push(newEvent.subcategory);
   }
 
-  const changes = detectSignificantChanges(existing, newEvent);
+  const updateDoc: any = {
+    $set: {
+      title: newEvent.title,
+      description: newEvent.description,
+      category: newEvent.category,
+      startDate: newEvent.startDate,
+      endDate: newEvent.endDate,
+      venue: newEvent.venue,
+      priceMin: newEvent.priceMin,
+      priceMax: newEvent.priceMax,
+      priceDetails: newEvent.priceDetails,
+      isFree: newEvent.isFree,
+      bookingUrl: newEvent.bookingUrl,
+      imageUrl: newEvent.imageUrl,
+      videoUrl: newEvent.videoUrl,
+      accessibility: newEvent.accessibility,
+      ageRestriction: newEvent.ageRestriction,
+      duration: newEvent.duration,
+      lastUpdated: new Date(), // Only set when actually updating
+    },
+    $addToSet: { subcategories: { $each: subcategories } },
+  };
 
-  await Event.updateOne(
-    { _id: existing._id },
-    {
-      $set: {
-        title: newEvent.title,
-        description: newEvent.description,
-        category: newEvent.category,
-        startDate: newEvent.startDate,
-        endDate: newEvent.endDate,
-        venue: newEvent.venue,
-        priceMin: newEvent.priceMin,
-        priceMax: newEvent.priceMax,
-        priceDetails: newEvent.priceDetails,
-        isFree: newEvent.isFree,
-        bookingUrl: newEvent.bookingUrl,
-        imageUrl: newEvent.imageUrl,
-        videoUrl: newEvent.videoUrl,
-        accessibility: newEvent.accessibility,
-        ageRestriction: newEvent.ageRestriction,
-        duration: newEvent.duration,
-        lastUpdated: new Date(),
-      },
-      $addToSet: { subcategories: { $each: subcategories } },
-    }
-  );
+  await Event.updateOne({ _id: existing._id }, updateDoc);
 
-  return await notifyFavoriteUsers(existing._id, changes);
+  // Only notify if there are significant changes
+  if (changes.priceDropped || changes.significantUpdate) {
+    return await notifyFavoriteUsers(existing._id, changes);
+  }
+
+  return 0;
 }
 
-/**
- * Merge a new event into an existing one from a different source.
- */
 async function mergeIntoExisting(
   existingId: any,
   existing: any,
   newEvent: NormalisedEvent,
   fullExistingEvent?: any
 ): Promise<number> {
+  const changes = detectAllChanges(existing, newEvent);
+
+  // If nothing changed, skip the merge
+  if (!changes.hasChanges) {
+    return -1; // Signal that no merge was needed
+  }
+
   const merged = mergeEvents(existing, newEvent);
-  const changes = detectSignificantChanges(existing, newEvent);
 
   const updateDoc: any = {
     $set: {
@@ -201,7 +197,7 @@ async function mergeIntoExisting(
       ageRestriction: merged.ageRestriction,
       duration: merged.duration,
       isFree: merged.isFree,
-      lastUpdated: new Date(),
+      lastUpdated: new Date(), // Only set when actually merging
     },
     $addToSet: {
       sources: newEvent.source,
@@ -215,12 +211,14 @@ async function mergeIntoExisting(
 
   await Event.updateOne({ _id: existingId }, updateDoc);
 
-  return await notifyFavoriteUsers(existingId, changes);
+  // Only notify if there are significant changes
+  if (changes.priceDropped || changes.significantUpdate) {
+    return await notifyFavoriteUsers(existingId, changes);
+  }
+
+  return 0;
 }
 
-/**
- * Insert a new event into the database.
- */
 async function insertNewEvent(event: NormalisedEvent) {
   const subcategories = [...(event.subcategories || [])];
   if (event.subcategory && !subcategories.includes(event.subcategory)) {
@@ -255,19 +253,50 @@ async function insertNewEvent(event: NormalisedEvent) {
 }
 
 /**
- * Detect significant changes between old and new event data.
+ * Detect ALL changes, not just significant ones
  */
-function detectSignificantChanges(existing: any, newEvent: NormalisedEvent): EventChanges {
-  const changes: EventChanges = {};
+function detectAllChanges(existing: any, newEvent: NormalisedEvent): EventChanges {
+  const changes: EventChanges = { hasChanges: false };
+
+  // Direct field comparisons (type-safe)
+  if (existing.title !== newEvent.title ||
+    existing.description !== newEvent.description ||
+    existing.category !== newEvent.category ||
+    existing.isFree !== newEvent.isFree ||
+    existing.priceMin !== newEvent.priceMin ||
+    existing.priceMax !== newEvent.priceMax ||
+    existing.priceDetails !== newEvent.priceDetails ||
+    existing.imageUrl !== newEvent.imageUrl ||
+    existing.videoUrl !== newEvent.videoUrl ||
+    existing.bookingUrl !== newEvent.bookingUrl ||
+    existing.ageRestriction !== newEvent.ageRestriction ||
+    existing.duration !== newEvent.duration) {
+    changes.hasChanges = true;
+  }
+
+  // Check dates
+  if (existing.startDate?.getTime() !== newEvent.startDate?.getTime() ||
+    existing.endDate?.getTime() !== newEvent.endDate?.getTime()) {
+    changes.hasChanges = true;
+  }
+
+  // Check venue
+  if (JSON.stringify(existing.venue) !== JSON.stringify(newEvent.venue)) {
+    changes.hasChanges = true;
+  }
+
+  // Check accessibility array
+  if (JSON.stringify(existing.accessibility) !== JSON.stringify(newEvent.accessibility)) {
+    changes.hasChanges = true;
+  }
+
+  // Detect significant changes for notifications
   const oldPrice = existing.priceMin || 0;
   const newPrice = newEvent.priceMin || 0;
 
-  // Price was added
   if (oldPrice === 0 && newPrice > 0) {
     changes.significantUpdate = `Price now available: $${newPrice.toFixed(2)}`;
-  }
-  // Price changed significantly
-  else if (oldPrice > 0 && newPrice > 0 && Math.abs(oldPrice - newPrice) >= PRICE_CHANGE_THRESHOLD) {
+  } else if (oldPrice > 0 && newPrice > 0 && Math.abs(oldPrice - newPrice) >= PRICE_CHANGE_THRESHOLD) {
     const change = newPrice - oldPrice;
     if (change < 0) {
       changes.priceDropped = true;
@@ -277,7 +306,7 @@ function detectSignificantChanges(existing: any, newEvent: NormalisedEvent): Eve
     }
   }
 
-  // Check for significant description changes
+  // Check for significant keywords in description
   if (newEvent.description && existing.description) {
     const oldDesc = existing.description.toLowerCase();
     const newDesc = newEvent.description.toLowerCase();
@@ -293,9 +322,6 @@ function detectSignificantChanges(existing: any, newEvent: NormalisedEvent): Eve
   return changes;
 }
 
-/**
- * Send notifications to users who favorited this event if there are significant changes.
- */
 async function notifyFavoriteUsers(eventId: any, changes: EventChanges): Promise<number> {
   if (!changes.priceDropped && !changes.significantUpdate) return 0;
 
@@ -311,7 +337,6 @@ async function notifyFavoriteUsers(eventId: any, changes: EventChanges): Promise
 }
 
 // Helper functions
-
 function buildSourceIdMap(events: any[]): Map<string, any> {
   return new Map(
     events.map(e => {
@@ -356,10 +381,13 @@ function updateStats(stats: Stats, result: { action: string; notifications: numb
   if (result.action === 'inserted') stats.inserted++;
   else if (result.action === 'updated') stats.updated++;
   else if (result.action === 'merged') stats.merged++;
+  else if (result.action === 'skipped') stats.skipped++;
   stats.notifications += result.notifications;
 }
 
 function logResult(result: any, title: string) {
+  if (result.action === 'skipped') return; // Don't log skipped events
+
   const action = result.action.charAt(0).toUpperCase() + result.action.slice(1);
   let log = `[Dedup] ${action}: ${title}`;
   if (result.data?.reason) log += ` (${result.data.reason})`;

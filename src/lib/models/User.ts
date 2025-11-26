@@ -1,5 +1,4 @@
-
-// lib/models/User.ts
+// lib/models/User.ts - UPDATED SCHEMA
 import mongoose, { Schema, Model } from 'mongoose';
 
 export interface IUser {
@@ -18,13 +17,14 @@ export interface IUser {
             min: number;
             max: number;
         };
-        popularityPreference: number; // 0=hidden gems, 0.5=balanced, 1=mainstream
+        popularityPreference: number;
         locations: string[];
         notifications: {
             inApp: boolean;
             email: boolean;
             emailFrequency: 'instant' | 'daily' | 'weekly';
             keywords: string[];
+            lastEmailSent?: Date;
             smartFiltering: {
                 enabled: boolean;
                 minRecommendationScore: number;
@@ -101,6 +101,7 @@ const UserSchema = new Schema<IUser>(
                     default: 'weekly'
                 },
                 keywords: { type: [String], default: [] },
+                lastEmailSent: { type: Date },
                 smartFiltering: {
                     enabled: { type: Boolean, default: true },
                     minRecommendationScore: { type: Number, default: 0.6 },
