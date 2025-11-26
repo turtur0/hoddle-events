@@ -2,11 +2,11 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { EventCard } from '@/components/events/event-card';
+import { EventCard } from '@/components/events/EventCard';
 import { Loader2, TrendingUp, Sparkles, Rocket, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 
 interface TrendingSectionProps {
     userFavourites: Set<string>;

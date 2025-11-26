@@ -2,10 +2,10 @@
 
 import { signOut, useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/Button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { Separator } from '@/components/ui/Separator';
 import {
   LogOut,
   Settings,
@@ -22,7 +22,7 @@ import {
   Filter,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { BackButton } from '@/components/navigation/back-button';
+import { BackButton } from '@/components/navigation/BackButton';
 
 interface NotificationSettings {
   inApp: boolean;

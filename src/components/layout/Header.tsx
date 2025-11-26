@@ -4,9 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { Search, ChevronDown, Music, Theater, Trophy, Palette, Users, Sparkles, Menu, LogOut, Settings, User, Heart } from "lucide-react";
-import { ThemeToggle } from "../theme/theme-toggle";
+import { ThemeToggle } from '../theme/ThemeToggle';
 import { NotificationBell } from "../other/NotificationBell";
-import { Button } from "../ui/button";
+import { Button } from '../ui/Button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +14,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/DropdownMenu';
 
 const CATEGORY_LINKS = [
   { label: "Music", slug: "music", icon: Music, description: "Concerts, gigs & live music" },

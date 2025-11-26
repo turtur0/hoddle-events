@@ -4,11 +4,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Label } from '@/components/ui/Label';
+import { Separator } from '@/components/ui/Separator';
 import {
     Dialog,
     DialogContent,
@@ -16,13 +16,13 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-} from '@/components/ui/dialog';
+} from '@/components/ui/Dialog';
 import { Loader2, Save, User, Bell, Sparkles, Check, AlertCircle, Trash2, Lock, Mail } from 'lucide-react';
-import { BackButton } from '@/components/navigation/back-button';
-import { PopularitySelector } from '@/components/preferences/popularity-selector';
-import { CategorySelector } from '@/components/preferences/category-selector';
-import { NotificationSettings } from '@/components/preferences/notification-settings';
-import { PriceRangeSelector } from '@/components/preferences/price-range-selector';
+import { BackButton } from '@/components/navigation/BackButton';
+import { PopularitySelector } from '@/components/preferences/PopularitySelector';
+import { CategorySelector } from '@/components/preferences/CategorySelector';
+import { NotificationSettings } from '@/components/preferences/NotificationSettings';
+import { PriceRangeSelector } from '@/components/preferences/PriceRangeSelector';
 import { CATEGORIES } from '@/lib/constants/categories';
 
 export default function SettingsPage() {

@@ -1,7 +1,7 @@
 'use client';
 
 import { trackClickthrough } from '@/lib/actions/interactions';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 import { ExternalLink } from 'lucide-react';
 
 interface BookingLinkProps {

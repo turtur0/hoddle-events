@@ -8,13 +8,13 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
+} from '@/components/ui/Select';
+import { Button } from '@/components/ui/Button';
+import { Switch } from '@/components/ui/Switch';
+import { Label } from '@/components/ui/Label';
 import { Filter, X, Plus, Minus, Users } from 'lucide-react';
 import { useState } from 'react';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/Badge';
 
 export function EventFilters() {
   const router = useRouter();

@@ -1,10 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Calendar, MapPin, DollarSign, Users, Clock } from "lucide-react";
-import { Card, CardContent, CardFooter } from "../ui/card";
-import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
-import { FavouriteButton } from "./favourite-button";
+import { Card, CardContent, CardFooter } from '../ui/Card';
+import { Badge } from '../ui/Badge';
+import { Button } from '../ui/Button';
+import { FavouriteButton } from './FavouriteButton';
 import { SerializedEvent } from "@/lib/models/Event";
 import { format, isSameDay, isSameMonth } from "date-fns";
 import { getCategoryLabel } from "@/lib/constants/categories";

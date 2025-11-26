@@ -6,14 +6,14 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/db";
 import Event from "@/lib/models/Event";
 import UserFavourite from "@/lib/models/UserFavourites";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { FavouriteButton } from "@/components/events/favourite-button";
-import { ViewTracker } from "@/components/events/view-tracker";
-import { BookingLink } from "@/components/events/booking-link";
-import { SimilarEvents } from "@/components/recommendations/similiar-events";
-import { BackButton } from "@/components/navigation/back-button"; // ✅ Import new component
+import { Badge } from '@/components/ui/Badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Separator } from '@/components/ui/Separator';
+import { FavouriteButton } from '@/components/events/FavouriteButton';
+import { ViewTracker } from '@/components/events/ViewTracker';
+import { BookingLink } from '@/components/events/BookingLink';
+import { SimilarEvents } from '@/components/recommendations/SimiliarEvents';
+import { BackButton } from '@/components/navigation/BackButton'; // ✅ Import new component
 import { format, isSameMonth } from "date-fns";
 import { getCategoryLabel } from "@/lib/constants/categories";
 import mongoose from "mongoose";

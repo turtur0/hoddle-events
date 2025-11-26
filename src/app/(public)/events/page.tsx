@@ -1,11 +1,11 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { EventCard } from "@/components/events/event-card";
-import { EventCardSkeleton } from "@/components/events/event-card-skeleton";
-import { EmptyState } from "@/components/other/empty-state";
-import { Pagination } from "@/components/other/pagination";
-import { SearchBar } from "@/components/search/search-bar";
-import { EventFilters } from "@/components/events/event-filters";
+import { EventCard } from '@/components/events/EventCard';
+import { EventCardSkeleton } from '@/components/events/EventCardSkeleton';
+import { EmptyState } from '@/components/other/EmptyState';
+import { Pagination } from '@/components/other/Pagination';
+import { SearchBar } from '@/components/search/SearchBar';
+import { EventFilters } from '@/components/events/EventFilters';
 import { Suspense } from "react";
 import { SerializedEvent } from "@/lib/models/Event";
 import { getUserFavourites } from "@/lib/actions/interactions";

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/Button';
 import { Calendar, Home, Search } from "lucide-react";
 
 export default function NotFound() {

@@ -2,11 +2,11 @@
 'use client';
 
 import { Bell, Mail, Filter, Zap, Sparkles } from 'lucide-react';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Slider } from '@/components/ui/slider';
-import { Separator } from '@/components/ui/separator';
+import { Label } from '@/components/ui/Label';
+import { Input } from '@/components/ui/Input';
+import { Checkbox } from '@/components/ui/Checkbox';
+import { Slider } from '@/components/ui/Slider';
+import { Separator } from '@/components/ui/Separator';
 
 interface NotificationSettingsProps {
     inAppNotifications: boolean;

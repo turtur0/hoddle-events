@@ -1,7 +1,7 @@
 'use client';
 
 import { POPULARITY_OPTIONS } from '@/lib/constants/preferences';
-import { Label } from '@/components/ui/label';
+import { Label } from '@/components/ui/Label';
 import { Check } from 'lucide-react';
 
 interface PopularitySelectorProps {

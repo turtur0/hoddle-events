@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { EventCard } from '@/components/events/event-card';
+import { EventCard } from '@/components/events/EventCard';
 import { Loader2, Sparkles, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Button } from '@/components/ui/Button';
 
 interface SimilarEventsProps {
     eventId: string;

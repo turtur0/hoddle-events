@@ -3,13 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Separator } from '@/components/ui/separator';
-import { Slider } from '@/components/ui/slider';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Label } from '@/components/ui/Label';
+import { Checkbox } from '@/components/ui/Checkbox';
+import { Separator } from '@/components/ui/Separator';
+import { Slider } from '@/components/ui/Slider';
 import {
     Dialog,
     DialogContent,
@@ -17,7 +17,7 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-} from '@/components/ui/dialog';
+} from '@/components/ui/Dialog';
 import {
     Loader2,
     Save,
@@ -36,9 +36,9 @@ import {
     TrendingUp,
     Mail,
 } from 'lucide-react';
-import { BackButton } from '@/components/navigation/back-button';
+import { BackButton } from '@/components/navigation/BackButton';
 import { CATEGORIES } from '@/lib/constants/categories';
-import { PopularitySelector } from '@/components/preferences/popularity-selector';
+import { PopularitySelector } from '@/components/preferences/PopularitySelector';
 
 // Types for better code clarity
 interface UserPreferences {

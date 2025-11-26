@@ -3,16 +3,16 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Label } from '@/components/ui/Label';
 import { Loader2, ChevronRight, Bell, Sparkles } from 'lucide-react';
 import { useRequireOnboarding } from '@/lib/hooks/useAuthRedirect';
-import { PopularitySelector } from '@/components/preferences/popularity-selector';
-import { CategorySelector } from '@/components/preferences/category-selector';
-import { NotificationSettings } from '@/components/preferences/notification-settings';
-import { PriceRangeSelector } from '@/components/preferences/price-range-selector';
+import { PopularitySelector } from '@/components/preferences/PopularitySelector';
+import { CategorySelector } from '@/components/preferences/CategorySelector';
+import { NotificationSettings } from '@/components/preferences/NotificationSettings';
+import { PriceRangeSelector } from '@/components/preferences/PriceRangeSelector';
 import { CATEGORIES } from '@/lib/constants/categories';
 
 const MIN_CATEGORIES = 2;

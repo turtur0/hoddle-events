@@ -2,15 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { Bell, Search, Sparkles, Heart, ArrowRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
     DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
-import { Badge } from '@/components/ui/badge';
+} from '@/components/ui/DropdownMenu';
+import { Badge } from '@/components/ui/Badge';
 import Link from 'next/link';
 
 interface Notification {

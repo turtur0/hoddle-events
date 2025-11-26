@@ -1,8 +1,8 @@
 'use client';
 
 import { DollarSign } from 'lucide-react';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/Label';
+import { Input } from '@/components/ui/Input';
 
 interface PriceRangeSelectorProps {
     priceMin: number;
