@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-    getTrendingEvents,
-    getRisingStars,
-    getUndiscoveredGems,
-} from '@/lib/ml/recommendationService';
+;
 import { connectDB } from '@/lib/db';
+
+import { getRisingStars, getTrendingEvents, getUndiscoveredGems } from '@/lib/ml';
 
 export async function GET(req: NextRequest) {
     try {

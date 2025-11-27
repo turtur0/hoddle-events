@@ -3,8 +3,10 @@ import User from '@/lib/models/User';
 import UserFavourite from '../models/UserFavourite';
 import Notification from '../models/Notification';
 import { IEvent } from '@/lib/models/Event';
-import { extractEventFeatures, cosineSimilarity } from '@/lib/ml/vectorService';
+;
 import { CATEGORIES } from '@/lib/constants/categories';
+
+import { cosineSimilarity, extractEventFeatures } from '@/lib/ml';
 
 interface NotificationData {
     userId: string;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSimilarEvents } from '@/lib/ml/recommendationService';
+import { getSimilarEvents } from '@/lib/ml';
 import { connectDB } from '@/lib/db';
 import mongoose from 'mongoose';
 

@@ -5,7 +5,9 @@ import { Resend } from 'resend';
 import { render } from '@react-email/render';
 import DigestEmail from '../email/templates/digest-email';
 import type { IEvent } from '@/lib/models/Event';
-import { extractEventFeatures } from '@/lib/ml/vectorService';
+
+import { extractEventFeatures } from '@/lib/ml';
+;
 
 // Lazy initialization - only create client when needed
 let resendClient: Resend | null = null;

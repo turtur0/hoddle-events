@@ -4,7 +4,9 @@ import path from 'path';
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
 import { connectDB, disconnectDB } from '@/lib/db';
-import { updateCategoryPopularityPercentiles } from '@/lib/ml/popularityService';
+
+import { updateCategoryPopularityPercentiles } from '@/lib/ml';
+;
 
 async function main() {
   console.log('Starting popularity update job');

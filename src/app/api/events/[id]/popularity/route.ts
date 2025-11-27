@@ -1,8 +1,10 @@
 // app/api/events/[id]/popularity/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { compareToCategory } from '@/lib/ml/popularityService';
+;
 import { connectDB } from '@/lib/db';
+
+import { compareToCategory } from '@/lib/ml';
 
 export async function GET(
     req: NextRequest,
