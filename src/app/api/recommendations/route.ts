@@ -2,13 +2,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-;
-;
-;
 import { connectDB } from '@/lib/db';
 import mongoose from 'mongoose';
 
 import { getPersonalizedRecommendations, getTrendingEvents } from '@/lib/ml';
+import type { ScoredEvent } from '@/lib/ml';
 import { User } from '@/lib/models';
 
 // CRITICAL: Force this route to be dynamic (never cached)
@@ -33,19 +31,18 @@ export async function GET(req: NextRequest) {
         if (session?.user?.email) {
             // PERSONALIZED RECOMMENDATIONS (Authenticated)
             const user = await User.findOne({ email: session.user.email });
-            
             if (user) {
                 console.log(`[Recommendations] Generating personalized for user: ${user._id}`);
                 isPersonalized = true;
-                
-                // Use the ADVANCED recommendation system from userProfileService
+
                 const recommendations = await getPersonalizedRecommendations(
                     user._id as mongoose.Types.ObjectId,
                     user,
                     { limit, category, excludeFavorited }
                 );
 
-                events = recommendations.map(({ event, score, explanation }) => ({
+                // Fix: Add proper type annotation
+                events = recommendations.map(({ event, score, explanation }: ScoredEvent) => ({
                     _id: event._id.toString(),
                     title: event.title,
                     description: event.description,
@@ -68,7 +65,7 @@ export async function GET(req: NextRequest) {
                 console.log(`[Recommendations] Returned ${events.length} personalized events`);
             }
         }
-        
+
         // Fallback to trending if not authenticated or user not found
         if (!isPersonalized) {
             console.log('[Recommendations] Using trending (not personalized)');

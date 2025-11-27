@@ -18,7 +18,6 @@ export {
     getRisingStars,
     getUndiscoveredGems,
     getSimilarEvents,
-    getPersonalizedRecommendations,
 } from './recommendationService';
 
 // ============================================
@@ -29,7 +28,7 @@ export {
     buildUserVectorFromPreferences,
     computeUserProfile,
     scoreEventForUser,
-    getPersonalizedRecommendations as getPersonalizedRecommendationsDetailed,
+    getPersonalizedRecommendations,
     getSimilarEvents as getSimilarEventsDetailed,
     updateStoredUserProfile,
 } from './userProfileService';
@@ -77,7 +76,6 @@ export default {
     getRisingStars: recommendationService.getRisingStars,
     getUndiscoveredGems: recommendationService.getUndiscoveredGems,
     getSimilarEvents: recommendationService.getSimilarEvents,
-    getPersonalizedRecommendations: recommendationService.getPersonalizedRecommendations,
 
     // User Profile
     computeUserProfile: userProfileService.computeUserProfile,

@@ -1,43 +1,43 @@
-// lib/ml/userProfileService.ts
+// ============================================
+// lib/ml/user-profile-service.ts
+// ============================================
 
-;
-;
-;
-;
-;
-import { extractEventFeatures, cosineSimilarity, EventVector } from './vectorService';
+import { extractEventFeatures, cosineSimilarity, type EventVector } from './vectorService';
 import { CATEGORIES } from '../constants/categories';
+import { Event, UserFavourite, UserInteraction, type IEvent, type IUser } from '@/lib/models';
 import mongoose from 'mongoose';
-import { Event, UserFavourite, UserInteraction, type IUserInteraction, type IEvent, type IUser } from '@/lib/models';
 
 // ============================================
 // CONFIGURATION
 // ============================================
 
-// Interaction signal strengths
+/** Interaction weights for learning user preferences */
 const INTERACTION_WEIGHTS = {
     favourite: 5.0,      // Strong positive signal
     unfavourite: -3.0,   // Negative signal
     clickthrough: 3.0,   // Medium-strong signal
     view: 1.0,          // Weak signal
-};
+} as const;
 
-// Time decay configuration
-const TIME_DECAY_LAMBDA = 0.01; // Decay rate (0.01 = ~30 day half-life)
+/** Time decay rate (0.01 ≈ 30 day half-life) */
+const TIME_DECAY_LAMBDA = 0.01;
 
-// Regularization: blend explicit preferences with learned behavior
-const REGULARIZATION_LAMBDA = 0.3; // 30% explicit, 70% learned
+/** Blend ratio: 30% explicit preferences, 70% learned behavior */
+const REGULARIZATION_LAMBDA = 0.3;
 
-// Scoring weights
+/** 
+ * Final scoring weights
+ * Determines how different factors contribute to recommendation score
+ */
 const SCORING_WEIGHTS = {
-    contentSimilarity: 0.6,   // Main factor: how similar to user preferences
-    popularityBoost: 0.2,     // Secondary: match user's popularity preference
-    noveltyBonus: 0.1,        // Tertiary: diversity injection
-    temporalRelevance: 0.1,   // Tertiary: urgency for upcoming events
-};
+    contentSimilarity: 0.6,   // How well event matches user preferences
+    popularityBoost: 0.2,     // Match user's mainstream/niche preference
+    noveltyBonus: 0.1,        // Diversity injection
+    temporalRelevance: 0.1,   // Urgency for upcoming events
+} as const;
 
-// Diversity configuration
-const DIVERSITY_PREFERENCE = 0.3; // 30% boost for novel recommendations
+/** Diversity boost multiplier */
+const DIVERSITY_PREFERENCE = 0.3;
 
 // ============================================
 // TYPES
@@ -45,7 +45,7 @@ const DIVERSITY_PREFERENCE = 0.3; // 30% boost for novel recommendations
 
 export interface UserProfile {
     userVector: number[];
-    confidence: number;          // 0-1: how confident we are in this profile
+    confidence: number;
     interactionCount: number;
     lastUpdated: Date;
     dominantCategories: Array<{ category: string; weight: number }>;
@@ -69,13 +69,21 @@ export interface ScoredEvent {
 // ============================================
 
 /**
- * Build user vector from interaction history
- * Uses weighted average with time decay and interaction strength
+ * Build user preference vector from interaction history
+ * 
+ * Process:
+ * 1. Fetch recent interactions (last 6 months)
+ * 2. Extract event features for each interaction
+ * 3. Apply time decay (recent interactions matter more)
+ * 4. Weight by interaction type (favourite > clickthrough > view)
+ * 5. Compute weighted average to create user vector
+ * 
+ * @param userId - User's MongoDB ObjectId
+ * @returns Vector, confidence score, and interaction count, or null if no data
  */
 export async function buildUserVectorFromInteractions(
     userId: mongoose.Types.ObjectId
 ): Promise<{ vector: number[]; confidence: number; count: number } | null> {
-    // Fetch recent interactions (last 6 months to keep it manageable)
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
@@ -85,38 +93,33 @@ export async function buildUserVectorFromInteractions(
     })
         .populate('eventId')
         .sort({ timestamp: -1 })
-        .limit(200) // Cap at 200 most recent interactions
+        .limit(200)
         .lean();
 
-    if (interactions.length === 0) {
-        return null; // No interaction data
-    }
+    if (interactions.length === 0) return null;
 
-    // Extract event vectors and compute weighted average
+    // Compute weighted average of event vectors
     const now = Date.now();
     let weightedSum: number[] = [];
     let totalWeight = 0;
 
     for (const interaction of interactions) {
         const event = interaction.eventId as unknown as IEvent;
-        if (!event || !event._id) continue;
+        if (!event?._id) continue;
 
-        // Get event vector
         const eventVector = extractEventFeatures(event);
 
-        // Compute time decay weight
+        // Time decay: exponential decay based on days since interaction
         const daysSince = (now - interaction.timestamp.getTime()) / (1000 * 60 * 60 * 24);
         const timeWeight = Math.exp(-TIME_DECAY_LAMBDA * daysSince);
 
-        // Get interaction strength
+        // Interaction strength
         const interactionWeight = INTERACTION_WEIGHTS[interaction.interactionType] || 0;
-
-        // Combined weight
         const weight = timeWeight * interactionWeight;
 
-        if (weight <= 0) continue; // Skip negative or zero weights
+        if (weight <= 0) continue;
 
-        // Weighted sum
+        // Accumulate weighted sum
         if (weightedSum.length === 0) {
             weightedSum = eventVector.fullVector.map(v => v * weight);
         } else {
@@ -128,79 +131,70 @@ export async function buildUserVectorFromInteractions(
         totalWeight += weight;
     }
 
-    if (totalWeight === 0) {
-        return null;
-    }
+    if (totalWeight === 0) return null;
 
-    // Compute average
+    // Compute average and confidence
     const averageVector = weightedSum.map(v => v / totalWeight);
-
-    // Compute confidence based on interaction count
     const confidence = Math.min(interactions.length / 20, 1.0);
 
-    return {
-        vector: averageVector,
-        confidence,
-        count: interactions.length,
-    };
+    return { vector: averageVector, confidence, count: interactions.length };
 }
 
 /**
- * Build user vector from explicit preferences
- * This is the "prior" in Bayesian terms
+ * Build user vector from explicit preferences (onboarding selections)
+ * This serves as the "prior" before we have interaction data
  */
 export function buildUserVectorFromPreferences(user: IUser): number[] {
     const priorVector: number[] = [];
-
-    // 1. Category preferences (one-hot weighted by user's category weights)
     const categoryWeights = user.preferences.categoryWeights || {};
-    const MAIN_CATEGORIES = CATEGORIES.map(cat => cat.value);
+    const mainCategories = CATEGORIES.map(cat => cat.value);
 
-    for (const category of MAIN_CATEGORIES) {
+    // Category preferences
+    for (const category of mainCategories) {
         const weight = categoryWeights[category] || 0;
-        priorVector.push(weight * 10.0); // Scale by category feature weight
+        priorVector.push(weight * 10.0);
     }
 
-    // 2. Subcategory preferences (multi-hot for selected subcategories)
+    // Subcategory preferences
     const selectedSubcats = user.preferences.selectedSubcategories || [];
-    const ALL_SUBCATEGORIES = CATEGORIES.flatMap(cat =>
+    const allSubcategories = CATEGORIES.flatMap(cat =>
         (cat.subcategories || []).map(sub => `${cat.value}:${sub}`)
     );
 
-    for (const fullSubcat of ALL_SUBCATEGORIES) {
+    for (const fullSubcat of allSubcategories) {
         const [category, subcat] = fullSubcat.split(':');
         const isSelected = selectedSubcats.includes(subcat) &&
             user.preferences.selectedCategories.includes(category);
-        priorVector.push(isSelected ? 5.0 : 0); // Scale by subcategory feature weight
+        priorVector.push(isSelected ? 5.0 : 0);
     }
 
-    // 3. Price preference (normalized middle of user's range)
+    // Price, venue, and popularity preferences
     const priceMiddle = (user.preferences.priceRange.min + user.preferences.priceRange.max) / 2;
     const priceNormalized = Math.log10(priceMiddle + 1) / Math.log10(500 + 1);
-    priorVector.push(priceNormalized * 1.0); // Scale by price feature weight
-
-    // 4. Venue tier (default to mid-tier, no strong preference)
-    priorVector.push(0.5 * 1.0); // Scale by venue feature weight
-
-    // 5. Popularity preference
-    const popPref = user.preferences.popularityPreference || 0.5;
-    priorVector.push(popPref * 3.0); // Scale by popularity feature weight
+    priorVector.push(priceNormalized * 1.0);
+    priorVector.push(0.5 * 1.0); // Venue tier (neutral)
+    priorVector.push((user.preferences.popularityPreference || 0.5) * 3.0);
 
     return priorVector;
 }
 
 /**
- * Compute complete user profile
- * Combines interaction-based learning with explicit preferences
+ * Compute complete user profile by blending explicit and learned preferences
+ * 
+ * Strategy:
+ * - Cold start (no interactions): Use 100% explicit preferences
+ * - With interactions: Blend 30% explicit + 70% learned (regularization)
+ * - Normalize to unit length for consistent similarity calculations
+ * 
+ * @param userId - User's MongoDB ObjectId
+ * @param user - User document with preferences
+ * @returns Complete user profile with vector and metadata
  */
 export async function computeUserProfile(
     userId: mongoose.Types.ObjectId,
     user: IUser
 ): Promise<UserProfile> {
-    // Get learned vector from interactions
     const learnedData = await buildUserVectorFromInteractions(userId);
-
-    // Get prior vector from preferences
     const priorVector = buildUserVectorFromPreferences(user);
 
     let finalVector: number[];
@@ -208,12 +202,12 @@ export async function computeUserProfile(
     let interactionCount: number;
 
     if (!learnedData) {
-        // Cold start: use only explicit preferences
+        // Cold start: use explicit preferences only
         finalVector = priorVector;
-        confidence = 0.3; // Low confidence for new users
+        confidence = 0.3;
         interactionCount = 0;
     } else {
-        // Regularized combination: blend prior and learned
+        // Regularized blend
         finalVector = [];
         for (let i = 0; i < priorVector.length; i++) {
             const blended =
@@ -225,24 +219,24 @@ export async function computeUserProfile(
         interactionCount = learnedData.count;
     }
 
-    // Normalize to unit length (L2 normalization)
+    // L2 normalization
     const magnitude = Math.sqrt(finalVector.reduce((sum, v) => sum + v * v, 0));
     if (magnitude > 0) {
         finalVector = finalVector.map(v => v / magnitude);
     }
 
-    // Extract dominant categories and subcategories for explainability
-    const MAIN_CATEGORIES = CATEGORIES.map(cat => cat.value);
-    const dominantCategories = MAIN_CATEGORIES
+    // Extract dominant categories for explainability
+    const mainCategories = CATEGORIES.map(cat => cat.value);
+    const dominantCategories = mainCategories
         .map((cat, idx) => ({ category: cat, weight: finalVector[idx] || 0 }))
         .sort((a, b) => b.weight - a.weight)
         .slice(0, 3);
 
-    const ALL_SUBCATEGORIES = CATEGORIES.flatMap(cat =>
+    const allSubcategories = CATEGORIES.flatMap(cat =>
         (cat.subcategories || []).map(sub => `${cat.value}:${sub}`)
     );
-    const subcatStartIdx = MAIN_CATEGORIES.length;
-    const dominantSubcategories = ALL_SUBCATEGORIES
+    const subcatStartIdx = mainCategories.length;
+    const dominantSubcategories = allSubcategories
         .map((subcat, idx) => ({
             subcategory: subcat.split(':')[1],
             weight: finalVector[subcatStartIdx + idx] || 0,
@@ -261,8 +255,19 @@ export async function computeUserProfile(
 }
 
 /**
- * Score a single event for a user
- * Returns score + detailed explanation
+ * Score a single event for a user with detailed explanation
+ * 
+ * Scoring components:
+ * 1. Content similarity (60%): How well event matches user preferences
+ * 2. Popularity boost (20%): Adjust for user's mainstream/niche preference
+ * 3. Novelty bonus (10%): Encourage diversity (different from recent favourites)
+ * 4. Temporal relevance (10%): Prioritize upcoming events
+ * 
+ * @param userProfile - User's computed profile
+ * @param event - Event to score
+ * @param user - User document (for popularity preference)
+ * @param recentFavoriteVectors - Recent favourite event vectors (for novelty)
+ * @returns Scored event with explanation
  */
 export function scoreEventForUser(
     userProfile: UserProfile,
@@ -272,63 +277,55 @@ export function scoreEventForUser(
 ): ScoredEvent {
     const eventVector = extractEventFeatures(event);
 
-    // 1. Content similarity (main factor)
+    // 1. Content similarity
     const contentSimilarity = cosineSimilarity(userProfile.userVector, eventVector.fullVector);
 
-    // 2. Popularity boost (match user's popularity preference)
+    // 2. Popularity boost (match user's preference)
     const userPopPref = user.preferences.popularityPreference || 0.5;
     let popularityBoost: number;
-
     if (userPopPref > 0.7) {
-        // User prefers mainstream
-        popularityBoost = eventVector.popularityScore;
+        popularityBoost = eventVector.popularityScore; // Prefer mainstream
     } else if (userPopPref < 0.3) {
-        // User prefers niche
-        popularityBoost = 1 - eventVector.popularityScore;
+        popularityBoost = 1 - eventVector.popularityScore; // Prefer niche
     } else {
-        // Neutral
-        popularityBoost = 0.5;
+        popularityBoost = 0.5; // Neutral
     }
 
     // 3. Novelty bonus (diversity injection)
-    let noveltyBonus = 1.0; // Default: no penalty or bonus
-
+    let noveltyBonus = 1.0;
     if (recentFavoriteVectors.length > 0) {
-        // Find most similar to recent favorites
         const similarities = recentFavoriteVectors.map(fav =>
             cosineSimilarity(fav.fullVector, eventVector.fullVector)
         );
         const maxSimilarity = Math.max(...similarities);
-
-        // Novelty = how different it is from favorites
         const novelty = 1 - maxSimilarity;
         noveltyBonus = 1 + novelty * DIVERSITY_PREFERENCE;
     }
 
-    // 4. Temporal relevance (upcoming events > distant events)
+    // 4. Temporal relevance
     const daysUntilEvent = Math.max(
         0,
         (event.startDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
     );
     const temporalRelevance = 1 / (1 + daysUntilEvent / 30);
 
-    // Combine into final score
+    // Combined score
     const finalScore =
         SCORING_WEIGHTS.contentSimilarity * contentSimilarity +
         SCORING_WEIGHTS.popularityBoost * popularityBoost +
-        SCORING_WEIGHTS.noveltyBonus * (noveltyBonus - 1) + // Subtract 1 to make it a bonus
+        SCORING_WEIGHTS.noveltyBonus * (noveltyBonus - 1) +
         SCORING_WEIGHTS.temporalRelevance * temporalRelevance;
 
     // Generate explanation
-    let reason = '';
+    let reason: string;
     if (contentSimilarity > 0.8) {
         reason = `Strong match with your interests in ${userProfile.dominantCategories[0]?.category}`;
     } else if (contentSimilarity > 0.6) {
-        reason = `Good match based on your preferences`;
+        reason = 'Good match based on your preferences';
     } else if (noveltyBonus > 1.2) {
-        reason = `Something new to explore!`;
+        reason = 'Something new to explore!';
     } else {
-        reason = `Recommended for you`;
+        reason = 'Recommended for you';
     }
 
     return {
@@ -346,7 +343,18 @@ export function scoreEventForUser(
 
 /**
  * Get personalized recommendations for a user
- * Main entry point for recommendation engine
+ * Main entry point for the recommendation engine
+ * 
+ * Process:
+ * 1. Compute user profile (blend explicit + learned preferences)
+ * 2. Fetch candidate events matching user's location/category filters
+ * 3. Exclude already favorited events (optional)
+ * 4. Score each event using multi-factor algorithm
+ * 5. Return top N highest-scoring events
+ * 
+ * @param userId - User's MongoDB ObjectId
+ * @param user - User document with preferences
+ * @param options - Filtering and pagination options
  */
 export async function getPersonalizedRecommendations(
     userId: mongoose.Types.ObjectId,
@@ -364,7 +372,7 @@ export async function getPersonalizedRecommendations(
     // 1. Compute user profile
     const userProfile = await computeUserProfile(userId, user);
 
-    // 2. Get recent favorites for novelty calculation
+    // 2. Get recent favourites for novelty calculation
     const recentFavorites = await UserFavourite.find({ userId })
         .populate('eventId')
         .sort({ createdAt: -1 })
@@ -378,51 +386,42 @@ export async function getPersonalizedRecommendations(
         })
         .filter((v): v is EventVector => v !== null);
 
-    // 3. Build query for candidate events
+    // 3. Build query
     const query: any = {
         startDate: { $gte: minDate || new Date() },
     };
-
-    if (maxDate) {
-        query.startDate.$lte = maxDate;
-    }
-
-    if (category) {
-        query.category = category;
-    }
-
-    // Filter by user's location preferences if set
-    if (user.preferences.locations && user.preferences.locations.length > 0) {
+    if (maxDate) query.startDate.$lte = maxDate;
+    if (category) query.category = category;
+    if (user.preferences.locations?.length) {
         query['venue.suburb'] = { $in: user.preferences.locations };
     }
 
-    // 4. Fetch candidate events
+    // 4. Fetch candidates
     const candidateEvents = await Event.find(query)
         .sort({ startDate: 1 })
-        .limit(1000) // Reasonable limit for scoring
+        .limit(1000)
         .lean();
 
-    // 5. Get favorited event IDs to exclude
+    // 5. Exclude favorited
     let favoritedIds: Set<string> = new Set();
     if (excludeFavorited) {
         const favorites = await UserFavourite.find({ userId }).select('eventId').lean();
         favoritedIds = new Set(favorites.map(f => f.eventId.toString()));
     }
 
-    // 6. Score each event
+    // 6. Score events
     const scoredEvents = candidateEvents
         .filter(event => !favoritedIds.has(event._id.toString()))
         .map(event => scoreEventForUser(userProfile, event, user, recentFavoriteVectors));
 
-    // 7. Sort by score and return top N
+    // 7. Sort and return top N
     scoredEvents.sort((a, b) => b.score - a.score);
-
     return scoredEvents.slice(0, limit);
 }
 
 /**
- * Get similar events to a specific event (content-based)
- * Useful for "Similar Events" section on event detail page
+ * Get similar events using content-based filtering
+ * Useful for "Similar Events" section on event detail pages
  */
 export async function getSimilarEvents(
     eventId: mongoose.Types.ObjectId,
@@ -430,15 +429,11 @@ export async function getSimilarEvents(
 ): Promise<Array<{ event: IEvent; similarity: number }>> {
     const { limit = 6, excludeEventId = true } = options;
 
-    // Get the target event
     const targetEvent = await Event.findById(eventId).lean();
-    if (!targetEvent) {
-        return [];
-    }
+    if (!targetEvent) return [];
 
     const targetVector = extractEventFeatures(targetEvent);
 
-    // Get candidate events (same category, upcoming)
     const candidates = await Event.find({
         category: targetEvent.category,
         startDate: { $gte: new Date() },
@@ -447,33 +442,25 @@ export async function getSimilarEvents(
         .limit(100)
         .lean();
 
-    // Score by similarity
     const scored = candidates.map(event => ({
         event,
         similarity: cosineSimilarity(targetVector.fullVector, extractEventFeatures(event).fullVector),
     }));
 
-    // Sort by similarity
     scored.sort((a, b) => b.similarity - a.similarity);
-
     return scored.slice(0, limit);
 }
 
 /**
- * Update user's stored profile vector (called periodically by cron job)
+ * Update user's stored profile vector (called by cron job)
+ * Precomputes user vectors for faster recommendation queries
  */
 export async function updateStoredUserProfile(userId: mongoose.Types.ObjectId): Promise<void> {
     const User = (await import('@/lib/models/User')).default;
     const user = await User.findById(userId);
-
     if (!user) return;
 
     const profile = await computeUserProfile(userId, user);
-
-    // Update user document
     user.userVector = profile.userVector;
-    // Optionally, determine cluster group (for future clustering)
-    // user.clusterGroup = determineClusterGroup(profile);
-
     await user.save();
 }

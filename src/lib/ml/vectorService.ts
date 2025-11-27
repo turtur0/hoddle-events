@@ -1,5 +1,7 @@
-// lib/ml/vectorService.ts
-;
+// ============================================
+// lib/ml/vector-service.ts
+// ============================================
+
 import { CATEGORIES } from '../constants/categories';
 import { type IEvent } from '@/lib/models';
 
@@ -7,25 +9,18 @@ import { type IEvent } from '@/lib/models';
 // CONFIGURATION
 // ============================================
 
-// Main category mapping
 const MAIN_CATEGORIES = CATEGORIES.map(cat => cat.value);
-// ['music', 'theatre', 'sports', 'arts', 'family', 'other']
-
-// All possible subcategories (flattened)
 const ALL_SUBCATEGORIES = CATEGORIES.flatMap(cat =>
   (cat.subcategories || []).map(sub => `${cat.value}:${sub}`)
 );
 
-// Venue tier classification
+/** Venue tier classification (0.0 = niche, 1.0 = mainstream) */
 const VENUE_TIERS: Record<string, number> = {
-  // Stadiums & Major Venues (1.0 = mainstream)
   'Marvel Stadium': 1.0,
   'Rod Laver Arena': 1.0,
   'Melbourne Cricket Ground': 1.0,
   'MCG': 1.0,
   'AAMI Park': 0.95,
-
-  // Large Theatres & Concert Halls (0.7-0.9)
   'Arts Centre Melbourne': 0.85,
   'Hamer Hall': 0.85,
   'State Theatre': 0.85,
@@ -36,8 +31,6 @@ const VENUE_TIERS: Record<string, number> = {
   'Sidney Myer Music Bowl': 0.75,
   'Melbourne Recital Centre': 0.7,
   'Palais Theatre': 0.7,
-
-  // Mid-Size Venues (0.5-0.7)
   'The Tivoli': 0.65,
   'Margaret Court Arena': 0.65,
   'John Cain Arena': 0.65,
@@ -45,21 +38,16 @@ const VENUE_TIERS: Record<string, number> = {
   'The Athenaeum Theatre': 0.6,
   'Malthouse Theatre': 0.55,
   'Melbourne Theatre Company': 0.55,
-
-  // Small Venues & Clubs (0.3-0.5)
   'Northcote Social Club': 0.4,
   'The Corner Hotel': 0.4,
   'Cherry Bar': 0.35,
   'The Tote': 0.35,
   '170 Russell': 0.4,
   'Max Watts': 0.45,
-
-  // Community & Alternative Spaces (0.2-0.3)
   'The Owl Sanctuary': 0.25,
   'Brunswick Ballroom': 0.3,
 };
 
-// Price percentiles
 const PRICE_PERCENTILES = {
   p10: 0,
   p25: 35,
@@ -67,44 +55,39 @@ const PRICE_PERCENTILES = {
   p75: 150,
   p90: 250,
   max: 500,
-};
+} as const;
 
-// ============================================
-// FEATURE WEIGHTS
-// ============================================
-// These weights control how much each feature type influences similarity
-
+/**
+ * Feature weights control similarity calculation importance
+ * Higher weight = more influence on similarity score
+ * 
+ * Priority: category > subcategory > popularity > price/venue
+ */
 export const FEATURE_WEIGHTS = {
-  category: 10.0,        // Most important - category match is critical
-  subcategory: 5.0,      // Second most important - subcategory refinement
-  popularity: 3.0,       // Third - mainstream vs niche preference
-  price: 1.0,            // Less important - just for context
-  venue: 1.0,            // Less important - just for context
-};
+  category: 10.0,     // Critical: category must match
+  subcategory: 5.0,   // Important: subcategory refinement
+  popularity: 3.0,    // Moderate: mainstream vs niche
+  price: 1.0,         // Minor: contextual only
+  venue: 1.0,         // Minor: contextual only
+} as const;
 
 // ============================================
-// VECTOR INTERFACE
+// TYPES
 // ============================================
 
+/**
+ * Event represented as a weighted numerical vector
+ * All features are normalized and weighted for similarity calculations
+ */
 export interface EventVector {
   eventId: string;
-
-  // Category features (one-hot encoded)
-  categoryVector: number[];  // 6 dimensions, weighted by FEATURE_WEIGHTS.category
-
-  // Subcategory features (multi-hot encoded)
-  subcategoryVector: number[];  // ~40 dimensions, weighted by FEATURE_WEIGHTS.subcategory
-
-  // Numerical features (normalise 0-1)
-  priceNormalised: number;      // weighted by FEATURE_WEIGHTS.price
-  venueTier: number;            // weighted by FEATURE_WEIGHTS.venue
-  popularityScore: number;      // weighted by FEATURE_WEIGHTS.popularity
-
-  // Metadata
+  categoryVector: number[];      // One-hot encoded (6 dims)
+  subcategoryVector: number[];   // Multi-hot encoded (~40 dims)
+  priceNormalised: number;       // Log-scaled (1 dim)
+  venueTier: number;             // Mainstream score (1 dim)
+  popularityScore: number;       // Engagement-based (1 dim)
   isFree: boolean;
-
-  // Combined weighted feature vector (for similarity calculations)
-  fullVector: number[];
+  fullVector: number[];          // All features combined
 }
 
 // ============================================
@@ -112,41 +95,55 @@ export interface EventVector {
 // ============================================
 
 /**
- * Convert an event into a weighted numerical vector representation
- * Features are weighted by importance: category > subcategory > popularity > price/venue
+ * Convert event into weighted numerical vector for similarity calculations
+ * 
+ * Vector structure (total ~49 dimensions):
+ * - Category: 6 dims (one-hot, heavily weighted)
+ * - Subcategories: ~40 dims (multi-hot, moderately weighted)
+ * - Price: 1 dim (log-scaled, lightly weighted)
+ * - Venue: 1 dim (tier score, lightly weighted)
+ * - Popularity: 1 dim (percentile, moderately weighted)
+ * 
+ * @param event - Event to vectorize
+ * @returns EventVector with weighted features
  */
 export function extractEventFeatures(event: IEvent): EventVector {
-  // 1. One-hot encode main category (WEIGHTED)
+  // 1. Category (one-hot, weighted)
   const categoryVector = MAIN_CATEGORIES.map(cat =>
     cat === event.category.toLowerCase() ? FEATURE_WEIGHTS.category : 0
   );
 
-  // 2. Multi-hot encode subcategories (WEIGHTED)
-  const subcategoryVector = createWeightedSubcategoryVector(event);
+  // 2. Subcategories (multi-hot, weighted)
+  const subcategoryVector = ALL_SUBCATEGORIES.map(fullSubcat => {
+    const [category, subcat] = fullSubcat.split(':');
+    if (category !== event.category.toLowerCase()) return 0;
+    const isActive = event.subcategories?.includes(subcat) ? 1 : 0;
+    return isActive * FEATURE_WEIGHTS.subcategory;
+  });
 
-  // 3. Normalize price using log scale (WEIGHTED)
+  // 3. Price (log-scaled, weighted)
   const priceNormalised = normalisePriceLog(event) * FEATURE_WEIGHTS.price;
 
-  // 4. Get venue tier with intelligent fallback (WEIGHTED)
+  // 4. Venue tier (weighted)
   const venueTier = getVenueTierWithFallback(event.venue.name, event) * FEATURE_WEIGHTS.venue;
 
-  // 5. Popularity score from engagement stats (WEIGHTED)
+  // 5. Popularity (weighted)
   const popularityScore = calculatePopularityScore(event) * FEATURE_WEIGHTS.popularity;
 
-  // 6. Combine everything into weighted full feature vector
+  // Combine into full vector
   const fullVector = [
-    ...categoryVector,        // 6 dimensions (heavily weighted)
-    ...subcategoryVector,     // ~40 dimensions (moderately weighted)
-    priceNormalised,          // 1 dimension (lightly weighted)
-    venueTier,                // 1 dimension (lightly weighted)
-    popularityScore,          // 1 dimension (moderately weighted)
+    ...categoryVector,
+    ...subcategoryVector,
+    priceNormalised,
+    venueTier,
+    popularityScore,
   ];
 
   return {
     eventId: event._id.toString(),
     categoryVector,
     subcategoryVector,
-    priceNormalised: priceNormalised / FEATURE_WEIGHTS.price, // Store unweighted for inspection
+    priceNormalised: priceNormalised / FEATURE_WEIGHTS.price,
     venueTier: venueTier / FEATURE_WEIGHTS.venue,
     popularityScore: popularityScore / FEATURE_WEIGHTS.popularity,
     isFree: event.isFree,
@@ -159,30 +156,11 @@ export function extractEventFeatures(event: IEvent): EventVector {
 // ============================================
 
 /**
- * Create weighted multi-hot encoded vector for subcategories
- */
-function createWeightedSubcategoryVector(event: IEvent): number[] {
-  return ALL_SUBCATEGORIES.map(fullSubcat => {
-    const [category, subcat] = fullSubcat.split(':');
-
-    // Only encode subcategories for this event's category
-    if (category !== event.category.toLowerCase()) {
-      return 0;
-    }
-
-    // Check if this subcategory is active for this event
-    const isActive = event.subcategories?.includes(subcat) ? 1 : 0;
-    return isActive * FEATURE_WEIGHTS.subcategory;
-  });
-}
-
-/**
- * Normalize price using log scale
+ * Normalize price using log scale to compress range
+ * Free events = 0, expensive events approach 1
  */
 function normalisePriceLog(event: IEvent): number {
-  if (event.isFree || !event.priceMin) {
-    return 0;
-  }
+  if (event.isFree || !event.priceMin) return 0;
 
   const logPrice = Math.log10(event.priceMin + 1);
   const logMax = Math.log10(PRICE_PERCENTILES.max + 1);
@@ -192,47 +170,36 @@ function normalisePriceLog(event: IEvent): number {
 
 /**
  * Get venue tier with intelligent fallback
+ * Uses predefined tiers, then heuristics, then price/source signals
  */
 function getVenueTierWithFallback(venueName: string, event: IEvent): number {
-  // Check if venue is in our predefined list
+  // Check predefined tiers
   const knownTier = VENUE_TIERS[venueName];
-  if (knownTier !== undefined) {
-    return knownTier;
+  if (knownTier !== undefined) return knownTier;
+
+  // Fallback heuristics
+  const name = venueName.toLowerCase();
+
+  if (name.includes('stadium') || name.includes('arena') ||
+    name.includes('ground') || name.includes('park')) return 0.9;
+
+  if (name.includes('theatre') || name.includes('hall') ||
+    name.includes('auditorium') || name.includes('playhouse')) return 0.7;
+
+  if (name.includes('club') || name.includes('bar') ||
+    name.includes('hotel') || name.includes('pub')) return 0.4;
+
+  if (name.includes('gallery') || name.includes('studio') ||
+    name.includes('space') || name.includes('centre')) return 0.5;
+
+  // Price-based proxy
+  if (event.priceMin) {
+    if (event.priceMin > 200) return 0.85;
+    if (event.priceMin > 100) return 0.7;
   }
-
-  // FALLBACK HEURISTICS
-  const nameLower = venueName.toLowerCase();
-
-  // Major venue keywords
-  if (nameLower.includes('stadium') || nameLower.includes('arena') ||
-    nameLower.includes('ground') || nameLower.includes('park')) {
-    return 0.9;
-  }
-
-  // Theatre/hall keywords
-  if (nameLower.includes('theatre') || nameLower.includes('hall') ||
-    nameLower.includes('auditorium') || nameLower.includes('playhouse')) {
-    return 0.7;
-  }
-
-  // Club/bar keywords
-  if (nameLower.includes('club') || nameLower.includes('bar') ||
-    nameLower.includes('hotel') || nameLower.includes('pub')) {
-    return 0.4;
-  }
-
-  // Gallery/community spaces
-  if (nameLower.includes('gallery') || nameLower.includes('studio') ||
-    nameLower.includes('space') || nameLower.includes('centre')) {
-    return 0.5;
-  }
-
-  // Use price as a proxy
-  if (event.priceMin && event.priceMin > 200) return 0.85;
-  if (event.priceMin && event.priceMin > 100) return 0.7;
   if (event.isFree) return 0.3;
 
-  // Use source as a signal
+  // Source-based proxy
   if (event.primarySource === 'ticketmaster') return 0.65;
   if (event.primarySource === 'marriner') return 0.75;
 
@@ -241,25 +208,21 @@ function getVenueTierWithFallback(venueName: string, event: IEvent): number {
 
 /**
  * Calculate popularity score from engagement stats
- * Higher score = more mainstream/popular
+ * Prefers stored category percentile, falls back to raw calculation
+ * 
+ * @returns Popularity score between 0 (niche) and 1 (mainstream)
  */
-export default function calculatePopularityScore(event: IEvent): number {
-  // Prefer category-relative percentile if available
+function calculatePopularityScore(event: IEvent): number {
+  // Use precomputed percentile if available
   if (event.stats?.categoryPopularityPercentile !== undefined) {
     return event.stats.categoryPopularityPercentile;
   }
 
-  // Fallback: Raw calculation (for new events before first popularity update)
+  // Fallback: raw calculation for new events
   const { viewCount = 0, favouriteCount = 0, clickthroughCount = 0 } = event.stats || {};
+  const rawScore = viewCount * 0.1 + favouriteCount * 5 + clickthroughCount * 2;
 
-  // Weighted sum: favorites matter most
-  const rawScore = (
-    viewCount * 0.1 +
-    favouriteCount * 5 +
-    clickthroughCount * 2
-  );
-
-  // Sigmoid function to keep between 0-1
+  // Sigmoid to normalize to 0-1
   const scale = 0.01;
   return 1 / (1 + Math.exp(-rawScore * scale));
 }
@@ -270,10 +233,16 @@ export default function calculatePopularityScore(event: IEvent): number {
 
 /**
  * Calculate cosine similarity between two vectors
- * Returns value between 0 (completely different) and 1 (identical)
  * 
- * Note: Vectors are already weighted, so this directly reflects
- * the importance of category > subcategory > popularity > others
+ * Measures angle between vectors (ignores magnitude)
+ * Returns 0 (completely different) to 1 (identical)
+ * 
+ * Note: Vectors are pre-weighted, so similarity directly reflects
+ * feature importance (category > subcategory > popularity > others)
+ * 
+ * @param vectorA - First vector
+ * @param vectorB - Second vector
+ * @returns Similarity score [0, 1]
  */
 export function cosineSimilarity(vectorA: number[], vectorB: number[]): number {
   if (vectorA.length !== vectorB.length) {
@@ -293,15 +262,14 @@ export function cosineSimilarity(vectorA: number[], vectorB: number[]): number {
   magnitudeA = Math.sqrt(magnitudeA);
   magnitudeB = Math.sqrt(magnitudeB);
 
-  if (magnitudeA === 0 || magnitudeB === 0) {
-    return 0;
-  }
+  if (magnitudeA === 0 || magnitudeB === 0) return 0;
 
   return dotProduct / (magnitudeA * magnitudeB);
 }
 
 /**
  * Calculate Euclidean distance between two vectors
+ * Measures straight-line distance in vector space
  */
 export function euclideanDistance(vectorA: number[], vectorB: number[]): number {
   if (vectorA.length !== vectorB.length) {
@@ -323,6 +291,7 @@ export function euclideanDistance(vectorA: number[], vectorB: number[]): number 
 
 /**
  * Get category-relative popularity percentile
+ * Computes event's rank within its category
  */
 export async function getCategoryPopularityPercentile(
   event: IEvent,
@@ -336,14 +305,13 @@ export async function getCategoryPopularityPercentile(
 }
 
 /**
- * Normalize a vector to unit length
+ * Normalize vector to unit length (L2 normalization)
+ * Useful for cosine similarity calculations
  */
 export function normaliseVector(vector: number[]): number[] {
   const magnitude = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0));
-
-  if (magnitude === 0) {
-    return vector;
-  }
-
+  if (magnitude === 0) return vector;
   return vector.map(val => val / magnitude);
 }
+
+export default calculatePopularityScore;
