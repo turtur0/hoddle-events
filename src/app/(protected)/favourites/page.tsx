@@ -2,7 +2,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { connectDB } from '@/lib/db';
-import UserFavourite from '@/lib/models/UserFavourites';
+import UserFavourite from '@/lib/models/UserFavourite';
 import { EventCard } from '@/components/events/EventCard';
 import { EmptyState } from '@/components/other/EmptyState';
 import { Button } from '@/components/ui/Button';

@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { connectDB } from '@/lib/db';
 import UserInteraction from '@/lib/models/UserInteraction';
-import UserFavourite from '../models/UserFavourites';
+import UserFavourite from '../models/UserFavourite';
 import Event from '@/lib/models/Event';
 import mongoose from 'mongoose';
 

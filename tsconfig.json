@@ -29,6 +29,6 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "**/*.mts"
-, "jest.config.js"  ],
+, "jest.config.js", "scripts/scrapers/scrape-all.ts    ", "scripts/dev/test-email.ts   "  ],
   "exclude": ["node_modules"]
 }

@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Label } from '@/components/ui/Label';
 import { Loader2, ChevronRight, Bell, Sparkles } from 'lucide-react';
-import { useRequireOnboarding } from '@/lib/hooks/useAuthRedirect';
+import { useRequireOnboarding } from '@/lib/hooks/use-auth-redirect';
 import { PopularitySelector } from '@/components/preferences/PopularitySelector';
 import { CategorySelector } from '@/components/preferences/CategorySelector';
 import { NotificationSettings } from '@/components/preferences/NotificationSettings';

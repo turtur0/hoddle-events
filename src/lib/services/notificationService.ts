@@ -1,7 +1,7 @@
 // lib/services/notificationService.ts
 import User from '@/lib/models/User';
-import UserFavourite from '../models/UserFavourites';
-import Notification from '../models/Notifications';
+import UserFavourite from '../models/UserFavourite';
+import Notification from '../models/Notification';
 import { IEvent } from '@/lib/models/Event';
 import { extractEventFeatures, cosineSimilarity } from '@/lib/ml/vectorService';
 import { CATEGORIES } from '@/lib/constants/categories';

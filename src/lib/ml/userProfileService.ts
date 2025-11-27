@@ -3,7 +3,7 @@
 import { IUser } from '@/lib/models/User';
 import { IEvent } from '@/lib/models/Event';
 import UserInteraction, { IUserInteraction } from '@/lib/models/UserInteraction';
-import UserFavourite from '@/lib/models/UserFavourites';
+import UserFavourite from '@/lib/models/UserFavourite';
 import Event from '@/lib/models/Event';
 import { extractEventFeatures, cosineSimilarity, EventVector } from './vectorService';
 import { CATEGORIES } from '../constants/categories';

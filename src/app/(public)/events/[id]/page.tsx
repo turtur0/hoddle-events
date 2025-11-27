@@ -5,14 +5,14 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/db";
 import Event from "@/lib/models/Event";
-import UserFavourite from "@/lib/models/UserFavourites";
+import UserFavourite from "@/lib/models/UserFavourite";
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Separator } from '@/components/ui/Separator';
 import { FavouriteButton } from '@/components/events/FavouriteButton';
 import { ViewTracker } from '@/components/events/ViewTracker';
 import { BookingLink } from '@/components/events/BookingLink';
-import { SimilarEvents } from '@/components/recommendations/SimiliarEvents';
+import { SimilarEvents } from '@/components/recommendations/SimilarEvents';
 import { BackButton } from '@/components/navigation/BackButton'; // ✅ Import new component
 import { format, isSameMonth } from "date-fns";
 import { getCategoryLabel } from "@/lib/constants/categories";

@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { connectDB } from '@/lib/db';
 import User from '@/lib/models/User';
-import UserFavourite from '@/lib/models/UserFavourites';
+import UserFavourite from '@/lib/models/UserFavourite';
 import UserInteraction from '@/lib/models/UserInteraction';
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';

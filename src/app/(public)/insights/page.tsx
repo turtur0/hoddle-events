@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { PopularityScatterChart } from '@/components/analytics/PopularityScratterChart';
+import { PopularityScatterChart } from '@/components/analytics/PopularityScatterChart';
 import { PriceDistributionChart } from '@/components/analytics/PriceDistributionChart';
 import { TimelineChart } from '@/components/analytics/TimelineChart';
 import { Sparkles, TrendingUp, DollarSign, Calendar, BarChart3, Grid3x3, List } from 'lucide-react';

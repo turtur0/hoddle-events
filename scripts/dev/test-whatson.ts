@@ -3,7 +3,7 @@
 // Run the What's On Melbourne debug analysis
 // ============================================
 
-import { debugWhatsOnMelbourne } from "./debug-website";
+import { debugWhatsOnMelbourne } from "./test-website";
 
 async function runDebugTests() {
   console.log('═══════════════════════════════════════════════════════');

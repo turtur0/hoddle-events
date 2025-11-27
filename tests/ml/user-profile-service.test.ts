@@ -27,10 +27,16 @@ describe('User Profile Service', () => {
                 inApp: true,
                 email: false,
                 emailFrequency: 'weekly',
+                keywords: [],
+                smartFiltering: {
+                    enabled: false,
+                    minRecommendationScore: 0
+                }
             },
         },
         createdAt: new Date(),
         updatedAt: new Date(),
+        favorites: []
     };
 
     // Mock events for testing
@@ -356,6 +362,11 @@ describe('User Profile Service', () => {
                         inApp: true,
                         email: false,
                         emailFrequency: 'weekly',
+                        keywords: [],
+                        smartFiltering: {
+                            enabled: false,
+                            minRecommendationScore: 0
+                        }
                     },
                 },
             };
