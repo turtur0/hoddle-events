@@ -14,6 +14,9 @@ const SCRAPE_OPTIONS: ScrapeOptions = {
   usePuppeteer: true,
 };
 
+/**
+ * Scrapes events from Marriner Group and processes them with deduplication.
+ */
 export async function scrapeMarrinerWithDedup() {
   console.log('Marriner Group scraper starting');
 
@@ -25,20 +28,25 @@ export async function scrapeMarrinerWithDedup() {
 
     const stats = await processEventsWithDeduplication(events, 'marriner');
 
-    console.log('--------------------------------------------------------');
-    console.log('Marriner Processing Complete');
-    console.log('--------------------------------------------------------');
-    console.log('Summary:');
-    console.log(`  Inserted: ${stats.inserted}`);
-    console.log(`  Updated:  ${stats.updated}`);
-    console.log(`  Merged:   ${stats.merged}`);
-    console.log(`  Skipped:  ${stats.skipped}`);
-    console.log(`  Total:    ${events.length}`);
-    console.log('');
+    displaySummary(stats, events.length);
+
     return stats;
   } finally {
     await disconnectDB();
   }
+}
+
+function displaySummary(stats: any, total: number) {
+  console.log('--------------------------------------------------------');
+  console.log('Marriner Processing Complete');
+  console.log('--------------------------------------------------------');
+  console.log('Summary:');
+  console.log(`  Inserted: ${stats.inserted}`);
+  console.log(`  Updated:  ${stats.updated}`);
+  console.log(`  Merged:   ${stats.merged}`);
+  console.log(`  Skipped:  ${stats.skipped}`);
+  console.log(`  Total:    ${total}`);
+  console.log('');
 }
 
 if (require.main === module) {

@@ -15,6 +15,9 @@ const DEFAULT_OPTIONS: WhatsOnScrapeOptions = {
   detailFetchDelay: 1000,
 };
 
+/**
+ * Scrapes events from What's On Melbourne and processes them with deduplication.
+ */
 export async function scrapeWhatsOnWithDedup(customOptions?: WhatsOnScrapeOptions) {
   console.log("What's On Melbourne scraper starting");
 
@@ -22,31 +25,38 @@ export async function scrapeWhatsOnWithDedup(customOptions?: WhatsOnScrapeOption
     await connectDB();
 
     const options = customOptions || DEFAULT_OPTIONS;
-
-    console.log('Scrape settings:');
-    console.log(`  Categories: ${options.categories?.join(', ') || 'all'}`);
-    console.log(`  Max pages per category: ${options.maxPages || 'unlimited'}`);
-    console.log(`  Max events per category: ${options.maxEventsPerCategory || 'unlimited'}`);
+    logScrapeSettings(options);
 
     const events = await scrapeWhatsOnMelbourne(options);
     console.log(`Scraped ${events.length} events from What's On`);
 
     const stats = await processEventsWithDeduplication(events, 'whatson');
+    displaySummary(stats, events.length, 'What\'s On');
 
-    console.log('--------------------------------------------------------');
-    console.log("What's On Processing Complete");
-    console.log('--------------------------------------------------------');
-    console.log('Summary:');
-    console.log(`  Inserted: ${stats.inserted}`);
-    console.log(`  Updated:  ${stats.updated}`);
-    console.log(`  Merged:   ${stats.merged}`);
-    console.log(`  Skipped:  ${stats.skipped}`);
-    console.log(`  Total:    ${events.length}`);
-    console.log('');
     return stats;
   } finally {
     await disconnectDB();
   }
+}
+
+function logScrapeSettings(options: WhatsOnScrapeOptions) {
+  console.log('Scrape settings:');
+  console.log(`  Categories: ${options.categories?.join(', ') || 'all'}`);
+  console.log(`  Max pages per category: ${options.maxPages || 'unlimited'}`);
+  console.log(`  Max events per category: ${options.maxEventsPerCategory || 'unlimited'}`);
+}
+
+function displaySummary(stats: any, total: number, sourceName: string) {
+  console.log('--------------------------------------------------------');
+  console.log(`${sourceName} Processing Complete`);
+  console.log('--------------------------------------------------------');
+  console.log('Summary:');
+  console.log(`  Inserted: ${stats.inserted}`);
+  console.log(`  Updated:  ${stats.updated}`);
+  console.log(`  Merged:   ${stats.merged}`);
+  console.log(`  Skipped:  ${stats.skipped}`);
+  console.log(`  Total:    ${total}`);
+  console.log('');
 }
 
 if (require.main === module) {

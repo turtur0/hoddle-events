@@ -19,8 +19,6 @@ interface ScrapeStats {
 /**
  * Main scraper orchestrator that coordinates scraping from all sources,
  * processes events with deduplication, and reports statistics.
- * 
- * Configuration can be adjusted via scrapeAll options.
  */
 async function main() {
   const startTime = Date.now();
@@ -32,7 +30,6 @@ async function main() {
   try {
     await connectDB();
 
-    // Scrape from all sources
     const { events, results } = await scrapeAll({
       verbose: true,
       sources: ['ticketmaster', 'marriner', 'whatson'],
@@ -50,39 +47,14 @@ async function main() {
       },
     });
 
-    if (!events || events.length === 0) {
+    if (!events?.length) {
       console.log('No events scraped from any source.');
       return;
     }
 
     console.log('\nProcessing events with deduplication...');
 
-    // Initialise statistics
-    const stats: ScrapeStats = {
-      inserted: 0,
-      updated: 0,
-      merged: 0,
-      skipped: 0,
-      notifications: 0,
-    };
-
-    // Group events by source for processing
-    const eventsBySource = groupEventsBySource(events);
-
-    // Process each source separately
-    for (const [source, sourceEvents] of eventsBySource) {
-      console.log(`\nProcessing ${sourceEvents.length} events from '${source}'...`);
-      const sourceStats = await processEventsWithDeduplication(sourceEvents, source);
-
-      // Accumulate statistics
-      stats.inserted += sourceStats.inserted;
-      stats.updated += sourceStats.updated;
-      stats.merged += sourceStats.merged;
-      stats.skipped += sourceStats.skipped;
-      stats.notifications += sourceStats.notifications;
-    }
-
-    // Display final summary
+    const stats = await processAllEvents(events);
     await displaySummary(stats, events.length, results, startTime);
 
   } catch (error) {
@@ -94,24 +66,48 @@ async function main() {
 }
 
 /**
- * Groups events by their source for separate processing.
+ * Processes events grouped by source through the deduplication pipeline.
  */
-function groupEventsBySource(events: any[]): Map<string, any[]> {
-  const eventsBySource = new Map<string, any[]>();
+async function processAllEvents(events: any[]): Promise<ScrapeStats> {
+  const stats: ScrapeStats = {
+    inserted: 0,
+    updated: 0,
+    merged: 0,
+    skipped: 0,
+    notifications: 0,
+  };
 
-  for (const event of events) {
-    if (!eventsBySource.has(event.source)) {
-      eventsBySource.set(event.source, []);
-    }
-    eventsBySource.get(event.source)!.push(event);
+  const eventsBySource = groupEventsBySource(events);
+
+  for (const [source, sourceEvents] of eventsBySource) {
+    console.log(`\nProcessing ${sourceEvents.length} events from '${source}'...`);
+    const sourceStats = await processEventsWithDeduplication(sourceEvents, source);
+
+    stats.inserted += sourceStats.inserted;
+    stats.updated += sourceStats.updated;
+    stats.merged += sourceStats.merged;
+    stats.skipped += sourceStats.skipped;
+    stats.notifications += sourceStats.notifications;
   }
 
-  return eventsBySource;
+  return stats;
 }
 
-/**
- * Displays comprehensive scrape statistics and summary.
- */
+/** Groups events by their source for separate processing. */
+function groupEventsBySource(events: any[]): Map<string, any[]> {
+  const grouped = new Map<string, any[]>();
+
+  for (const event of events) {
+    if (!grouped.has(event.source)) {
+      grouped.set(event.source, []);
+    }
+    grouped.get(event.source)!.push(event);
+  }
+
+  return grouped;
+}
+
+/** Displays comprehensive scrape statistics and summary. */
 async function displaySummary(
   stats: ScrapeStats,
   totalScraped: number,
@@ -142,7 +138,6 @@ async function displaySummary(
   }
 }
 
-// Execute if run directly
 if (require.main === module) {
   main()
     .then(() => process.exit(0))
