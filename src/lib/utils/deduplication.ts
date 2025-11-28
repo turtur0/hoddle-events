@@ -34,7 +34,7 @@ const STOP_WORDS = new Set([
 ]);
 
 /** Venue suffixes to remove during normalisation */
-const VENUE_SUFFIXES = /\s*(theatre|theater|centre|center|arena|stadium|hall|auditorium|melbourne|vic|victoria)$/gi;
+const VENUE_SUFFIXES = /\s*(melbourne|vic|victoria|cbd|australia|nsw|qld|wa|sa|tas|nt|act)$/gi;
 
 /**
  * Caches for normalised strings to avoid repeated string operations.
@@ -81,10 +81,24 @@ function normaliseVenue(venue: string): string {
         return normalisedVenueCache.get(venue)!;
     }
 
-    const normalised = normalise(venue).replace(VENUE_SUFFIXES, '').trim();
+    let normalised = normalise(venue);
+
+    // Iteratively remove geographic suffixes
+    let prev = '';
+    while (normalised !== prev && normalised.length > 0) {
+        prev = normalised;
+        normalised = normalised.replace(VENUE_SUFFIXES, '').trim();
+    }
+
+    // Safety check: If we removed everything, use original normalised text
+    if (!normalised || normalised.length < 2) {
+        normalised = normalise(venue);
+    }
+
     normalisedVenueCache.set(venue, normalised);
     return normalised;
 }
+
 
 /**
  * Creates a bucket key from the first 3 significant words of a title.
@@ -377,22 +391,19 @@ export function mergeEvents(primary: EventForDedup, secondary: EventForDedup): E
     // Use primary's category as the main category
     const category = primary.category || secondary.category || 'other';
 
-    // Merge and validate subcategories against main category
-    const allSubcategories = new Set<string>();
-    [
-        primary.subcategory,
-        secondary.subcategory,
+    // 1. Merge all unique subcategories
+    const subcategories = Array.from(new Set([
         ...(primary.subcategories || []),
         ...(secondary.subcategories || [])
-    ]
-        .filter(Boolean)
-        .forEach(subcat => {
-            if (subcat && isValidSubcategory(category, subcat)) {
-                allSubcategories.add(subcat);
-            }
-        });
+    ].filter(Boolean)));
 
-    const subcategories = Array.from(allSubcategories);
+    // 2. If different main categories, add secondary category as subcategory
+    if (secondary.category &&
+        secondary.category !== category &&
+        secondary.category !== 'other' &&
+        !subcategories.includes(secondary.category)) {
+        subcategories.push(secondary.category);
+    }
 
     // Use earliest start date and latest end date to capture full event run
     const startDate = primary.startDate < secondary.startDate
@@ -479,4 +490,4 @@ export function mergeEvents(primary: EventForDedup, secondary: EventForDedup): E
     };
 }
 
-export { normaliseTitle, normaliseVenue, matchScore, CONFIG };
+export { normaliseTitle, normaliseVenue, matchScore, CONFIG, type EventForDedup, titleSimilarity, venueSimilarity, dateOverlap };

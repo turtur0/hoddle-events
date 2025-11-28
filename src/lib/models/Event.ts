@@ -1,4 +1,3 @@
-// Event.ts - Fixed Schema
 import mongoose, { Schema, Model } from 'mongoose';
 
 export interface IEvent {
