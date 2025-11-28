@@ -81,7 +81,34 @@ export const CATEGORIES: CategoryConfig[] = [
   },
 ];
 
-// Helpers
+/**
+ * Shakespeare's major plays for automatic detection.
+ * Includes most commonly performed and well-known works.
+ */
+export const SHAKESPEARE_PLAYS = [
+  'hamlet',
+  'macbeth',
+  'romeo and juliet',
+  'othello',
+  'king lear',
+  'a midsummer night\'s dream',
+  'the tempest',
+  'much ado about nothing',
+  'twelfth night',
+  'julius caesar',
+  'as you like it',
+  'the merchant of venice',
+  'richard iii',
+  'henry v',
+  'the taming of the shrew',
+  'measure for measure',
+  'the winter\'s tale',
+  'coriolanus',
+  'antony and cleopatra',
+  'richard ii',
+];
+
+// Category helpers
 export function getCategoryLabel(value: string): string {
   const category = CATEGORIES.find(cat => cat.value === value);
   return category?.label || value;

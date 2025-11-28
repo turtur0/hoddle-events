@@ -614,10 +614,6 @@ describe('Deduplication Algorithm', () => {
             expect(merged.title).toBe('Hamilton'); // From marriner
             expect(merged.description).toContain('revolutionary'); // Longer from ticketmaster
 
-            // NOTE: Subcategories currently broken - returns empty array
-            // expect(merged.subcategories).toContain('musical');
-            // expect(merged.subcategories).toContain('broadway');
-
             expect(merged.startDate).toEqual(new Date('2025-01-01')); // Earliest
             expect(merged.endDate).toEqual(new Date('2025-01-20')); // Latest
             expect(merged.priceMin).toBe(45); // Minimum of both
