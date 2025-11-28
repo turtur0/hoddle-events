@@ -6,9 +6,19 @@ import { type IEvent } from '@/lib/models';
 // ============================================
 
 const MAIN_CATEGORIES = CATEGORIES.map(cat => cat.value);
-const ALL_SUBCATEGORIES = CATEGORIES.flatMap(cat =>
-  (cat.subcategories || []).map(sub => `${cat.value}:${sub}`)
-);
+
+// Create a normalised subcategory lookup map
+// Maps "category:normalised-subcategory" -> original subcategory for encoding
+const SUBCATEGORY_MAP = new Map<string, string>();
+const ALL_SUBCATEGORY_KEYS: string[] = [];
+
+CATEGORIES.forEach(cat => {
+  (cat.subcategories || []).forEach(sub => {
+    const key = `${cat.value}:${sub.toLowerCase()}`;
+    SUBCATEGORY_MAP.set(key, sub);
+    ALL_SUBCATEGORY_KEYS.push(key);
+  });
+});
 
 /** Venue tier classification (0.0 = niche, 1.0 = mainstream) */
 const VENUE_TIERS: Record<string, number> = {
@@ -104,34 +114,56 @@ export interface EventVector {
  * @returns EventVector with weighted features
  */
 export function extractEventFeatures(event: IEvent): EventVector {
+  const eventCategory = event.category.toLowerCase();
+  const eventSubcategories = (event.subcategories || []).map(sub => sub.toLowerCase());
+
   // 1. Category (one-hot, weighted)
   const categoryVector = MAIN_CATEGORIES.map(cat =>
-    cat === event.category.toLowerCase() ? FEATURE_WEIGHTS.category : 0
+    cat === eventCategory ? FEATURE_WEIGHTS.category : 0
   );
 
   // 2. Subcategories (multi-hot, weighted)
-  const subcategoryVector = ALL_SUBCATEGORIES.map(fullSubcat => {
-    const [category, subcat] = fullSubcat.split(':');
-    if (category !== event.category.toLowerCase()) return 0;
-    const isActive = event.subcategories?.includes(subcat) ? 1 : 0;
-    return isActive * FEATURE_WEIGHTS.subcategory;
+  const subcategoryVector = ALL_SUBCATEGORY_KEYS.map(key => {
+    const [category, normalisedSubcat] = key.split(':');
+
+    if (category !== eventCategory) return 0;
+
+    const isActive = eventSubcategories.some(eventSub => {
+      // Direct match
+      if (eventSub === normalisedSubcat) return true;
+
+      // Match against original subcategory name (lowercase)
+      const originalSubcat = SUBCATEGORY_MAP.get(key)?.toLowerCase();
+      if (eventSub === originalSubcat) return true;
+
+      // Match first word (e.g., "rock" matches "rock & alternative")
+      const firstWord = normalisedSubcat.split(/[\s&]+/)[0];
+      if (eventSub === firstWord) return true;
+
+      return false;
+    });
+
+    return isActive ? FEATURE_WEIGHTS.subcategory : 0;
   });
 
   // 3. Price (log-scaled, weighted)
-  const priceNormalised = normalisePriceLog(event) * FEATURE_WEIGHTS.price;
+  const priceNormalised = normalisePriceLog(event);
+  const priceWeighted = priceNormalised * FEATURE_WEIGHTS.price;
 
   // 4. Venue tier (weighted)
-  const venueTier = getVenueTierWithFallback(event.venue.name, event) * FEATURE_WEIGHTS.venue;
+  const venueTier = getVenueTierWithFallback(event.venue.name, event);
+  const venueTierWeighted = venueTier * FEATURE_WEIGHTS.venue;
 
   // 5. Popularity (weighted)
-  const popularityScore = calculatePopularityScore(event) * FEATURE_WEIGHTS.popularity;
+  const popularityRaw = calculatePopularityScore(event);
+  const popularityScore = popularityRaw * FEATURE_WEIGHTS.popularity;
 
   // Combine into full vector
   const fullVector = [
     ...categoryVector,
     ...subcategoryVector,
-    priceNormalised,
-    venueTier,
+    priceWeighted,
+    venueTierWeighted,
     popularityScore,
   ];
 
@@ -139,9 +171,9 @@ export function extractEventFeatures(event: IEvent): EventVector {
     eventId: event._id.toString(),
     categoryVector,
     subcategoryVector,
-    priceNormalised: priceNormalised / FEATURE_WEIGHTS.price,
-    venueTier: venueTier / FEATURE_WEIGHTS.venue,
-    popularityScore: popularityScore / FEATURE_WEIGHTS.popularity,
+    priceNormalised,
+    venueTier,
+    popularityScore,
     isFree: event.isFree,
     fullVector,
   };
