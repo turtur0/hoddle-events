@@ -28,30 +28,32 @@ export default function AboutPage() {
                 <div className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
                     <BackButton fallbackUrl="/" className="mb-8" />
 
-                    <div className="text-center">
-                        <div className="inline-flex items-center justify-center rounded-2xl bg-primary/10 p-3 ring-1 ring-primary/20 mb-6">
+                    <div className="flex items-start gap-4 mb-4">
+                        <div className="rounded-2xl bg-primary/10 p-3 ring-1 ring-primary/20">
                             <Sparkles className="h-8 w-8 text-primary" />
                         </div>
-                        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-4">
-                            About Melbourne Events
-                        </h1>
-                        <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                            A comprehensive events aggregator built to help Melburnians discover
-                            what's happening in their city.
-                        </p>
+                        <div>
+                            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-2">
+                                About Melbourne Events
+                            </h1>
+                            <p className="text-lg text-muted-foreground">
+                                A comprehensive events aggregator built to help Melburnians discover
+                                what's happening in their city.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </section>
 
             {/* Content */}
-            <section className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+            <section className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
                 <div className="space-y-8">
                     {/* Mission */}
-                    <Card className="border-2 border-border/50 hover:border-primary/30 transition-all">
+                    <Card className="border-2">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-3 text-2xl">
-                                <div className="rounded-lg bg-red-500/10 p-2">
-                                    <Heart className="h-6 w-6 text-red-500" />
+                                <div className="rounded-lg bg-muted p-2">
+                                    <Heart className="h-6 w-6 text-foreground" />
                                 </div>
                                 Our Mission
                             </CardTitle>
@@ -71,11 +73,11 @@ export default function AboutPage() {
                     </Card>
 
                     {/* Data Sources */}
-                    <Card className="border-2 border-border/50 hover:border-secondary/30 transition-all" id="data-sources">
+                    <Card className="border-2" id="data-sources">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-3 text-2xl">
-                                <div className="rounded-lg bg-primary/10 p-2">
-                                    <Database className="h-6 w-6 text-primary" />
+                                <div className="rounded-lg bg-muted p-2">
+                                    <Database className="h-6 w-6 text-foreground" />
                                 </div>
                                 Data Sources
                             </CardTitle>
@@ -86,7 +88,7 @@ export default function AboutPage() {
                             </p>
                             <div className="space-y-4">
                                 {/* Ticketmaster */}
-                                <div className="p-6 rounded-xl border-2 border-primary/20 bg-linear-to-br from-primary/5 via-transparent to-transparent hover:shadow-md transition-all">
+                                <div className="p-6 rounded-xl border-2 bg-muted/30 transition-all hover:shadow-sm">
                                     <div className="flex items-start gap-4">
                                         <Badge className="mt-1 bg-primary text-primary-foreground">Primary</Badge>
                                         <div className="flex-1">
@@ -109,9 +111,9 @@ export default function AboutPage() {
                                 </div>
 
                                 {/* Marriner Group */}
-                                <div className="p-6 rounded-xl border-2 border-purple-500/20 bg-linear-to-br from-purple-500/5 via-transparent to-transparent hover:shadow-md transition-all">
+                                <div className="p-6 rounded-xl border-2 bg-muted/30 transition-all hover:shadow-sm">
                                     <div className="flex items-start gap-4">
-                                        <Badge variant="secondary" className="mt-1 bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/30">Venue</Badge>
+                                        <Badge variant="secondary" className="mt-1">Venue</Badge>
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2 mb-2">
                                                 <h4 className="font-bold text-lg">Marriner Group</h4>
@@ -132,7 +134,7 @@ export default function AboutPage() {
                                                     <Badge
                                                         key={venue}
                                                         variant="outline"
-                                                        className="bg-muted/50 border-border/60 transition-all hover:shadow-[0_0_8px_rgba(var(--foreground-rgb),0.2)] hover:scale-105"
+                                                        className="bg-background transition-all hover:bg-muted"
                                                     >
                                                         {venue}
                                                     </Badge>
@@ -143,9 +145,9 @@ export default function AboutPage() {
                                 </div>
 
                                 {/* What's On */}
-                                <div className="p-6 rounded-xl border-2 border-blue-500/20 bg-linear-to-br from-blue-500/5 via-transparent to-transparent hover:shadow-md transition-all">
+                                <div className="p-6 rounded-xl border-2 bg-muted/30 transition-all hover:shadow-sm">
                                     <div className="flex items-start gap-4">
-                                        <Badge variant="outline" className="mt-1 bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/30">Secondary</Badge>
+                                        <Badge variant="outline" className="mt-1">Secondary</Badge>
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2 mb-2">
                                                 <h4 className="font-bold text-lg">What's On Melbourne</h4>
@@ -166,7 +168,7 @@ export default function AboutPage() {
                                 </div>
                             </div>
 
-                            <div className="mt-6 p-5 rounded-xl border-2 border-blue-500/20 bg-blue-500/5">
+                            <div className="mt-6 p-5 rounded-xl border-2 bg-muted/30">
                                 <p className="text-sm leading-relaxed text-muted-foreground">
                                     <strong className="text-foreground">Note:</strong> We automatically deduplicate events
                                     that appear across multiple sources, merging information to provide you with the most
@@ -177,11 +179,11 @@ export default function AboutPage() {
                     </Card>
 
                     {/* Ethical Practices */}
-                    <Card className="border-2 border-border/50 hover:border-emerald-500/30 transition-all" id="ethics">
+                    <Card className="border-2" id="ethics">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-3 text-2xl">
-                                <div className="rounded-lg bg-emerald-500/10 p-2">
-                                    <Shield className="h-6 w-6 text-emerald-500" />
+                                <div className="rounded-lg bg-muted p-2">
+                                    <Shield className="h-6 w-6 text-foreground" />
                                 </div>
                                 Ethical Data Practices
                             </CardTitle>
@@ -217,8 +219,8 @@ export default function AboutPage() {
                                         desc: "We don't sell tickets - all bookings go directly to official sources."
                                     },
                                 ].map((item, i) => (
-                                    <li key={i} className="flex items-start gap-3 p-4 rounded-lg border border-emerald-500/20 bg-emerald-500/5 hover:shadow-sm transition-all">
-                                        <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
+                                    <li key={i} className="flex items-start gap-3 p-4 rounded-lg border bg-muted/30 transition-all hover:shadow-sm">
+                                        <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                                         <div>
                                             <strong className="text-foreground">{item.title}:</strong>{" "}
                                             <span className="text-muted-foreground">{item.desc}</span>
@@ -230,11 +232,11 @@ export default function AboutPage() {
                     </Card>
 
                     {/* Update Frequency */}
-                    <Card className="border-2 border-border/50 hover:border-orange-500/30 transition-all">
+                    <Card className="border-2">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-3 text-2xl">
-                                <div className="rounded-lg bg-orange-500/10 p-2">
-                                    <Clock className="h-6 w-6 text-orange-500" />
+                                <div className="rounded-lg bg-muted p-2">
+                                    <Clock className="h-6 w-6 text-foreground" />
                                 </div>
                                 Update Frequency
                             </CardTitle>
@@ -248,11 +250,11 @@ export default function AboutPage() {
                     </Card>
 
                     {/* Contact */}
-                    <Card className="border-2 border-border/50 hover:border-blue-500/30 transition-all" id="contact">
+                    <Card className="border-2" id="contact">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-3 text-2xl">
-                                <div className="rounded-lg bg-blue-500/10 p-2">
-                                    <Mail className="h-6 w-6 text-blue-500" />
+                                <div className="rounded-lg bg-muted p-2">
+                                    <Mail className="h-6 w-6 text-foreground" />
                                 </div>
                                 Contact
                             </CardTitle>
@@ -262,13 +264,13 @@ export default function AboutPage() {
                                 Have questions, feedback, or want to report an issue? Get in touch:
                             </p>
                             <div className="flex flex-wrap gap-4 mb-6">
-                                <Button variant="outline" size="lg" asChild className="border-2 hover:border-primary/40 hover:bg-primary/5 transition-all">
+                                <Button variant="outline" size="lg" asChild className="border-2 transition-all hover:bg-muted">
                                     <a href="mailto:your@email.com" className="flex items-center">
                                         <Mail className="h-5 w-5 mr-2" />
                                         your@email.com
                                     </a>
                                 </Button>
-                                <Button variant="outline" size="lg" asChild className="border-2 hover:border-primary/40 hover:bg-primary/5 transition-all">
+                                <Button variant="outline" size="lg" asChild className="border-2 transition-all hover:bg-muted">
                                     <a
                                         href="https://github.com/turtur0/events-aggregator"
                                         target="_blank"
@@ -280,7 +282,7 @@ export default function AboutPage() {
                                     </a>
                                 </Button>
                             </div>
-                            <div className="p-5 rounded-xl border-2 border-amber-500/20 bg-amber-500/5">
+                            <div className="p-5 rounded-xl border-2 bg-muted/30">
                                 <p className="text-sm leading-relaxed text-muted-foreground">
                                     <strong className="text-foreground">Venue owners or event organizers:</strong> If you'd like your events
                                     removed from our aggregator, please contact us and we'll process your request within 48 hours.

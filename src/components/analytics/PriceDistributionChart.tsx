@@ -44,7 +44,7 @@ export function PriceDistributionChart() {
 
     const clearFilters = () => setSelectedCategories([]);
 
-    const getColourForCategory = (cat: PriceDistribution) => {
+    const getColorForCategory = (cat: PriceDistribution) => {
         if (cat.isSubcategory) {
             for (const mainCat of CATEGORIES) {
                 if (mainCat.subcategories?.includes(cat.category)) {
@@ -113,7 +113,7 @@ export function PriceDistributionChart() {
                                 {data.map((entry, index) => (
                                     <Cell
                                         key={`price-cell-${index}`}
-                                        fill={getColourForCategory(entry)}
+                                        fill={getColorForCategory(entry)}
                                         opacity={0.3}
                                     />
                                 ))}
@@ -123,9 +123,9 @@ export function PriceDistributionChart() {
                             <Line
                                 type="monotone"
                                 dataKey="median"
-                                stroke="#ef4444"
+                                stroke="rgb(234 88 12)"
                                 strokeWidth={2}
-                                dot={{ fill: '#ef4444', r: 4 }}
+                                dot={{ fill: 'rgb(234 88 12)', r: 4 }}
                                 name="Median"
                             />
                         </ComposedChart>
@@ -136,10 +136,10 @@ export function PriceDistributionChart() {
                         {data.map((item, index) => (
                             <div
                                 key={`summary-${index}`}
-                                className="p-3 rounded-lg border bg-card hover:shadow-sm transition-shadow"
+                                className="p-3 rounded-lg border-2 bg-card transition-all hover:shadow-sm"
                                 style={{
-                                    borderLeftColor: getColourForCategory(item),
-                                    borderLeftWidth: 3
+                                    borderLeftColor: getColorForCategory(item),
+                                    borderLeftWidth: 4
                                 }}
                             >
                                 <div className="text-xs sm:text-sm font-medium text-muted-foreground truncate">
@@ -154,22 +154,21 @@ export function PriceDistributionChart() {
                     </div>
                 </>
             ) : (
-                <div className="py-12 text-center text-sm text-muted-foreground">
-                    <p>No data available</p>
-                    <p className="text-xs mt-1">Select categories to view pricing</p>
+                <div className="py-12 text-center">
+                    <p className="text-sm text-muted-foreground">No data available</p>
+                    <p className="text-xs text-muted-foreground mt-1">Select categories to view pricing</p>
                 </div>
             )}
         </ChartWrapper>
     );
 }
 
-/** Tooltip component for price distribution chart */
 function PriceTooltip({ active, payload }: any) {
     if (!active || !payload || !payload.length) return null;
     const data = payload[0].payload as PriceDistribution;
 
     return (
-        <div className="bg-background border rounded-lg shadow-lg p-3 text-xs sm:text-sm">
+        <div className="bg-background border-2 rounded-lg shadow-lg p-3 text-xs sm:text-sm">
             <div className="font-medium mb-2 truncate">{data.displayName}</div>
             <div className="space-y-1">
                 <div className="flex justify-between gap-4">
@@ -182,7 +181,7 @@ function PriceTooltip({ active, payload }: any) {
                 </div>
                 <div className="flex justify-between gap-4 pt-1 border-t">
                     <span className="text-muted-foreground">Median:</span>
-                    <span className="font-bold text-red-500">${data.median}</span>
+                    <span className="font-bold text-primary">${data.median}</span>
                 </div>
                 <div className="flex justify-between gap-4">
                     <span className="text-muted-foreground">Average:</span>

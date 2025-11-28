@@ -183,7 +183,7 @@ export default async function EventsPage({
       </section>
 
       {/* Events Grid */}
-      <section className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+      <section className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
         <Suspense fallback={<EventsGridSkeleton />} key={suspenseKey}>
           <EventsGrid
             page={currentPage}

@@ -23,13 +23,9 @@ export function TimelineChart() {
             const params = selectedCategories.length > 0
                 ? `?categories=${selectedCategories.join(',')}`
                 : '';
-            console.log('[Timeline Chart] Fetching with params:', params);
-            console.log('[Timeline Chart] Selected categories:', selectedCategories);
 
             const res = await fetch(`/api/analytics/timeline${params}`);
             const result = await res.json();
-
-            console.log('[Timeline Chart] Received data:', result.data?.length, 'months');
 
             setData(result.data || []);
         } catch (err) {
@@ -122,9 +118,9 @@ export function TimelineChart() {
 
                     {/* Insights */}
                     {peakMonth && (
-                        <div className="mt-6 p-4 bg-muted/50 rounded-lg border">
-                            <div className="text-sm font-medium mb-3 text-foreground">Key Insights</div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
+                        <div className="mt-6 p-4 bg-muted/30 rounded-lg border-2">
+                            <div className="text-sm font-medium mb-3">Key Insights</div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Peak Month:</span>
                                     <span className="font-medium">{peakMonth.month}</span>
@@ -146,9 +142,9 @@ export function TimelineChart() {
                     )}
                 </>
             ) : (
-                <div className="py-12 text-center text-sm text-muted-foreground">
-                    <p>No data available</p>
-                    <p className="text-xs mt-1">Select categories to view timeline</p>
+                <div className="py-12 text-center">
+                    <p className="text-sm text-muted-foreground">No data available</p>
+                    <p className="text-xs text-muted-foreground mt-1">Select categories to view timeline</p>
                 </div>
             )}
         </ChartWrapper>
@@ -159,7 +155,7 @@ function TimelineTooltip({ active, payload, label }: any) {
     if (!active || !payload || !payload.length) return null;
 
     return (
-        <div className="bg-background border rounded-lg shadow-lg p-3 text-xs sm:text-sm">
+        <div className="bg-background border-2 rounded-lg shadow-lg p-3 text-xs sm:text-sm">
             <div className="font-medium mb-2">{label}</div>
             <div className="space-y-1">
                 {payload

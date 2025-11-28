@@ -265,18 +265,18 @@ export default function SettingsPage() {
     }
 
     return (
-        <div className="w-full min-h-screen bg-linear-to-b from-background to-muted/20">
-            {/* Header */}
-            <section className="border-b bg-background/95 backdrop-blur">
+        <div className="w-full min-h-screen bg-linear-to-b from-background via-orange-50/30 to-background dark:from-background dark:via-orange-950/5 dark:to-background">
+            {/* Header - matching profile and events pages */}
+            <section className="border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
                 <div className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
                     <BackButton fallbackUrl="/" className="mb-6" />
                     <div className="flex items-center gap-4">
                         <div className="rounded-2xl bg-primary/10 p-3 ring-1 ring-primary/20">
                             <User className="h-8 w-8 text-primary" />
                         </div>
-                        <div>
-                            <h1 className="text-3xl sm:text-4xl font-bold">Account Settings</h1>
-                            <p className="text-muted-foreground mt-1">Manage your account and preferences</p>
+                        <div className="flex-1 min-w-0">
+                            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Account Settings</h1>
+                            <p className="text-muted-foreground text-lg mt-1">Manage your account and preferences</p>
                         </div>
                     </div>
                 </div>
@@ -284,27 +284,27 @@ export default function SettingsPage() {
 
             {/* Content */}
             <section className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-                <div className="space-y-6">
+                <div className="space-y-6 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
                     {/* Status Messages */}
                     {error && (
-                        <div className="flex items-start gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive">
+                        <div className="flex items-start gap-3 p-4 bg-destructive/10 border-2 border-destructive/20 rounded-lg text-destructive">
                             <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
                             <span className="text-sm">{error}</span>
                         </div>
                     )}
 
                     {success && (
-                        <div className="flex items-start gap-3 p-4 bg-green-500/10 border border-green-500/20 rounded-lg text-green-600 dark:text-green-400">
+                        <div className="flex items-start gap-3 p-4 bg-green-500/10 border-2 border-green-500/20 rounded-lg text-green-600 dark:text-green-400">
                             <Check className="h-5 w-5 shrink-0 mt-0.5" />
                             <span className="text-sm">Settings saved successfully! Redirecting...</span>
                         </div>
                     )}
 
                     {/* Account Information */}
-                    <Card className="border-2 shadow-sm">
+                    <Card className="border-2 shadow-sm hover-lift">
                         <CardHeader>
                             <CardTitle className="text-xl flex items-center gap-2">
-                                <User className="h-5 w-5" />
+                                <User className="h-5 w-5 text-primary" />
                                 Account Information
                             </CardTitle>
                             <CardDescription>Update your personal details</CardDescription>
@@ -320,7 +320,7 @@ export default function SettingsPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label>Email Address</Label>
-                                <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-md">
+                                <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-md border-2">
                                     <Mail className="h-4 w-4 text-muted-foreground" />
                                     <span className="text-sm">{email}</span>
                                     <span className="ml-auto text-xs text-muted-foreground">Cannot be changed</span>
@@ -330,10 +330,10 @@ export default function SettingsPage() {
                     </Card>
 
                     {/* Password Change */}
-                    <Card className="border-2 shadow-sm">
+                    <Card className="border-2 shadow-sm hover-lift">
                         <CardHeader>
                             <CardTitle className="text-xl flex items-center gap-2">
-                                <Lock className="h-5 w-5" />
+                                <Lock className="h-5 w-5 text-primary" />
                                 Change Password
                             </CardTitle>
                         </CardHeader>
@@ -360,10 +360,10 @@ export default function SettingsPage() {
                     </Card>
 
                     {/* Event Preferences */}
-                    <Card className="border-2 shadow-sm">
+                    <Card className="border-2 shadow-sm hover-lift">
                         <CardHeader>
                             <CardTitle className="text-xl flex items-center gap-2">
-                                <Sparkles className="h-5 w-5" />
+                                <Sparkles className="h-5 w-5 text-primary" />
                                 Event Preferences
                             </CardTitle>
                         </CardHeader>
@@ -399,10 +399,10 @@ export default function SettingsPage() {
                     </Card>
 
                     {/* Notifications */}
-                    <Card className="border-2 shadow-sm">
+                    <Card className="border-2 shadow-sm hover-lift">
                         <CardHeader>
                             <CardTitle className="text-xl flex items-center gap-2">
-                                <Bell className="h-5 w-5" />
+                                <Bell className="h-5 w-5 text-primary" />
                                 Notification Preferences
                             </CardTitle>
                         </CardHeader>
@@ -427,10 +427,10 @@ export default function SettingsPage() {
 
                     {/* Actions */}
                     <div className="flex gap-4">
-                        <Button variant="outline" size="lg" onClick={() => router.push('/profile')} className="flex-1">
+                        <Button variant="outline" size="lg" onClick={() => router.push('/profile')} className="flex-1 hover-lift">
                             Cancel
                         </Button>
-                        <Button onClick={handleSave} disabled={isSaving} size="lg" className="flex-1">
+                        <Button onClick={handleSave} disabled={isSaving} size="lg" className="flex-1 hover-lift group">
                             {isSaving ? (
                                 <>
                                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -446,7 +446,7 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Delete Account */}
-                    <Card className="border-2 border-destructive/20">
+                    <Card className="border-2 border-destructive/20 shadow-sm">
                         <CardHeader>
                             <CardTitle className="text-xl text-destructive flex items-center gap-2">
                                 <Trash2 className="h-5 w-5" />
@@ -454,7 +454,7 @@ export default function SettingsPage() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <Button variant="destructive" onClick={() => setShowDeleteDialog(true)}>
+                            <Button variant="destructive" onClick={() => setShowDeleteDialog(true)} className="hover-lift">
                                 Delete Account
                             </Button>
                         </CardContent>

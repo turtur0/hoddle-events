@@ -1,4 +1,4 @@
-// components/analytics/chart-wrapper.tsx
+// components/analytics/ChartWrapper.tsx
 'use client';
 
 import { ReactNode } from 'react';
@@ -13,11 +13,13 @@ interface ChartWrapperProps {
 
 export function ChartWrapper({ icon: Icon, title, description, children }: ChartWrapperProps) {
     return (
-        <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-            {/* Simplified Header - No duplication */}
+        <div className="bg-card rounded-xl border-2 shadow-sm overflow-hidden transition-all hover:shadow-md">
+            {/* Header */}
             <div className="px-4 sm:px-6 py-4 border-b bg-muted/30">
                 <div className="flex items-center gap-3">
-                    <Icon className="h-5 w-5 text-primary" />
+                    <div className="rounded-lg bg-primary/10 p-2">
+                        <Icon className="h-5 w-5 text-primary" />
+                    </div>
                     <div>
                         <h3 className="font-semibold text-base sm:text-lg">{title}</h3>
                         {description && (
@@ -27,7 +29,7 @@ export function ChartWrapper({ icon: Icon, title, description, children }: Chart
                 </div>
             </div>
 
-            {/* Chart Content */}
+            {/* Content */}
             <div className="p-4 sm:p-6">
                 {children}
             </div>

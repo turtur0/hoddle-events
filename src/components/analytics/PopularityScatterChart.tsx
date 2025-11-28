@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ZAxis, Cell } from 'recharts';
+import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ZAxis } from 'recharts';
 import { Loader2, TrendingUp } from 'lucide-react';
 import { ChartWrapper } from './ChartWrapper';
 import { CategoryFilter, CATEGORY_COLORS } from './CategoryFilter';
@@ -23,14 +23,10 @@ export function PopularityScatterChart() {
             const params = selectedCategories.length > 0
                 ? `?categories=${selectedCategories.join(',')}`
                 : '';
-            console.log('[Popularity Chart] Fetching with params:', params);
-            console.log('[Popularity Chart] Selected categories:', selectedCategories);
-            
+
             const res = await fetch(`/api/analytics/popularity${params}`);
             const result = await res.json();
-            
-            console.log('[Popularity Chart] Received data:', result.data?.length, 'events');
-            
+
             setData(result.data || []);
         } catch (err) {
             console.error('Failed to load popularity data:', err);
@@ -70,7 +66,6 @@ export function PopularityScatterChart() {
         z: Math.max(d.favourites, 1) * 50
     }));
 
-    // Get unique categories for separate scatter series
     const categoriesInData = Array.from(new Set(chartData.map(d => d.category)));
 
     return (
@@ -113,7 +108,7 @@ export function PopularityScatterChart() {
                             />
                             <ZAxis type="number" dataKey="z" range={[30, 300]} />
                             <Tooltip content={<PopularityTooltip />} />
-                            <Legend 
+                            <Legend
                                 wrapperStyle={{ fontSize: '11px' }}
                                 iconType="circle"
                                 formatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)}
@@ -133,23 +128,19 @@ export function PopularityScatterChart() {
 
                     {/* Insight Zones */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
-                        <div className="p-3 sm:p-4 bg-green-500/5 border border-green-500/20 rounded-lg">
+                        <div className="p-4 bg-muted/30 border-2 rounded-lg">
                             <div className="flex items-center gap-2 mb-1">
-                                <div className="w-2 h-2 rounded-full bg-green-500" />
-                                <div className="text-xs sm:text-sm font-semibold text-green-700 dark:text-green-400">
-                                    Value Zone
-                                </div>
+                                <div className="w-2 h-2 rounded-full bg-primary" />
+                                <div className="text-sm font-semibold">Value Zone</div>
                             </div>
                             <div className="text-xs text-muted-foreground">
                                 High popularity with affordable pricing
                             </div>
                         </div>
-                        <div className="p-3 sm:p-4 bg-amber-500/5 border border-amber-500/20 rounded-lg">
+                        <div className="p-4 bg-muted/30 border-2 rounded-lg">
                             <div className="flex items-center gap-2 mb-1">
-                                <div className="w-2 h-2 rounded-full bg-amber-500" />
-                                <div className="text-xs sm:text-sm font-semibold text-amber-700 dark:text-amber-400">
-                                    Premium Zone
-                                </div>
+                                <div className="w-2 h-2 rounded-full bg-secondary" />
+                                <div className="text-sm font-semibold">Premium Zone</div>
                             </div>
                             <div className="text-xs text-muted-foreground">
                                 High price with strong demand
@@ -158,27 +149,27 @@ export function PopularityScatterChart() {
                     </div>
 
                     {/* Statistics */}
-                    <div className="mt-4 p-4 bg-muted/50 rounded-lg border">
-                        <div className="text-sm font-medium mb-3 text-foreground">Statistics</div>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs sm:text-sm">
+                    <div className="mt-4 p-4 bg-muted/30 rounded-lg border-2">
+                        <div className="text-sm font-medium mb-3">Statistics</div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                             <div className="flex flex-col">
-                                <span className="text-muted-foreground">Events</span>
+                                <span className="text-xs text-muted-foreground">Events</span>
                                 <span className="font-medium text-lg">{chartData.length}</span>
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-muted-foreground">Avg Price</span>
+                                <span className="text-xs text-muted-foreground">Avg Price</span>
                                 <span className="font-medium text-lg">
                                     ${Math.round(chartData.reduce((sum, d) => sum + d.priceMin, 0) / chartData.length)}
                                 </span>
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-muted-foreground">Avg Popularity</span>
+                                <span className="text-xs text-muted-foreground">Avg Popularity</span>
                                 <span className="font-medium text-lg">
                                     {Math.round(chartData.reduce((sum, d) => sum + d.y, 0) / chartData.length)}%
                                 </span>
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-muted-foreground">Total Favorites</span>
+                                <span className="text-xs text-muted-foreground">Total Favorites</span>
                                 <span className="font-medium text-lg">
                                     {chartData.reduce((sum, d) => sum + d.favourites, 0)}
                                 </span>
@@ -187,9 +178,9 @@ export function PopularityScatterChart() {
                     </div>
                 </>
             ) : (
-                <div className="py-12 text-center text-sm text-muted-foreground">
-                    <p>No data available</p>
-                    <p className="text-xs mt-1">Select categories to view analysis</p>
+                <div className="py-12 text-center">
+                    <p className="text-sm text-muted-foreground">No data available</p>
+                    <p className="text-xs text-muted-foreground mt-1">Select categories to view analysis</p>
                 </div>
             )}
         </ChartWrapper>
@@ -201,7 +192,7 @@ function PopularityTooltip({ active, payload }: any) {
     const data = payload[0].payload as PopularityData & { x: number; y: number };
 
     return (
-        <div className="bg-background border rounded-lg shadow-lg p-3 max-w-[220px] text-xs sm:text-sm">
+        <div className="bg-background border-2 rounded-lg shadow-lg p-3 max-w-[220px] text-xs sm:text-sm">
             <div className="font-medium mb-2 truncate">{data.title}</div>
             <div className="space-y-1">
                 <div className="flex justify-between gap-3">

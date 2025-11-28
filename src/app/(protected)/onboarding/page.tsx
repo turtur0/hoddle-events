@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Label } from '@/components/ui/Label';
-import { Loader2, ChevronRight, Bell, Sparkles } from 'lucide-react';
+import { Loader2, ChevronRight, Bell, Sparkles, User } from 'lucide-react';
 import { useRequireOnboarding } from '@/lib/hooks/use-auth-redirect';
 import { PopularitySelector } from '@/components/preferences/PopularitySelector';
 import { CategorySelector } from '@/components/preferences/CategorySelector';
@@ -57,7 +57,7 @@ export default function Onboarding() {
     if (status === 'loading') {
         return (
             <div className="min-h-screen flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin" />
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
         );
     }
@@ -163,12 +163,30 @@ export default function Onboarding() {
         ? ['username', 'categories', 'preferences', 'notifications']
         : ['categories', 'preferences', 'notifications'];
 
+    const getStepIcon = (stepName: Step) => {
+        switch (stepName) {
+            case 'username': return User;
+            case 'categories': return Sparkles;
+            case 'preferences': return Sparkles;
+            case 'notifications': return Bell;
+        }
+    };
+
+    const currentStepIcon = getStepIcon(step);
+
     return (
-        <div className="w-full min-h-screen bg-linear-to-br from-background via-muted/20 to-background">
-            <div className="container max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="w-full min-h-screen bg-linear-to-b from-background via-orange-50/30 to-background dark:from-background dark:via-orange-950/5 dark:to-background">
+            <div className="container max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
                 {/* Header */}
-                <div className="mb-12 text-center">
-                    <h1 className="text-4xl font-bold mb-3">Personalize Your Experience</h1>
+                <div className="mb-8 text-center">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4 ring-1 ring-primary/20">
+                        {currentStepIcon && (() => {
+                            const Icon = currentStepIcon;
+                            return <Icon className="h-8 w-8 text-primary" />;
+                        })()}
+                    </div>
+
+                    <h1 className="text-3xl sm:text-4xl font-bold mb-2">Personalize Your Experience</h1>
                     <p className="text-lg text-muted-foreground">
                         Tell us what you like, and we'll find the best events for you
                     </p>
@@ -176,7 +194,7 @@ export default function Onboarding() {
 
                 {/* Username Step */}
                 {step === 'username' && (
-                    <Card className="border-2">
+                    <Card className="border-2 shadow-sm animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
                         <CardHeader>
                             <CardTitle className="text-2xl">Choose a Username</CardTitle>
                             <CardDescription className="text-base">
@@ -185,12 +203,12 @@ export default function Onboarding() {
                         </CardHeader>
                         <CardContent className="space-y-6">
                             {error && (
-                                <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive">
+                                <div className="p-4 bg-destructive/10 border-2 border-destructive/20 rounded-lg text-destructive text-sm">
                                     {error}
                                 </div>
                             )}
 
-                            <div className="space-y-3">
+                            <div className="space-y-2">
                                 <Label htmlFor="username" className="text-base font-medium">Username</Label>
                                 <Input
                                     id="username"
@@ -199,7 +217,7 @@ export default function Onboarding() {
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
                                     disabled={isLoading}
-                                    className="text-base h-12"
+                                    className="h-12"
                                 />
                                 <p className="text-sm text-muted-foreground">
                                     Letters, numbers, and underscores only (min. 3 characters)
@@ -218,7 +236,7 @@ export default function Onboarding() {
                                 </Button>
                                 <Button
                                     onClick={handleUsernameSubmit}
-                                    className="flex-1 h-12"
+                                    className="flex-1 h-12 group"
                                     disabled={isLoading}
                                     size="lg"
                                 >
@@ -230,7 +248,7 @@ export default function Onboarding() {
                                     ) : (
                                         <>
                                             Continue
-                                            <ChevronRight className="ml-2 h-5 w-5" />
+                                            <ChevronRight className="ml-2 h-5 w-5 group-hover:translate-x-0.5 transition-transform" />
                                         </>
                                     )}
                                 </Button>
@@ -241,7 +259,7 @@ export default function Onboarding() {
 
                 {/* Categories Step */}
                 {step === 'categories' && (
-                    <Card className="border-2">
+                    <Card className="border-2 shadow-sm animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
                         <CardHeader>
                             <CardTitle className="text-2xl">What interests you?</CardTitle>
                             <CardDescription className="text-base">
@@ -250,7 +268,7 @@ export default function Onboarding() {
                         </CardHeader>
                         <CardContent className="space-y-6">
                             {error && (
-                                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
+                                <div className="p-4 bg-destructive/10 border-2 border-destructive/20 rounded-lg text-destructive text-sm">
                                     {error}
                                 </div>
                             )}
@@ -273,11 +291,11 @@ export default function Onboarding() {
                                     setError('');
                                     setStep('preferences');
                                 }}
-                                className="w-full h-12"
+                                className="w-full h-12 group"
                                 size="lg"
                             >
                                 Continue
-                                <ChevronRight className="ml-2 h-4 w-4" />
+                                <ChevronRight className="ml-2 h-5 w-5 group-hover:translate-x-0.5 transition-transform" />
                             </Button>
                         </CardContent>
                     </Card>
@@ -285,10 +303,10 @@ export default function Onboarding() {
 
                 {/* Preferences Step */}
                 {step === 'preferences' && (
-                    <Card className="border-2">
+                    <Card className="border-2 shadow-sm animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
                         <CardHeader>
                             <CardTitle className="text-2xl flex items-center gap-2">
-                                <Sparkles className="h-6 w-6" />
+                                <Sparkles className="h-6 w-6 text-primary" />
                                 Event Preferences
                             </CardTitle>
                             <CardDescription className="text-base">
@@ -316,9 +334,9 @@ export default function Onboarding() {
                                 <Button variant="outline" onClick={() => setStep('categories')} className="flex-1 h-12" size="lg">
                                     Back
                                 </Button>
-                                <Button onClick={() => setStep('notifications')} className="flex-1 h-12" size="lg">
+                                <Button onClick={() => setStep('notifications')} className="flex-1 h-12 group" size="lg">
                                     Continue
-                                    <ChevronRight className="ml-2 h-4 w-4" />
+                                    <ChevronRight className="ml-2 h-5 w-5 group-hover:translate-x-0.5 transition-transform" />
                                 </Button>
                             </div>
                         </CardContent>
@@ -327,10 +345,10 @@ export default function Onboarding() {
 
                 {/* Notifications Step */}
                 {step === 'notifications' && (
-                    <Card className="border-2">
+                    <Card className="border-2 shadow-sm animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
                         <CardHeader>
                             <CardTitle className="text-2xl flex items-center gap-2">
-                                <Bell className="h-6 w-6" />
+                                <Bell className="h-6 w-6 text-primary" />
                                 Notification Preferences
                             </CardTitle>
                             <CardDescription className="text-base">
@@ -355,7 +373,7 @@ export default function Onboarding() {
                             />
 
                             {error && (
-                                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
+                                <div className="p-4 bg-destructive/10 border-2 border-destructive/20 rounded-lg text-destructive text-sm">
                                     {error}
                                 </div>
                             )}
@@ -364,16 +382,16 @@ export default function Onboarding() {
                                 <Button variant="outline" onClick={() => setStep('preferences')} className="flex-1 h-12" size="lg">
                                     Back
                                 </Button>
-                                <Button onClick={handleComplete} disabled={isLoading} className="flex-1 h-12" size="lg">
+                                <Button onClick={handleComplete} disabled={isLoading} className="flex-1 h-12 group" size="lg">
                                     {isLoading ? (
                                         <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                                             Saving...
                                         </>
                                     ) : (
                                         <>
                                             Complete Setup
-                                            <ChevronRight className="ml-2 h-4 w-4" />
+                                            <ChevronRight className="ml-2 h-5 w-5 group-hover:translate-x-0.5 transition-transform" />
                                         </>
                                     )}
                                 </Button>
@@ -383,17 +401,17 @@ export default function Onboarding() {
                 )}
 
                 {/* Progress Indicator */}
-                <div className="flex gap-3 mt-12 justify-center">
+                <div className="flex gap-2 mt-12 justify-center">
                     {allSteps.map((s, idx) => {
                         const currentIdx = allSteps.indexOf(step);
                         return (
                             <div
                                 key={s}
-                                className={`h-2 rounded-full transition-all ${step === s
-                                        ? 'bg-primary w-12'
-                                        : idx < currentIdx
-                                            ? 'bg-primary/60 w-2'
-                                            : 'bg-muted w-2'
+                                className={`h-2 rounded-full transition-all duration-300 ${step === s
+                                    ? 'bg-primary w-12'
+                                    : idx < currentIdx
+                                        ? 'bg-primary/60 w-2'
+                                        : 'bg-border w-2'
                                     }`}
                             />
                         );

@@ -48,44 +48,49 @@
 
 :root {
   --radius: 0.75rem;
-  
+
   /* Base colors */
   --background: oklch(0.99 0 0);
   --foreground: oklch(0.12 0 0);
-  
+
   /* Card & UI surfaces */
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.12 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.12 0 0);
-  
+
   /* Primary: Vibrant Orange */
   --primary: oklch(0.62 0.17 42);
   --primary-foreground: oklch(0.99 0 0);
-  
+
   /* Secondary: Sophisticated Teal */
   --secondary: oklch(0.58 0.10 200);
   --secondary-foreground: oklch(0.99 0 0);
-  
+
   /* Muted & Accents */
   --muted: oklch(0.96 0 0);
   --muted-foreground: oklch(0.48 0 0);
   --accent: oklch(0.96 0.005 42);
   --accent-foreground: oklch(0.12 0 0);
-  
+
   /* Utility colors */
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.89 0 0);
   --input: oklch(0.94 0 0);
   --ring: oklch(0.62 0.17 42);
-  
+
   /* Chart colors - cohesive palette */
-  --chart-1: oklch(0.62 0.17 42);   /* Orange */
-  --chart-2: oklch(0.58 0.10 200);  /* Teal */
-  --chart-3: oklch(0.60 0.14 290);  /* Purple */
-  --chart-4: oklch(0.65 0.13 145);  /* Green */
-  --chart-5: oklch(0.68 0.16 25);   /* Coral */
-  
+  --chart-1: oklch(0.62 0.17 42);
+  /* Orange */
+  --chart-2: oklch(0.58 0.10 200);
+  /* Teal */
+  --chart-3: oklch(0.60 0.14 290);
+  /* Purple */
+  --chart-4: oklch(0.65 0.13 145);
+  /* Green */
+  --chart-5: oklch(0.68 0.16 25);
+  /* Coral */
+
   /* Sidebar */
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.12 0 0);
@@ -100,36 +105,36 @@
 .dark {
   --background: oklch(0.11 0 0);
   --foreground: oklch(0.97 0 0);
-  
+
   --card: oklch(0.15 0 0);
   --card-foreground: oklch(0.97 0 0);
   --popover: oklch(0.15 0 0);
   --popover-foreground: oklch(0.97 0 0);
-  
+
   /* Primary: Brighter orange for dark mode */
   --primary: oklch(0.70 0.16 42);
   --primary-foreground: oklch(0.11 0 0);
-  
+
   /* Secondary: Brighter teal */
   --secondary: oklch(0.65 0.11 200);
   --secondary-foreground: oklch(0.11 0 0);
-  
+
   --muted: oklch(0.20 0 0);
   --muted-foreground: oklch(0.62 0 0);
   --accent: oklch(0.20 0.01 42);
   --accent-foreground: oklch(0.97 0 0);
-  
+
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 12%);
   --ring: oklch(0.70 0.16 42);
-  
+
   --chart-1: oklch(0.70 0.16 42);
   --chart-2: oklch(0.65 0.11 200);
   --chart-3: oklch(0.68 0.13 290);
   --chart-4: oklch(0.70 0.12 145);
   --chart-5: oklch(0.72 0.15 25);
-  
+
   --sidebar: oklch(0.15 0 0);
   --sidebar-foreground: oklch(0.97 0 0);
   --sidebar-primary: oklch(0.70 0.16 42);
@@ -152,11 +157,12 @@
 
 /* Custom utility classes */
 @layer utilities {
+
   /* Hover lift effect */
   .hover-lift {
     @apply transition-all duration-300 ease-out;
   }
-  
+
   .hover-lift:hover {
     @apply -translate-y-0.5 shadow-md;
   }

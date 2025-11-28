@@ -33,42 +33,48 @@ const SLUG_TO_CATEGORY: Record<string, string> = {
   'other': 'other',
 };
 
-const CATEGORY_INFO: Record<string, { title: string; description: string; icon: any; color: string }> = {
+const CATEGORY_INFO: Record<string, { title: string; description: string; icon: any; color: string; badgeClass: string }> = {
   'music': {
     title: 'Live Music & Concerts',
     description: 'From intimate gigs to stadium shows, find your next musical experience',
     icon: Music,
     color: 'text-orange-600 dark:text-orange-400',
+    badgeClass: 'border-2 border-orange-500/30 bg-orange-500/5 text-orange-600 hover:bg-orange-500/10 hover:border-orange-500/50 dark:text-orange-400 dark:bg-orange-400/10 dark:hover:bg-orange-400/15 dark:border-orange-400/20',
   },
   'theatre': {
     title: 'Theatre & Performing Arts',
     description: 'Plays, musicals, ballet, opera and more on Melbourne\'s stages',
     icon: Theater,
     color: 'text-rose-600 dark:text-rose-400',
+    badgeClass: 'border-2 border-rose-500/30 bg-rose-500/5 text-rose-600 hover:bg-rose-500/10 hover:border-rose-500/50 dark:text-rose-400 dark:bg-rose-400/10 dark:hover:bg-rose-400/15 dark:border-rose-400/20',
   },
   'sports': {
     title: 'Sports & Games',
     description: 'AFL, cricket, tennis and all the sporting action in Melbourne',
     icon: Trophy,
     color: 'text-teal-600 dark:text-teal-400',
+    badgeClass: 'border-2 border-teal-500/30 bg-teal-500/5 text-teal-600 hover:bg-teal-500/10 hover:border-teal-500/50 dark:text-teal-400 dark:bg-teal-400/10 dark:hover:bg-teal-400/15 dark:border-teal-400/20',
   },
   'arts': {
     title: 'Arts & Culture',
     description: 'Exhibitions, festivals, film screenings and cultural events',
     icon: Palette,
     color: 'text-purple-600 dark:text-purple-400',
+    badgeClass: 'border-2 border-purple-500/30 bg-purple-500/5 text-purple-600 hover:bg-purple-500/10 hover:border-purple-500/50 dark:text-purple-400 dark:bg-purple-400/10 dark:hover:bg-purple-400/15 dark:border-purple-400/20',
   },
   'family': {
     title: 'Family Events',
     description: 'Fun for the whole family - kids shows, educational events and more',
     icon: Users,
     color: 'text-emerald-600 dark:text-emerald-400',
+    badgeClass: 'border-2 border-emerald-500/30 bg-emerald-500/5 text-emerald-600 hover:bg-emerald-500/10 hover:border-emerald-500/50 dark:text-emerald-400 dark:bg-emerald-400/10 dark:hover:bg-emerald-400/15 dark:border-emerald-400/20',
   },
   'other': {
     title: 'Other Events',
     description: 'Workshops, networking, wellness and community events',
     icon: Sparkles,
     color: 'text-sky-600 dark:text-sky-400',
+    badgeClass: 'border-2 border-sky-500/30 bg-sky-500/5 text-sky-600 hover:bg-sky-500/10 hover:border-sky-500/50 dark:text-sky-400 dark:bg-sky-400/10 dark:hover:bg-sky-400/15 dark:border-sky-400/20',
   },
 };
 
@@ -200,7 +206,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   return (
     <div className="w-full">
       {/* Header Section */}
-      <section className="bg-gradient-to-b from-primary/5 via-background to-background">
+      <section className="bg-linear-to-b from-primary/5 via-background to-background">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
           <BackButton fallbackUrl="/" className="mb-8" />
 
@@ -227,8 +233,9 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
             <div className="flex flex-wrap gap-2">
               <Link href={`/category/${slug}`}>
                 <Badge
-                  variant={!subcategory ? "default" : "outline"}
-                  className="cursor-pointer text-sm px-4 py-2 transition-all hover:scale-105"
+                  variant="outline"
+                  className={`cursor-pointer text-sm px-4 py-2 transition-all hover:scale-105 ${!subcategory ? categoryInfo.badgeClass : 'border-2 border-border/50 bg-background hover:bg-muted'
+                    }`}
                 >
                   All
                 </Badge>
@@ -236,8 +243,9 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
               {categoryConfig.subcategories.map((sub) => (
                 <Link key={sub} href={`/category/${slug}?subcategory=${encodeURIComponent(sub)}`}>
                   <Badge
-                    variant={subcategory === sub ? "default" : "outline"}
-                    className="cursor-pointer text-sm px-4 py-2 transition-all hover:scale-105 hover:shadow-sm"
+                    variant="outline"
+                    className={`cursor-pointer text-sm px-4 py-2 transition-all hover:scale-105 ${subcategory === sub ? categoryInfo.badgeClass : 'border-2 border-border/50 bg-background hover:bg-muted'
+                      }`}
                   >
                     {sub}
                   </Badge>
@@ -249,7 +257,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
       )}
 
       {/* Events Grid */}
-      <section className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+      <section className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
         <Suspense fallback={<EventsGridSkeleton />} key={suspenseKey}>
           <CategoryEventsGrid
             categoryValue={categoryValue}

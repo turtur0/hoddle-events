@@ -75,7 +75,7 @@ export default async function FavouritesPage() {
                         {events.length > 0 && (
                             <Badge
                                 variant="secondary"
-                                className="text-base px-4 py-2 bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/30"
+                                className="text-base px-4 py-2 bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/30 hover:bg-red-500/30"
                             >
                                 {events.length} saved event{events.length !== 1 ? 's' : ''}
                             </Badge>
@@ -85,7 +85,7 @@ export default async function FavouritesPage() {
             </section>
 
             {/* Content Section */}
-            <section className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+            <section className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
                 {events.length === 0 ? (
                     <div className="max-w-2xl mx-auto">
                         <EmptyState

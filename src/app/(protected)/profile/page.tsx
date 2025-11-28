@@ -1,3 +1,4 @@
+// app/(protected)/profile/page.tsx
 'use client';
 
 import { signOut, useSession } from 'next-auth/react';
@@ -55,14 +56,12 @@ export default function Profile() {
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Redirect unauthenticated users
   useEffect(() => {
     if (status === 'unauthenticated') {
       window.location.href = '/auth/signin?callbackUrl=/profile';
     }
   }, [status]);
 
-  // Fetch user preferences
   useEffect(() => {
     async function fetchPreferences() {
       try {
@@ -85,7 +84,6 @@ export default function Profile() {
     await signOut({ redirect: true, callbackUrl: '/' });
   }
 
-  // Get popularity configuration based on preference value
   const getPopularityConfig = (value: number) => {
     if (value <= 0.25) return POPULARITY_CONFIG[0];
     if (value >= 0.75) return POPULARITY_CONFIG[1];
@@ -104,8 +102,8 @@ export default function Profile() {
   const PopularityIcon = popularityConfig?.icon;
 
   return (
-    <div className="w-full min-h-screen bg-linear-to-b from-background to-muted/20">
-      {/* Header Section */}
+    <div className="w-full min-h-screen bg-linear-to-b from-background via-orange-50/30 to-background dark:from-background dark:via-orange-950/5 dark:to-background">
+      {/* Header Section - matching events page style */}
       <section className="border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
         <div className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <BackButton fallbackUrl="/" className="mb-6" />
@@ -114,9 +112,9 @@ export default function Profile() {
             <div className="rounded-2xl bg-primary/10 p-3 ring-1 ring-primary/20">
               <User className="h-8 w-8 text-primary" />
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">My Profile</h1>
-              <p className="text-muted-foreground mt-1">
+              <p className="text-muted-foreground text-lg mt-1">
                 Manage your account and preferences
               </p>
             </div>
@@ -126,9 +124,9 @@ export default function Profile() {
 
       {/* Content Section */}
       <section className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-        <div className="space-y-6">
+        <div className="space-y-6 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
           {/* Account Info Card */}
-          <Card className="border-2 shadow-sm">
+          <Card className="border-2 shadow-sm hover-lift">
             <CardHeader className="flex flex-row items-start justify-between space-y-0">
               <div className="space-y-2">
                 <CardTitle className="text-2xl">{session?.user?.name}</CardTitle>
@@ -145,7 +143,7 @@ export default function Profile() {
                 </CardDescription>
               </div>
               <Link href="/settings">
-                <Button variant="outline" size="default" className="gap-2">
+                <Button variant="outline" size="default" className="gap-2 hover-lift">
                   <Settings className="h-4 w-4" />
                   Edit Profile
                 </Button>
@@ -155,10 +153,10 @@ export default function Profile() {
 
           {/* Preferences Overview Card */}
           {preferences && (
-            <Card className="border-2 shadow-sm">
+            <Card className="border-2 shadow-sm hover-lift">
               <CardHeader>
                 <CardTitle className="text-xl flex items-center gap-2">
-                  <Sparkles className="h-5 w-5" />
+                  <Sparkles className="h-5 w-5 text-primary" />
                   Your Preferences
                 </CardTitle>
                 <CardDescription>
@@ -174,7 +172,7 @@ export default function Profile() {
                     </h3>
                     <div className="flex flex-wrap gap-2">
                       {preferences.selectedCategories.map((cat) => (
-                        <Badge key={cat} className="px-4 py-2 text-sm capitalize">
+                        <Badge key={cat} className="px-4 py-2 text-sm capitalize bg-primary/10 text-primary border-2 border-primary/20 hover:bg-primary/15">
                           {cat}
                         </Badge>
                       ))}
@@ -192,7 +190,7 @@ export default function Profile() {
                       </h3>
                       <div className="flex flex-wrap gap-2">
                         {preferences.selectedSubcategories.map((sub) => (
-                          <Badge key={sub} variant="secondary" className="px-3 py-1.5 text-sm">
+                          <Badge key={sub} variant="secondary" className="px-3 py-1.5 text-sm border-2">
                             {sub}
                           </Badge>
                         ))}
@@ -209,7 +207,7 @@ export default function Profile() {
                     Event Type Preference
                   </h3>
                   {popularityConfig && PopularityIcon && (
-                    <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg border border-border">
+                    <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg border-2 hover-lift">
                       <div className="rounded-lg bg-primary/10 p-2">
                         <PopularityIcon className="h-5 w-5 text-primary" />
                       </div>
@@ -232,8 +230,8 @@ export default function Profile() {
                         <DollarSign className="h-4 w-4" />
                         Price Range
                       </h3>
-                      <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg border border-border">
-                        <div className="text-base">
+                      <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg border-2 hover-lift">
+                        <div className="text-base font-medium">
                           ${preferences.priceRange.min} - ${preferences.priceRange.max}
                         </div>
                         <span className="text-sm text-muted-foreground">
@@ -254,7 +252,7 @@ export default function Profile() {
                   </h3>
                   <div className="space-y-2">
                     {/* In-App Notifications */}
-                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border border-border">
+                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border-2 transition-all hover:border-primary/30">
                       <div className={`rounded-md p-1.5 ${preferences.notifications.inApp ? 'bg-primary/10' : 'bg-muted'}`}>
                         <Bell className={`h-4 w-4 ${preferences.notifications.inApp ? 'text-primary' : 'text-muted-foreground'}`} />
                       </div>
@@ -267,7 +265,7 @@ export default function Profile() {
                     </div>
 
                     {/* Email Notifications */}
-                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border border-border">
+                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border-2 transition-all hover:border-primary/30">
                       <div className={`rounded-md p-1.5 ${preferences.notifications.email ? 'bg-primary/10' : 'bg-muted'}`}>
                         <Mail className={`h-4 w-4 ${preferences.notifications.email ? 'text-primary' : 'text-muted-foreground'}`} />
                       </div>
@@ -283,7 +281,7 @@ export default function Profile() {
 
                     {/* Smart Filtering */}
                     {preferences.notifications.smartFiltering?.enabled && (
-                      <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border border-border">
+                      <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border-2 transition-all hover:border-primary/30">
                         <div className="rounded-md p-1.5 bg-primary/10">
                           <Zap className="h-4 w-4 text-primary" />
                         </div>
@@ -298,7 +296,7 @@ export default function Profile() {
 
                     {/* Keywords */}
                     {preferences.notifications.keywords && preferences.notifications.keywords.length > 0 && (
-                      <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg border border-border">
+                      <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg border-2 transition-all hover:border-primary/30">
                         <div className="rounded-md p-1.5 bg-primary/10 mt-0.5">
                           <Filter className="h-4 w-4 text-primary" />
                         </div>
@@ -306,7 +304,7 @@ export default function Profile() {
                           <div className="text-sm font-medium mb-1">Keywords</div>
                           <div className="flex flex-wrap gap-1.5">
                             {preferences.notifications.keywords.map((keyword, idx) => (
-                              <Badge key={idx} variant="outline" className="text-xs">
+                              <Badge key={idx} variant="outline" className="text-xs border-2">
                                 {keyword}
                               </Badge>
                             ))}
@@ -324,7 +322,7 @@ export default function Profile() {
           <Button
             variant="destructive"
             size="lg"
-            className="w-full gap-2"
+            className="w-full gap-2 hover-lift"
             onClick={handleSignOut}
           >
             <LogOut className="h-5 w-5" />

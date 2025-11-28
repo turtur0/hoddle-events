@@ -137,7 +137,7 @@ export default function NotificationsPage() {
     const readNotifications = allNotifications.filter(n => n.read);
 
     return (
-        <div className="w-full min-h-screen bg-gradient-to-b from-background to-muted/20">
+        <div className="w-full min-h-screen bg-linear-to-b from-background to-muted/20">
             {/* Header */}
             <section className="border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
                 <div className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
@@ -173,7 +173,7 @@ export default function NotificationsPage() {
             </section>
 
             {/* Content */}
-            <section className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+            <section className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
                 <Tabs defaultValue="unread" className="space-y-6">
                     <TabsList className="grid w-full max-w-md grid-cols-2">
                         <TabsTrigger value="unread" className="gap-2">
