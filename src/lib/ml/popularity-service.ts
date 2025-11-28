@@ -247,3 +247,5 @@ export async function compareToCategory(eventId: string): Promise<{
 
     return { percentile, comparedToAvg, categoryAvg };
 }
+
+export { IEvent };
