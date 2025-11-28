@@ -7,7 +7,6 @@ import { EventCardSkeleton } from '@/components/events/EventCardSkeleton';
 import { EmptyState } from '@/components/other/EmptyState';
 import { Pagination } from '@/components/other/Pagination';
 import { BackButton } from '@/components/navigation/BackButton';
-import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Suspense } from "react";
 import { CATEGORIES } from "@/lib/constants/categories";
