@@ -49,7 +49,7 @@
 :root {
   --radius: 0.75rem;
 
-  /* Base colors */
+  /* ===== Base colors ===== */
   --background: oklch(0.99 0 0);
   --foreground: oklch(0.12 0 0);
 
@@ -100,6 +100,128 @@
   --sidebar-accent-foreground: oklch(0.12 0 0);
   --sidebar-border: oklch(0.89 0 0);
   --sidebar-ring: oklch(0.62 0.17 42);
+
+  /* ===== NEW DESIGN TOKENS ===== */
+
+  /* Spacing Scale */
+  --spacing-xs: 0.25rem;
+  /* 4px */
+  --spacing-sm: 0.5rem;
+  /* 8px */
+  --spacing-md: 1rem;
+  /* 16px */
+  --spacing-lg: 1.5rem;
+  /* 24px */
+  --spacing-xl: 2rem;
+  /* 32px */
+  --spacing-2xl: 3rem;
+  /* 48px */
+  --spacing-3xl: 4rem;
+  /* 64px */
+  --spacing-4xl: 6rem;
+  /* 96px */
+
+  /* Typography Scale */
+  --font-size-xs: 0.75rem;
+  /* 12px */
+  --font-size-sm: 0.875rem;
+  /* 14px */
+  --font-size-base: 1rem;
+  /* 16px */
+  --font-size-lg: 1.125rem;
+  /* 18px */
+  --font-size-xl: 1.25rem;
+  /* 20px */
+  --font-size-2xl: 1.5rem;
+  /* 24px */
+  --font-size-3xl: 1.875rem;
+  /* 30px */
+  --font-size-4xl: 2.25rem;
+  /* 36px */
+  --font-size-5xl: 3rem;
+  /* 48px */
+  --font-size-6xl: 3.75rem;
+  /* 60px */
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+
+  /* Animation & Transition Tokens */
+  --transition-fast: 150ms;
+  --transition-base: 200ms;
+  --transition-slow: 300ms;
+  --transition-slower: 500ms;
+
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Layout Tokens */
+  --container-max-width: 80rem;
+  /* 1280px - max-w-7xl */
+  --container-padding-mobile: 1rem;
+  --container-padding-tablet: 1.5rem;
+  --container-padding-desktop: 2rem;
+
+  --header-height-mobile: 3.5rem;
+  /* 56px - h-14 */
+  --header-height-desktop: 4rem;
+  /* 64px - h-16 */
+
+  /* Section Spacing */
+  --section-padding-y-mobile: 3rem;
+  /* py-12 */
+  --section-padding-y-tablet: 4rem;
+  /* py-16 */
+  --section-padding-y-desktop: 5rem;
+  /* py-20 */
+
+  /* Border & Shadow Tokens */
+  --border-width-thin: 1px;
+  --border-width-medium: 2px;
+  --border-width-thick: 4px;
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+
+  /* Icon Sizes */
+  --icon-xs: 0.875rem;
+  /* 14px */
+  --icon-sm: 1rem;
+  /* 16px */
+  --icon-md: 1.25rem;
+  /* 20px */
+  --icon-lg: 1.5rem;
+  /* 24px */
+  --icon-xl: 2rem;
+  /* 32px */
+
+  /* Grid & Gap Tokens */
+  --gap-xs: 0.5rem;
+  /* 8px */
+  --gap-sm: 0.75rem;
+  /* 12px */
+  --gap-md: 1rem;
+  /* 16px */
+  --gap-lg: 1.5rem;
+  /* 24px */
+  --gap-xl: 2rem;
+  /* 32px */
+
+  /* Overlay & Backdrop */
+  --overlay-light: rgba(0, 0, 0, 0.1);
+  --overlay-medium: rgba(0, 0, 0, 0.3);
+  --overlay-heavy: rgba(0, 0, 0, 0.6);
+  --backdrop-blur: 8px;
 }
 
 .dark {
@@ -143,6 +265,11 @@
   --sidebar-accent-foreground: oklch(0.97 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.70 0.16 42);
+
+  /* Dark mode overlays */
+  --overlay-light: rgba(255, 255, 255, 0.05);
+  --overlay-medium: rgba(255, 255, 255, 0.1);
+  --overlay-heavy: rgba(255, 255, 255, 0.2);
 }
 
 @layer base {
@@ -155,63 +282,112 @@
   }
 }
 
-/* Custom utility classes */
+/* ===== UTILITY CLASSES WITH DESIGN TOKENS ===== */
 @layer utilities {
 
-  /* Hover lift effect */
+  /* Hover effects */
   .hover-lift {
-    @apply transition-all duration-300 ease-out;
+    transition: transform var(--transition-slow) var(--ease-out),
+      box-shadow var(--transition-slow) var(--ease-out);
   }
 
   .hover-lift:hover {
-    @apply -translate-y-0.5 shadow-md;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
   }
 
-  /* Glass effect for cards */
+  /* Glass effects */
   .glass-card {
-    @apply bg-card/80 backdrop-blur-sm border border-border/50;
+    background: color-mix(in oklch, var(--card) 80%, transparent);
+    backdrop-filter: blur(var(--backdrop-blur));
+    border: var(--border-width-thin) solid color-mix(in oklch, var(--border) 50%, transparent);
   }
 
-  /* Modern button styles */
-  .btn-outline-primary {
-    @apply border-2 border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/50 transition-all duration-200;
+  /* Page header pattern */
+  .page-header {
+    @apply bg-gradient-to-b from-primary/5 via-background to-background;
+    padding-top: var(--section-padding-y-mobile);
+    padding-bottom: var(--section-padding-y-mobile);
   }
 
-  .btn-outline-secondary {
-    @apply border-2 border-secondary/30 bg-secondary/5 text-secondary hover:bg-secondary/10 hover:border-secondary/50 transition-all duration-200;
+  @media (min-width: 640px) {
+    .page-header {
+      padding-top: var(--section-padding-y-tablet);
+      padding-bottom: var(--section-padding-y-tablet);
+    }
   }
 
   /* Section backgrounds */
   .section-bg-orange {
-    @apply bg-linear-to-br from-orange-50/50 to-transparent dark:from-orange-950/10 dark:to-transparent;
+    @apply bg-gradient-to-br from-orange-50/50 to-transparent dark:from-orange-950/10 dark:to-transparent;
   }
 
   .section-bg-teal {
-    @apply bg-linear-to-br from-teal-50/50 to-transparent dark:from-teal-950/10 dark:to-transparent;
+    @apply bg-gradient-to-br from-teal-50/50 to-transparent dark:from-teal-950/10 dark:to-transparent;
   }
 
-  /* Category color utilities - cohesive palette */
+  /* Icon container pattern */
+  .icon-container {
+    @apply rounded-2xl bg-primary/10 p-3 ring-1 ring-primary/20;
+  }
+
+  /* Category color utilities */
   .category-music {
-    @apply bg-orange-500/8 text-orange-600 hover:bg-orange-500/15 dark:text-orange-400 dark:bg-orange-400/10 dark:hover:bg-orange-400/15 border-2 border-orange-500/20 dark:border-orange-400/20;
+    @apply bg-orange-500/8 text-orange-600 hover:bg-orange-500/15 dark:text-orange-400 dark:bg-orange-400/10 dark:hover:bg-orange-400/15 border-2 border-orange-500/20 dark:border-orange-400/20 transition-all duration-[var(--transition-base)];
   }
 
   .category-theatre {
-    @apply bg-rose-500/8 text-rose-600 hover:bg-rose-500/15 dark:text-rose-400 dark:bg-rose-400/10 dark:hover:bg-rose-400/15 border-2 border-rose-500/20 dark:border-rose-400/20;
+    @apply bg-rose-500/8 text-rose-600 hover:bg-rose-500/15 dark:text-rose-400 dark:bg-rose-400/10 dark:hover:bg-rose-400/15 border-2 border-rose-500/20 dark:border-rose-400/20 transition-all duration-[var(--transition-base)];
   }
 
   .category-sports {
-    @apply bg-teal-500/8 text-teal-600 hover:bg-teal-500/15 dark:text-teal-400 dark:bg-teal-400/10 dark:hover:bg-teal-400/15 border-2 border-teal-500/20 dark:border-teal-400/20;
+    @apply bg-teal-500/8 text-teal-600 hover:bg-teal-500/15 dark:text-teal-400 dark:bg-teal-400/10 dark:hover:bg-teal-400/15 border-2 border-teal-500/20 dark:border-teal-400/20 transition-all duration-[var(--transition-base)];
   }
 
   .category-arts {
-    @apply bg-purple-500/8 text-purple-600 hover:bg-purple-500/15 dark:text-purple-400 dark:bg-purple-400/10 dark:hover:bg-purple-400/15 border-2 border-purple-500/20 dark:border-purple-400/20;
+    @apply bg-purple-500/8 text-purple-600 hover:bg-purple-500/15 dark:text-purple-400 dark:bg-purple-400/10 dark:hover:bg-purple-400/15 border-2 border-purple-500/20 dark:border-purple-400/20 transition-all duration-[var(--transition-base)];
   }
 
   .category-family {
-    @apply bg-emerald-500/8 text-emerald-600 hover:bg-emerald-500/15 dark:text-emerald-400 dark:bg-emerald-400/10 dark:hover:bg-emerald-400/15 border-2 border-emerald-500/20 dark:border-emerald-400/20;
+    @apply bg-emerald-500/8 text-emerald-600 hover:bg-emerald-500/15 dark:text-emerald-400 dark:bg-emerald-400/10 dark:hover:bg-emerald-400/15 border-2 border-emerald-500/20 dark:border-emerald-400/20 transition-all duration-[var(--transition-base)];
   }
 
   .category-other {
-    @apply bg-sky-500/8 text-sky-600 hover:bg-sky-500/15 dark:text-sky-400 dark:bg-sky-400/10 dark:hover:bg-sky-400/15 border-2 border-sky-500/20 dark:border-sky-400/20;
+    @apply bg-sky-500/8 text-sky-600 hover:bg-sky-500/15 dark:text-sky-400 dark:bg-sky-400/10 dark:hover:bg-sky-400/15 border-2 border-sky-500/20 dark:border-sky-400/20 transition-all duration-[var(--transition-base)];
+  }
+
+  /* Badge patterns */
+  .badge-outline-hover {
+    @apply border-2 border-border bg-background hover:bg-muted transition-all duration-(--transition-base) hover:scale-105;
+  }
+
+  /* Card patterns */
+  .card-interactive {
+    @apply border-2 border-border/50 hover:border-primary/30 transition-all duration-(--transition-slow);
+  }
+
+  /* Container pattern */
+  .container-page {
+    @apply container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Section spacing pattern */
+  .section-spacing {
+    padding-top: var(--section-padding-y-mobile);
+    padding-bottom: var(--section-padding-y-mobile);
+  }
+
+  @media (min-width: 640px) {
+    .section-spacing {
+      padding-top: var(--section-padding-y-tablet);
+      padding-bottom: var(--section-padding-y-tablet);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .section-spacing {
+      padding-top: var(--section-padding-y-desktop);
+      padding-bottom: var(--section-padding-y-desktop);
+    }
   }
 }

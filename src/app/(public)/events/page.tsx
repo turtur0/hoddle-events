@@ -150,12 +150,12 @@ export default async function EventsPage({
   return (
     <div className="w-full">
       {/* Header Section */}
-      <section className="bg-linear-to-b from-primary/5 via-background to-background">
-        <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+      <section className="page-header">
+        <div className="container-page">
           <BackButton fallbackUrl="/" className="mb-8" />
 
           <div className="flex items-start gap-4 mb-4">
-            <div className="rounded-2xl bg-primary/10 p-3 ring-1 ring-primary/20">
+            <div className="icon-container">
               <Search className="h-8 w-8 text-primary" />
             </div>
             <div>
@@ -172,7 +172,7 @@ export default async function EventsPage({
 
       {/* Search & Filters */}
       <section className="border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
-        <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="container-page py-6">
           <div className="mb-4">
             <SearchBar />
           </div>
@@ -183,7 +183,7 @@ export default async function EventsPage({
       </section>
 
       {/* Events Grid */}
-      <section className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
+      <section className="container-page section-spacing animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
         <Suspense fallback={<EventsGridSkeleton />} key={suspenseKey}>
           <EventsGrid
             page={currentPage}

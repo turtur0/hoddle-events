@@ -1,4 +1,3 @@
-// app/insights/page.tsx
 'use client';
 
 import { useState } from 'react';
@@ -51,12 +50,12 @@ export default function InsightsPage() {
     return (
         <div className="w-full">
             {/* Header Section */}
-            <section className="bg-linear-to-b from-primary/5 via-background to-background">
-                <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+            <section className="page-header">
+                <div className="container-page">
                     <BackButton fallbackUrl="/" className="mb-8" />
 
                     <div className="flex items-start gap-4 mb-4">
-                        <div className="rounded-2xl bg-primary/10 p-3 ring-1 ring-primary/20">
+                        <div className="icon-container">
                             <Sparkles className="h-8 w-8 text-primary" />
                         </div>
                         <div className="flex-1">
@@ -73,15 +72,15 @@ export default function InsightsPage() {
 
             {/* Controls Bar */}
             <section className="border-b bg-background/95 backdrop-blur sticky top-14 sm:top-16 z-10">
-                <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                <div className="container-page py-4">
                     <div className="flex items-center justify-between gap-4">
                         {/* View Mode Toggle - Hidden on mobile */}
                         <div className="hidden sm:flex items-center rounded-lg border-2 bg-background p-1 gap-1">
                             <button
                                 onClick={() => setViewMode('grid')}
-                                className={`p-2 rounded transition-all ${viewMode === 'grid'
-                                    ? 'bg-primary text-primary-foreground shadow-sm'
-                                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                                className={`p-2 rounded transition-all duration-[var(--transition-base)] ${viewMode === 'grid'
+                                        ? 'bg-primary text-primary-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                                     }`}
                                 title="Grid view"
                             >
@@ -89,9 +88,9 @@ export default function InsightsPage() {
                             </button>
                             <button
                                 onClick={() => setViewMode('list')}
-                                className={`p-2 rounded transition-all ${viewMode === 'list'
-                                    ? 'bg-primary text-primary-foreground shadow-sm'
-                                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                                className={`p-2 rounded transition-all duration-[var(--transition-base)] ${viewMode === 'list'
+                                        ? 'bg-primary text-primary-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                                     }`}
                                 title="List view"
                             >
@@ -103,7 +102,7 @@ export default function InsightsPage() {
                         <div className="relative ml-auto">
                             <button
                                 onClick={() => setShowSelector(!showSelector)}
-                                className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 bg-background hover:bg-muted transition-all text-sm font-medium"
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 bg-background hover:bg-muted transition-all duration-[var(--transition-base)] text-sm font-medium"
                             >
                                 <BarChart3 className="h-4 w-4" />
                                 <span className="hidden sm:inline">Customize</span>
@@ -128,7 +127,7 @@ export default function InsightsPage() {
                                                 return (
                                                     <label
                                                         key={chart.id}
-                                                        className="flex items-center gap-3 p-3 hover:bg-muted cursor-pointer transition-colors border-b last:border-b-0"
+                                                        className="flex items-center gap-3 p-3 hover:bg-muted cursor-pointer transition-colors duration-[var(--transition-base)] border-b last:border-b-0"
                                                     >
                                                         <input
                                                             type="checkbox"
@@ -152,7 +151,7 @@ export default function InsightsPage() {
 
             {/* Empty State */}
             {displayedCharts.length === 0 && (
-                <section className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
+                <section className="container-page section-spacing animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
                     <div className="text-center py-12">
                         <div className="rounded-2xl bg-muted/30 p-4 inline-flex mb-4">
                             <BarChart3 className="h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground" />
@@ -167,7 +166,7 @@ export default function InsightsPage() {
 
             {/* Charts */}
             {displayedCharts.length > 0 && (
-                <section className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
+                <section className="container-page section-spacing animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
                     <div
                         className={
                             viewMode === 'grid'

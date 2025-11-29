@@ -200,12 +200,12 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   return (
     <div className="w-full">
       {/* Header Section */}
-      <section className="bg-linear-to-b from-primary/5 via-background to-background">
-        <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+      <section className="page-header">
+        <div className="container-page">
           <BackButton fallbackUrl="/" className="mb-8" />
 
           <div className="flex items-start gap-4 mb-4">
-            <div className="rounded-2xl bg-primary/10 p-3 ring-1 ring-primary/20">
+            <div className="icon-container">
               <Icon className={`h-8 w-8 ${categoryInfo.color}`} />
             </div>
             <div>
@@ -223,14 +223,12 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
       {/* Subcategories Filter */}
       {categoryConfig?.subcategories && categoryConfig.subcategories.length > 0 && (
         <section className="border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
-          <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="container-page py-6">
             <div className="flex flex-wrap gap-2">
               <Link href={`/category/${slug}`}>
                 <Badge
                   variant="outline"
-                  className={`cursor-pointer text-sm px-4 py-2 transition-all duration-200 hover:scale-105 ${!subcategory
-                    ? categoryInfo.badgeClass
-                    : 'border-2 border-border bg-background hover:bg-muted'
+                  className={`cursor-pointer text-sm px-4 py-2 ${!subcategory ? categoryInfo.badgeClass : 'badge-outline-hover'
                     }`}
                 >
                   All
@@ -243,9 +241,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
                 >
                   <Badge
                     variant="outline"
-                    className={`cursor-pointer text-sm px-4 py-2 transition-all duration-200 hover:scale-105 ${subcategory === sub
-                      ? categoryInfo.badgeClass
-                      : 'border-2 border-border bg-background hover:bg-muted'
+                    className={`cursor-pointer text-sm px-4 py-2 ${subcategory === sub ? categoryInfo.badgeClass : 'badge-outline-hover'
                       }`}
                   >
                     {sub}
@@ -258,7 +254,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
       )}
 
       {/* Events Grid */}
-      <section className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
+      <section className="container-page section-spacing animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
         <Suspense fallback={<EventsGridSkeleton />} key={suspenseKey}>
           <CategoryEventsGrid
             categoryValue={slug}
