@@ -175,26 +175,31 @@ export default function Onboarding() {
     const currentStepIcon = getStepIcon(step);
 
     return (
-        <div className="w-full min-h-screen bg-linear-to-b from-background via-orange-50/30 to-background dark:from-background dark:via-orange-950/5 dark:to-background">
+        <div className="w-full min-h-screen bg-linear-to-b from-primary/5 via-background to-background">
             <div className="container max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
                 {/* Header */}
-                <div className="mb-8 text-center">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4 ring-1 ring-primary/20">
-                        {currentStepIcon && (() => {
-                            const Icon = currentStepIcon;
-                            return <Icon className="h-8 w-8 text-primary" />;
-                        })()}
+                <div className="mb-8">
+                    <div className="flex items-start gap-4 mb-4">
+                        <div className="rounded-2xl bg-primary/10 p-3 ring-1 ring-primary/20">
+                            {currentStepIcon && (() => {
+                                const Icon = currentStepIcon;
+                                return <Icon className="h-8 w-8 text-primary" />;
+                            })()}
+                        </div>
+                        <div>
+                            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-2">
+                                Personalize Your Experience
+                            </h1>
+                            <p className="text-lg text-muted-foreground">
+                                Tell us what you like, and we'll find the best events for you
+                            </p>
+                        </div>
                     </div>
-
-                    <h1 className="text-3xl sm:text-4xl font-bold mb-2">Personalize Your Experience</h1>
-                    <p className="text-lg text-muted-foreground">
-                        Tell us what you like, and we'll find the best events for you
-                    </p>
                 </div>
 
                 {/* Username Step */}
                 {step === 'username' && (
-                    <Card className="border-2 shadow-sm animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
+                    <Card className="border-2 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
                         <CardHeader>
                             <CardTitle className="text-2xl">Choose a Username</CardTitle>
                             <CardDescription className="text-base">
@@ -217,7 +222,7 @@ export default function Onboarding() {
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
                                     disabled={isLoading}
-                                    className="h-12"
+                                    className="h-12 border-2"
                                 />
                                 <p className="text-sm text-muted-foreground">
                                     Letters, numbers, and underscores only (min. 3 characters)
@@ -228,7 +233,7 @@ export default function Onboarding() {
                                 <Button
                                     variant="outline"
                                     onClick={() => setStep('categories')}
-                                    className="flex-1 h-12"
+                                    className="flex-1 h-12 border-2"
                                     disabled={isLoading}
                                     size="lg"
                                 >
@@ -259,7 +264,7 @@ export default function Onboarding() {
 
                 {/* Categories Step */}
                 {step === 'categories' && (
-                    <Card className="border-2 shadow-sm animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
+                    <Card className="border-2 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
                         <CardHeader>
                             <CardTitle className="text-2xl">What interests you?</CardTitle>
                             <CardDescription className="text-base">
@@ -303,7 +308,7 @@ export default function Onboarding() {
 
                 {/* Preferences Step */}
                 {step === 'preferences' && (
-                    <Card className="border-2 shadow-sm animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
+                    <Card className="border-2 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
                         <CardHeader>
                             <CardTitle className="text-2xl flex items-center gap-2">
                                 <Sparkles className="h-6 w-6 text-primary" />
@@ -331,7 +336,7 @@ export default function Onboarding() {
                             />
 
                             <div className="flex gap-3 pt-4">
-                                <Button variant="outline" onClick={() => setStep('categories')} className="flex-1 h-12" size="lg">
+                                <Button variant="outline" onClick={() => setStep('categories')} className="flex-1 h-12 border-2" size="lg">
                                     Back
                                 </Button>
                                 <Button onClick={() => setStep('notifications')} className="flex-1 h-12 group" size="lg">
@@ -345,7 +350,7 @@ export default function Onboarding() {
 
                 {/* Notifications Step */}
                 {step === 'notifications' && (
-                    <Card className="border-2 shadow-sm animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
+                    <Card className="border-2 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
                         <CardHeader>
                             <CardTitle className="text-2xl flex items-center gap-2">
                                 <Bell className="h-6 w-6 text-primary" />
@@ -379,7 +384,7 @@ export default function Onboarding() {
                             )}
 
                             <div className="flex gap-3 pt-4">
-                                <Button variant="outline" onClick={() => setStep('preferences')} className="flex-1 h-12" size="lg">
+                                <Button variant="outline" onClick={() => setStep('preferences')} className="flex-1 h-12 border-2" size="lg">
                                     Back
                                 </Button>
                                 <Button onClick={handleComplete} disabled={isLoading} className="flex-1 h-12 group" size="lg">

@@ -12,7 +12,7 @@ import { connectDB } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getUserFavourites } from "@/lib/actions/interactions";
-import { Event } from '@/lib/models';
+import { Event } from '@/lib/models';                                                                                       
 
 const CATEGORIES = [
   { label: "Music", slug: "music", icon: Music, className: "category-music" },
@@ -63,12 +63,12 @@ export default async function HomePage() {
   return (
     <div className="w-full">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-background via-orange-50/30 to-background dark:from-background dark:via-orange-950/5 dark:to-background">
+      <section className="relative overflow-hidden bg-linear-to-b from-background via-orange-50/30 to-background dark:from-background dark:via-orange-950/5 dark:to-background">
         <div className="container-page section-spacing">
           <div className="max-w-3xl mx-auto text-center">
             <Badge
               variant="secondary"
-              className="mb-6 border-2 border-primary/20 bg-primary/5 text-foreground hover:bg-primary/10 transition-colors duration-[var(--transition-base)]"
+              className="mb-6 border-2 border-primary/20 bg-primary/5 text-foreground hover:bg-primary/10 transition-colors duration-(--transition-base)"
             >
               <Zap className="h-3 w-3 mr-1 text-primary" />
               Updated daily from {sourceCount} sources
@@ -93,18 +93,18 @@ export default async function HomePage() {
               <Button
                 asChild
                 size="lg"
-                className="text-base border-2 border-primary/30 bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-[var(--transition-base)] group shadow-sm"
+                className="text-base border-2 border-primary/30 bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-(--transition-base) group shadow-sm"
               >
                 <Link href="/events">
                   Browse All Events
-                  <ArrowRight className="ml-2 h-5 w-5 transition-transform duration-[var(--transition-base)] group-hover:translate-x-0.5" />
+                  <ArrowRight className="ml-2 h-5 w-5 transition-transform duration-(--transition-base) group-hover:translate-x-0.5" />
                 </Link>
               </Button>
               <Button
                 variant="outline"
                 size="lg"
                 asChild
-                className="text-base border-2 border-secondary/30 bg-secondary/5 text-secondary hover:bg-secondary/10 hover:border-secondary/50 transition-all duration-[var(--transition-base)]"
+                className="text-base border-2 border-secondary/30 bg-secondary/5 text-secondary hover:bg-secondary/10 hover:border-secondary/50 transition-all duration-(--transition-base)"
               >
                 <Link href="/insights">
                   <Sparkles className="mr-2 h-5 w-5" />

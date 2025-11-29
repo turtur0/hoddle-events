@@ -78,7 +78,7 @@ export default function InsightsPage() {
                         <div className="hidden sm:flex items-center rounded-lg border-2 bg-background p-1 gap-1">
                             <button
                                 onClick={() => setViewMode('grid')}
-                                className={`p-2 rounded transition-all duration-[var(--transition-base)] ${viewMode === 'grid'
+                                className={`p-2 rounded transition-all duration-(--transition-base) ${viewMode === 'grid'
                                         ? 'bg-primary text-primary-foreground shadow-sm'
                                         : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                                     }`}
@@ -88,7 +88,7 @@ export default function InsightsPage() {
                             </button>
                             <button
                                 onClick={() => setViewMode('list')}
-                                className={`p-2 rounded transition-all duration-[var(--transition-base)] ${viewMode === 'list'
+                                className={`p-2 rounded transition-all duration-(--transition-base) ${viewMode === 'list'
                                         ? 'bg-primary text-primary-foreground shadow-sm'
                                         : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                                     }`}
@@ -102,7 +102,7 @@ export default function InsightsPage() {
                         <div className="relative ml-auto">
                             <button
                                 onClick={() => setShowSelector(!showSelector)}
-                                className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 bg-background hover:bg-muted transition-all duration-[var(--transition-base)] text-sm font-medium"
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 bg-background hover:bg-muted transition-all duration-(--transition-base) text-sm font-medium"
                             >
                                 <BarChart3 className="h-4 w-4" />
                                 <span className="hidden sm:inline">Customize</span>
@@ -127,7 +127,7 @@ export default function InsightsPage() {
                                                 return (
                                                     <label
                                                         key={chart.id}
-                                                        className="flex items-center gap-3 p-3 hover:bg-muted cursor-pointer transition-colors duration-[var(--transition-base)] border-b last:border-b-0"
+                                                        className="flex items-center gap-3 p-3 hover:bg-muted cursor-pointer transition-colors duration-(--transition-base) border-b last:border-b-0"
                                                     >
                                                         <input
                                                             type="checkbox"

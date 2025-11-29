@@ -2,11 +2,10 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { EventCard } from '@/components/events/EventCard';
-import { EventCardSkeleton } from '@/components/events/EventCardSkeleton';
-import { EmptyState } from '@/components/other/EmptyState';
-import { Pagination } from '@/components/other/Pagination';
-import { BackButton } from '@/components/navigation/BackButton';
+import { EventsPageLayout } from '@/components/layout/EventsPageLayout';
+import { EventsGrid, EventsGridSkeleton } from "@/components/events/EventsGrid";
+import { SearchBar } from '@/components/search/SearchBar';
+import { EventFilters } from '@/components/events/EventFilters';
 import { Badge } from '@/components/ui/Badge';
 import { Suspense } from "react";
 import { CATEGORIES } from "@/lib/constants/categories";
@@ -17,6 +16,7 @@ interface CategoryPageProps {
   params: Promise<{ slug: string }>;
   searchParams: Promise<{
     page?: string;
+    q?: string;
     subcategory?: string;
     date?: string;
     free?: string;
@@ -76,9 +76,10 @@ const CATEGORY_CONFIG: Record<string, CategoryInfo> = {
   },
 };
 
-async function CategoryEventsGrid({
+async function CategoryEventsGridWrapper({
   categoryValue,
   page,
+  searchQuery,
   subcategory,
   dateFilter,
   freeOnly,
@@ -86,6 +87,7 @@ async function CategoryEventsGrid({
 }: {
   categoryValue: string;
   page: number;
+  searchQuery: string;
   subcategory: string;
   dateFilter: string;
   freeOnly: boolean;
@@ -96,6 +98,7 @@ async function CategoryEventsGrid({
     category: categoryValue,
   });
 
+  if (searchQuery.trim()) params.set('q', searchQuery.trim());
   if (subcategory) params.set('subcategory', subcategory);
   if (dateFilter) params.set('date', dateFilter);
   if (freeOnly) params.set('free', 'true');
@@ -112,48 +115,16 @@ async function CategoryEventsGrid({
   const { events, pagination } = await response.json();
   const { totalEvents, totalPages } = pagination;
 
-  if (events.length === 0) {
-    return (
-      <EmptyState
-        title="No events found"
-        description="No events in this category right now. Check back soon!"
-      />
-    );
-  }
-
   return (
-    <>
-      <div className="mb-6 flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          Found <strong className="text-foreground">{totalEvents.toLocaleString()}</strong> event{totalEvents !== 1 ? 's' : ''}
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        {events.map((event: any) => (
-          <EventCard
-            key={event._id}
-            event={event}
-            source="category_browse"
-            initialFavourited={userFavourites.has(event._id)}
-          />
-        ))}
-      </div>
-
-      {totalPages > 1 && (
-        <Pagination currentPage={page} totalPages={totalPages} />
-      )}
-    </>
-  );
-}
-
-function EventsGridSkeleton() {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <EventCardSkeleton key={i} />
-      ))}
-    </div>
+    <EventsGrid
+      events={events}
+      totalEvents={totalEvents}
+      totalPages={totalPages}
+      currentPage={page}
+      userFavourites={userFavourites}
+      emptyTitle="No events found"
+      emptyDescription="No events in this category right now. Check back soon!"
+    />
   );
 }
 
@@ -181,6 +152,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   }
 
   const currentPage = Number(searchParamsResolved.page) || 1;
+  const searchQuery = searchParamsResolved.q || '';
   const subcategory = searchParamsResolved.subcategory || '';
   const dateFilter = searchParamsResolved.date || '';
   const freeOnly = searchParamsResolved.free === 'true';
@@ -194,36 +166,20 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   }
 
   const categoryConfig = CATEGORIES.find(c => c.value === slug);
-  const Icon = categoryInfo.icon;
-  const suspenseKey = `${slug}-${currentPage}-${subcategory}-${dateFilter}-${freeOnly}`;
+  const suspenseKey = `${slug}-${currentPage}-${searchQuery}-${subcategory}-${dateFilter}-${freeOnly}`;
 
   return (
-    <div className="w-full">
-      {/* Header Section */}
-      <section className="page-header">
-        <div className="container-page">
-          <BackButton fallbackUrl="/" className="mb-8" />
+    <EventsPageLayout
+      icon={categoryInfo.icon}
+      iconColor={categoryInfo.color}
+      title={categoryInfo.title}
+      description={categoryInfo.description}
+      filters={
+        <div className="space-y-4">
+          <SearchBar placeholder={`Search ${categoryInfo.title.toLowerCase()}...`} />
 
-          <div className="flex items-start gap-4 mb-4">
-            <div className="icon-container">
-              <Icon className={`h-8 w-8 ${categoryInfo.color}`} />
-            </div>
-            <div>
-              <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-2">
-                {categoryInfo.title}
-              </h1>
-              <p className="text-lg text-muted-foreground">
-                {categoryInfo.description}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Subcategories Filter */}
-      {categoryConfig?.subcategories && categoryConfig.subcategories.length > 0 && (
-        <section className="border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
-          <div className="container-page py-6">
+          {/* Subcategories */}
+          {categoryConfig?.subcategories && categoryConfig.subcategories.length > 0 && (
             <div className="flex flex-wrap gap-2">
               <Link href={`/category/${slug}`}>
                 <Badge
@@ -249,23 +205,23 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
                 </Link>
               ))}
             </div>
-          </div>
-        </section>
-      )}
+          )}
 
-      {/* Events Grid */}
-      <section className="container-page section-spacing animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
-        <Suspense fallback={<EventsGridSkeleton />} key={suspenseKey}>
-          <CategoryEventsGrid
-            categoryValue={slug}
-            page={currentPage}
-            subcategory={subcategory}
-            dateFilter={dateFilter}
-            freeOnly={freeOnly}
-            userFavourites={userFavourites}
-          />
-        </Suspense>
-      </section>
-    </div>
+          <EventFilters />
+        </div>
+      }
+    >
+      <Suspense fallback={<EventsGridSkeleton />} key={suspenseKey}>
+        <CategoryEventsGridWrapper
+          categoryValue={slug}
+          page={currentPage}
+          searchQuery={searchQuery}
+          subcategory={subcategory}
+          dateFilter={dateFilter}
+          freeOnly={freeOnly}
+          userFavourites={userFavourites}
+        />
+      </Suspense>
+    </EventsPageLayout>
   );
 }

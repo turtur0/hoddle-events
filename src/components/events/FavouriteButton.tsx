@@ -1,3 +1,4 @@
+// components/events/FavouriteButton.tsx
 'use client';
 
 import { useState, useTransition } from 'react';
@@ -62,8 +63,8 @@ export function FavouriteButton({
                 className={cn(
                     "transition-all duration-200",
                     isFavourited
-                        ? "bg-primary border-primary hover:bg-primary/90"
-                        : "border-2 border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/50",
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                        : "btn-outline-primary",
                     isPending && "opacity-50",
                     className
                 )}

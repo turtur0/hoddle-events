@@ -7,7 +7,13 @@ import { Search, X, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 
-export function SearchBar() {
+interface SearchBarProps {
+  placeholder?: string;
+}
+
+export function SearchBar({
+  placeholder = "Search events by name, venue, or description..."
+}: SearchBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -57,7 +63,7 @@ export function SearchBar() {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [searchTerm, isHomePage]);
+  }, [searchTerm, isHomePage, pathname, searchParams, router]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,14 +94,14 @@ export function SearchBar() {
 
   return (
     <form onSubmit={handleSubmit} className="relative group">
-      <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors ${isHomePage ? 'group-focus-within:text-primary' : 'group-focus-within:text-foreground'
+      <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors duration-[var(--transition-base)] ${isHomePage ? 'group-focus-within:text-primary' : 'group-focus-within:text-foreground'
         }`} />
       <Input
         type="text"
-        placeholder="Search events by name, venue, or description..."
+        placeholder={placeholder}
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
-        className={`pl-9 transition-all ${isHomePage
+        className={`pl-9 transition-all duration-[var(--transition-base)] ${isHomePage
             ? 'pr-20 h-14 text-base border-2 focus:border-primary/50 focus:ring-2 focus:ring-primary/20'
             : 'pr-9 border-2'
           }`}
@@ -110,7 +116,7 @@ export function SearchBar() {
             variant="ghost"
             size="sm"
             onClick={handleClear}
-            className="h-7 w-7 p-0 hover:bg-muted/80 transition-colors"
+            className="h-7 w-7 p-0 hover:bg-muted/80 transition-colors duration-[var(--transition-base)]"
           >
             <X className="h-4 w-4" />
             <span className="sr-only">Clear search</span>
@@ -120,7 +126,7 @@ export function SearchBar() {
           <Button
             type="submit"
             size="sm"
-            className={`h-9 px-4 transition-all hover-lift ${searchTerm.trim() ? 'animate-in fade-in-0 slide-in-from-right-2 duration-200' : ''
+            className={`h-9 px-4 transition-all hover:scale-[1.02] active:scale-[0.98] ${searchTerm.trim() ? 'animate-in fade-in-0 slide-in-from-right-2 duration-200' : ''
               }`}
           >
             Search

@@ -59,21 +59,12 @@ export default function SettingsPage() {
     const [isDeleting, setIsDeleting] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
-    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
     useEffect(() => {
         loadSettings();
     }, [session, status]);
-
-    useEffect(() => {
-        if (!originalValues) return;
-        setHasUnsavedChanges(checkForChanges());
-    }, [name, username, selectedCategories, selectedSubcategories, popularityPref,
-        inAppNotifications, emailNotifications, emailFrequency, notificationKeywords,
-        useSmartFiltering, minRecommendationScore, priceMin, priceMax,
-        currentPassword, newPassword, originalValues]);
 
     async function loadSettings() {
         if (status === 'loading') return;
@@ -126,27 +117,6 @@ export default function SettingsPage() {
         } finally {
             setIsLoading(false);
         }
-    }
-
-    function checkForChanges(): boolean {
-        if (!originalValues) return false;
-        return (
-            name !== originalValues.name ||
-            username !== originalValues.username ||
-            selectedCategories.size !== originalValues.selectedCategories.size ||
-            ![...selectedCategories].every(v => originalValues.selectedCategories.has(v)) ||
-            popularityPref !== originalValues.popularityPref ||
-            priceMin !== originalValues.priceMin ||
-            priceMax !== originalValues.priceMax ||
-            inAppNotifications !== originalValues.inAppNotifications ||
-            emailNotifications !== originalValues.emailNotifications ||
-            emailFrequency !== originalValues.emailFrequency ||
-            notificationKeywords !== originalValues.notificationKeywords ||
-            useSmartFiltering !== originalValues.useSmartFiltering ||
-            minRecommendationScore !== originalValues.minRecommendationScore ||
-            currentPassword !== '' ||
-            newPassword !== ''
-        );
     }
 
     const toggleCategory = (categoryValue: string) => {
@@ -265,25 +235,29 @@ export default function SettingsPage() {
     }
 
     return (
-        <div className="w-full min-h-screen bg-linear-to-b from-background via-orange-50/30 to-background dark:from-background dark:via-orange-950/5 dark:to-background">
-            {/* Header - matching profile and events pages */}
-            <section className="border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
-                <div className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-                    <BackButton fallbackUrl="/" className="mb-6" />
-                    <div className="flex items-center gap-4">
+        <div className="w-full">
+            {/* Header */}
+            <section className="bg-linear-to-b from-primary/5 via-background to-background">
+                <div className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+                    <BackButton fallbackUrl="/" className="mb-8" />
+                    <div className="flex items-start gap-4 mb-4">
                         <div className="rounded-2xl bg-primary/10 p-3 ring-1 ring-primary/20">
                             <User className="h-8 w-8 text-primary" />
                         </div>
-                        <div className="flex-1 min-w-0">
-                            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Account Settings</h1>
-                            <p className="text-muted-foreground text-lg mt-1">Manage your account and preferences</p>
+                        <div>
+                            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-2">
+                                Account Settings
+                            </h1>
+                            <p className="text-lg text-muted-foreground">
+                                Manage your account and preferences
+                            </p>
                         </div>
                     </div>
                 </div>
             </section>
 
             {/* Content */}
-            <section className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+            <section className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
                 <div className="space-y-6 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
                     {/* Status Messages */}
                     {error && (
@@ -294,17 +268,19 @@ export default function SettingsPage() {
                     )}
 
                     {success && (
-                        <div className="flex items-start gap-3 p-4 bg-green-500/10 border-2 border-green-500/20 rounded-lg text-green-600 dark:text-green-400">
-                            <Check className="h-5 w-5 shrink-0 mt-0.5" />
+                        <div className="flex items-start gap-3 p-4 bg-muted/30 border-2 rounded-lg">
+                            <Check className="h-5 w-5 shrink-0 mt-0.5 text-primary" />
                             <span className="text-sm">Settings saved successfully! Redirecting...</span>
                         </div>
                     )}
 
                     {/* Account Information */}
-                    <Card className="border-2 shadow-sm hover-lift">
+                    <Card className="border-2">
                         <CardHeader>
                             <CardTitle className="text-xl flex items-center gap-2">
-                                <User className="h-5 w-5 text-primary" />
+                                <div className="rounded-lg bg-muted p-2">
+                                    <User className="h-5 w-5 text-foreground" />
+                                </div>
                                 Account Information
                             </CardTitle>
                             <CardDescription>Update your personal details</CardDescription>
@@ -312,11 +288,11 @@ export default function SettingsPage() {
                         <CardContent className="space-y-4">
                             <div className="space-y-2">
                                 <Label htmlFor="name">Display Name</Label>
-                                <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
+                                <Input id="name" value={name} onChange={(e) => setName(e.target.value)} className="border-2" />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="username">Username</Label>
-                                <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} />
+                                <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} className="border-2" />
                             </div>
                             <div className="space-y-2">
                                 <Label>Email Address</Label>
@@ -330,10 +306,12 @@ export default function SettingsPage() {
                     </Card>
 
                     {/* Password Change */}
-                    <Card className="border-2 shadow-sm hover-lift">
+                    <Card className="border-2">
                         <CardHeader>
                             <CardTitle className="text-xl flex items-center gap-2">
-                                <Lock className="h-5 w-5 text-primary" />
+                                <div className="rounded-lg bg-muted p-2">
+                                    <Lock className="h-5 w-5 text-foreground" />
+                                </div>
                                 Change Password
                             </CardTitle>
                         </CardHeader>
@@ -343,27 +321,32 @@ export default function SettingsPage() {
                                 placeholder="Current password"
                                 value={currentPassword}
                                 onChange={(e) => setCurrentPassword(e.target.value)}
+                                className="border-2"
                             />
                             <Input
                                 type="password"
                                 placeholder="New password (min. 8 characters)"
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
+                                className="border-2"
                             />
                             <Input
                                 type="password"
                                 placeholder="Confirm new password"
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
+                                className="border-2"
                             />
                         </CardContent>
                     </Card>
 
                     {/* Event Preferences */}
-                    <Card className="border-2 shadow-sm hover-lift">
+                    <Card className="border-2">
                         <CardHeader>
                             <CardTitle className="text-xl flex items-center gap-2">
-                                <Sparkles className="h-5 w-5 text-primary" />
+                                <div className="rounded-lg bg-muted p-2">
+                                    <Sparkles className="h-5 w-5 text-foreground" />
+                                </div>
                                 Event Preferences
                             </CardTitle>
                         </CardHeader>
@@ -399,10 +382,12 @@ export default function SettingsPage() {
                     </Card>
 
                     {/* Notifications */}
-                    <Card className="border-2 shadow-sm hover-lift">
+                    <Card className="border-2">
                         <CardHeader>
                             <CardTitle className="text-xl flex items-center gap-2">
-                                <Bell className="h-5 w-5 text-primary" />
+                                <div className="rounded-lg bg-muted p-2">
+                                    <Bell className="h-5 w-5 text-foreground" />
+                                </div>
                                 Notification Preferences
                             </CardTitle>
                         </CardHeader>
@@ -427,10 +412,10 @@ export default function SettingsPage() {
 
                     {/* Actions */}
                     <div className="flex gap-4">
-                        <Button variant="outline" size="lg" onClick={() => router.push('/profile')} className="flex-1 hover-lift">
+                        <Button variant="outline" size="lg" onClick={() => router.push('/profile')} className="flex-1 border-2">
                             Cancel
                         </Button>
-                        <Button onClick={handleSave} disabled={isSaving} size="lg" className="flex-1 hover-lift group">
+                        <Button onClick={handleSave} disabled={isSaving} size="lg" className="flex-1 group">
                             {isSaving ? (
                                 <>
                                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -446,15 +431,17 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Delete Account */}
-                    <Card className="border-2 border-destructive/20 shadow-sm">
+                    <Card className="border-2 border-destructive/20">
                         <CardHeader>
                             <CardTitle className="text-xl text-destructive flex items-center gap-2">
-                                <Trash2 className="h-5 w-5" />
+                                <div className="rounded-lg bg-destructive/10 p-2">
+                                    <Trash2 className="h-5 w-5" />
+                                </div>
                                 Danger Zone
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <Button variant="destructive" onClick={() => setShowDeleteDialog(true)} className="hover-lift">
+                            <Button variant="destructive" onClick={() => setShowDeleteDialog(true)}>
                                 Delete Account
                             </Button>
                         </CardContent>
@@ -475,9 +462,10 @@ export default function SettingsPage() {
                         value={deleteConfirmText}
                         onChange={(e) => setDeleteConfirmText(e.target.value)}
                         placeholder="DELETE"
+                        className="border-2"
                     />
                     <DialogFooter className="gap-2">
-                        <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
+                        <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="border-2">Cancel</Button>
                         <Button
                             variant="destructive"
                             onClick={handleDelete}

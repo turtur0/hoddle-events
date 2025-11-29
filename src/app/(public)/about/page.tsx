@@ -20,16 +20,65 @@ export const metadata = {
     description: "Learn about Melbourne Events, our data sources, and ethical practices.",
 };
 
+const DATA_SOURCES = [
+    {
+        name: 'Ticketmaster',
+        url: 'https://www.ticketmaster.com.au/',
+        badge: { label: 'Primary', variant: 'default' as const },
+        description: 'Major concerts, sports events, and theatre productions via their official Discovery API.',
+    },
+    {
+        name: 'Marriner Group',
+        url: 'https://marrinergroup.com.au/',
+        badge: { label: 'Venue', variant: 'secondary' as const },
+        description: 'Theatre, musicals, and performing arts from Melbourne\'s premier entertainment venues.',
+        venues: ['Regent Theatre', 'Princess Theatre', 'Comedy Theatre', 'Forum Melbourne', 'Plaza Ballroom'],
+    },
+    {
+        name: 'What\'s On Melbourne',
+        url: 'https://whatson.melbourne.vic.gov.au/',
+        badge: { label: 'Secondary', variant: 'outline' as const },
+        description: 'Community events, festivals, and cultural activities curated by the City of Melbourne.',
+    },
+];
+
+const ETHICAL_PRACTICES = [
+    {
+        title: "API-first approach",
+        desc: "We use official APIs wherever available (Ticketmaster Discovery API)."
+    },
+    {
+        title: "robots.txt compliance",
+        desc: "We respect crawling restrictions and terms of service."
+    },
+    {
+        title: "Rate limiting",
+        desc: "We implement intelligent delays and never overload source servers."
+    },
+    {
+        title: "Direct attribution",
+        desc: "We always link directly to the original ticketing source for bookings."
+    },
+    {
+        title: "No personal data",
+        desc: "We only collect publicly available event information."
+    },
+    {
+        title: "No ticket sales",
+        desc: "We don't sell tickets - all bookings go directly to official sources."
+    },
+];
+
 export default function AboutPage() {
     return (
         <div className="w-full">
-            {/* Hero Section */}
-            <section className="bg-linear-to-b from-primary/5 via-background to-background">
-                <div className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+            {/* Header Section */}
+            <section className="page-header">
+                <div className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                     <BackButton fallbackUrl="/" className="mb-8" />
 
                     <div className="flex items-start gap-4 mb-4">
-                        <div className="rounded-2xl bg-primary/10 p-3 ring-1 ring-primary/20">
+                        <div className="icon-container">
                             <Sparkles className="h-8 w-8 text-primary" />
                         </div>
                         <div>
@@ -49,7 +98,7 @@ export default function AboutPage() {
             <section className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
                 <div className="space-y-8">
                     {/* Mission */}
-                    <Card className="border-2">
+                    <Card className="card-interactive">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-3 text-2xl">
                                 <div className="rounded-lg bg-muted p-2">
@@ -73,7 +122,7 @@ export default function AboutPage() {
                     </Card>
 
                     {/* Data Sources */}
-                    <Card className="border-2" id="data-sources">
+                    <Card className="card-interactive" id="data-sources">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-3 text-2xl">
                                 <div className="rounded-lg bg-muted p-2">
@@ -87,85 +136,44 @@ export default function AboutPage() {
                                 We aggregate event data from the following trusted sources:
                             </p>
                             <div className="space-y-4">
-                                {/* Ticketmaster */}
-                                <div className="p-6 rounded-xl border-2 bg-muted/30 transition-all hover:shadow-sm">
-                                    <div className="flex items-start gap-4">
-                                        <Badge className="mt-1 bg-primary text-primary-foreground">Primary</Badge>
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <h4 className="font-bold text-lg">Ticketmaster</h4>
-                                                <a
-                                                    href="https://www.ticketmaster.com.au/"
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-primary hover:text-primary/80 transition-colors"
-                                                >
-                                                    <ExternalLink className="h-4 w-4" />
-                                                </a>
-                                            </div>
-                                            <p className="text-muted-foreground">
-                                                Major concerts, sports events, and theatre productions via their official Discovery API.
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Marriner Group */}
-                                <div className="p-6 rounded-xl border-2 bg-muted/30 transition-all hover:shadow-sm">
-                                    <div className="flex items-start gap-4">
-                                        <Badge variant="secondary" className="mt-1">Venue</Badge>
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <h4 className="font-bold text-lg">Marriner Group</h4>
-                                                <a
-                                                    href="https://marrinergroup.com.au/"
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-primary hover:text-primary/80 transition-colors"
-                                                >
-                                                    <ExternalLink className="h-4 w-4" />
-                                                </a>
-                                            </div>
-                                            <p className="text-muted-foreground mb-3">
-                                                Theatre, musicals, and performing arts from Melbourne's premier entertainment venues.
-                                            </p>
-                                            <div className="flex flex-wrap gap-2">
-                                                {['Regent Theatre', 'Princess Theatre', 'Comedy Theatre', 'Forum Melbourne', 'Plaza Ballroom'].map(venue => (
-                                                    <Badge
-                                                        key={venue}
-                                                        variant="outline"
-                                                        className="bg-background transition-all hover:bg-muted"
+                                {DATA_SOURCES.map((source) => (
+                                    <div key={source.name} className="p-6 rounded-xl border-2 bg-muted/30 transition-all duration-(--transition-base) hover:shadow-sm">
+                                        <div className="flex items-start gap-4">
+                                            <Badge variant={source.badge.variant} className="mt-1">
+                                                {source.badge.label}
+                                            </Badge>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <h4 className="font-bold text-lg">{source.name}</h4>
+                                                    <a
+                                                        href={source.url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-primary hover:text-primary/80 transition-colors duration-(--transition-base)"
                                                     >
-                                                        {venue}
-                                                    </Badge>
-                                                ))}
+                                                        <ExternalLink className="h-4 w-4" />
+                                                    </a>
+                                                </div>
+                                                <p className="text-muted-foreground mb-3">
+                                                    {source.description}
+                                                </p>
+                                                {source.venues && (
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {source.venues.map(venue => (
+                                                            <Badge
+                                                                key={venue}
+                                                                variant="outline"
+                                                                className="badge-outline-hover"
+                                                            >
+                                                                {venue}
+                                                            </Badge>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-
-                                {/* What's On */}
-                                <div className="p-6 rounded-xl border-2 bg-muted/30 transition-all hover:shadow-sm">
-                                    <div className="flex items-start gap-4">
-                                        <Badge variant="outline" className="mt-1">Secondary</Badge>
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <h4 className="font-bold text-lg">What's On Melbourne</h4>
-                                                <a
-                                                    href="https://whatson.melbourne.vic.gov.au/"
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-primary hover:text-primary/80 transition-colors"
-                                                >
-                                                    <ExternalLink className="h-4 w-4" />
-                                                </a>
-                                            </div>
-                                            <p className="text-muted-foreground">
-                                                Community events, festivals, and cultural activities curated by the City of Melbourne.
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
+                                ))}
                             </div>
 
                             <div className="mt-6 p-5 rounded-xl border-2 bg-muted/30">
@@ -179,7 +187,7 @@ export default function AboutPage() {
                     </Card>
 
                     {/* Ethical Practices */}
-                    <Card className="border-2" id="ethics">
+                    <Card className="card-interactive" id="ethics">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-3 text-2xl">
                                 <div className="rounded-lg bg-muted p-2">
@@ -193,33 +201,8 @@ export default function AboutPage() {
                                 We take data ethics seriously. Here's how we operate responsibly:
                             </p>
                             <ul className="space-y-3">
-                                {[
-                                    {
-                                        title: "API-first approach",
-                                        desc: "We use official APIs wherever available (Ticketmaster Discovery API)."
-                                    },
-                                    {
-                                        title: "robots.txt compliance",
-                                        desc: "We respect crawling restrictions and terms of service."
-                                    },
-                                    {
-                                        title: "Rate limiting",
-                                        desc: "We implement intelligent delays and never overload source servers."
-                                    },
-                                    {
-                                        title: "Direct attribution",
-                                        desc: "We always link directly to the original ticketing source for bookings."
-                                    },
-                                    {
-                                        title: "No personal data",
-                                        desc: "We only collect publicly available event information."
-                                    },
-                                    {
-                                        title: "No ticket sales",
-                                        desc: "We don't sell tickets - all bookings go directly to official sources."
-                                    },
-                                ].map((item, i) => (
-                                    <li key={i} className="flex items-start gap-3 p-4 rounded-lg border bg-muted/30 transition-all hover:shadow-sm">
+                                {ETHICAL_PRACTICES.map((item, i) => (
+                                    <li key={i} className="flex items-start gap-3 p-4 rounded-lg border bg-muted/30 transition-all duration-(--transition-base) hover:shadow-sm">
                                         <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                                         <div>
                                             <strong className="text-foreground">{item.title}:</strong>{" "}
@@ -232,7 +215,7 @@ export default function AboutPage() {
                     </Card>
 
                     {/* Update Frequency */}
-                    <Card className="border-2">
+                    <Card className="card-interactive">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-3 text-2xl">
                                 <div className="rounded-lg bg-muted p-2">
@@ -250,7 +233,7 @@ export default function AboutPage() {
                     </Card>
 
                     {/* Contact */}
-                    <Card className="border-2" id="contact">
+                    <Card className="card-interactive" id="contact">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-3 text-2xl">
                                 <div className="rounded-lg bg-muted p-2">
@@ -264,13 +247,13 @@ export default function AboutPage() {
                                 Have questions, feedback, or want to report an issue? Get in touch:
                             </p>
                             <div className="flex flex-wrap gap-4 mb-6">
-                                <Button variant="outline" size="lg" asChild className="border-2 transition-all hover:bg-muted">
+                                <Button variant="outline" size="lg" asChild className="border-2 transition-all duration-(--transition-base) hover:bg-muted">
                                     <a href="mailto:your@email.com" className="flex items-center">
                                         <Mail className="h-5 w-5 mr-2" />
                                         your@email.com
                                     </a>
                                 </Button>
-                                <Button variant="outline" size="lg" asChild className="border-2 transition-all hover:bg-muted">
+                                <Button variant="outline" size="lg" asChild className="border-2 transition-all duration-(--transition-base) hover:bg-muted">
                                     <a
                                         href="https://github.com/turtur0/events-aggregator"
                                         target="_blank"

@@ -1,3 +1,4 @@
+// components/events/EventFilters.tsx
 'use client';
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
@@ -38,7 +39,6 @@ export function EventFilters() {
       params.set(key, value.toString());
     }
 
-    // Reset to page 1 when filters change
     params.set('page', '1');
 
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
@@ -53,7 +53,6 @@ export function EventFilters() {
       params.set('category', value);
     }
 
-    // Clear subcategory when category changes
     params.delete('subcategory');
     params.set('page', '1');
 
@@ -81,7 +80,6 @@ export function EventFilters() {
 
   const selectedCategory = CATEGORIES.find(cat => cat.value === category);
 
-  // Count active filters
   const activeFilterCount = [
     category !== 'all',
     subcategory !== 'all',
@@ -93,15 +91,15 @@ export function EventFilters() {
   return (
     <div className="space-y-3">
       {/* Filter Header */}
-      <div className="bg-card border-2 border-border/50 rounded-lg p-4 hover:border-primary/30 transition-all">
+      <div className="bg-card border-2 rounded-lg p-4 transition-all hover:border-primary/30">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-primary" />
             <h3 className="font-semibold">Filters</h3>
             {activeFilterCount > 0 && (
-              <span className="text-xs bg-primary text-primary-foreground rounded-full px-2 py-0.5 font-medium animate-in fade-in zoom-in duration-200">
+              <Badge className="bg-primary text-primary-foreground animate-in fade-in zoom-in duration-200">
                 {activeFilterCount}
-              </span>
+              </Badge>
             )}
           </div>
 
@@ -110,12 +108,12 @@ export function EventFilters() {
               variant="ghost"
               size="icon"
               onClick={() => setShowFilters(!showFilters)}
-              className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-all"
+              className="h-8 w-8 transition-all hover:bg-primary/10 hover:text-primary"
             >
               {showFilters ? (
-                <Minus className="h-4 w-4 transition-transform rotate-0" />
+                <Minus className="h-4 w-4" />
               ) : (
-                <Plus className="h-4 w-4 transition-transform rotate-0" />
+                <Plus className="h-4 w-4" />
               )}
             </Button>
 
@@ -124,7 +122,7 @@ export function EventFilters() {
                 variant="ghost"
                 size="sm"
                 onClick={clearAllFilters}
-                className="h-8 px-2 hover:bg-destructive/10 hover:text-destructive transition-all animate-in fade-in slide-in-from-right-2 duration-200"
+                className="h-8 px-2 transition-all hover:bg-destructive/10 hover:text-destructive animate-in fade-in slide-in-from-right-2 duration-200"
               >
                 <X className="h-4 w-4 mr-1" />
                 Clear all
@@ -170,7 +168,7 @@ export function EventFilters() {
               </Badge>
             )}
             {freeOnly && (
-              <Badge variant="secondary" className="gap-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 transition-colors">
+              <Badge variant="secondary" className="gap-1 border-2 border-emerald-500/30 bg-emerald-500/5 text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400">
                 Free only
                 <button
                   onClick={() => updateURL('free', false)}
@@ -181,7 +179,7 @@ export function EventFilters() {
               </Badge>
             )}
             {accessibleOnly && (
-              <Badge variant="secondary" className="gap-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 transition-colors">
+              <Badge variant="secondary" className="gap-1 border-2 border-emerald-500/30 bg-emerald-500/5 text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400">
                 <Users className="h-3 w-3" />
                 Accessible only
                 <button
@@ -198,7 +196,7 @@ export function EventFilters() {
 
       {/* Filter Controls */}
       {showFilters && (
-        <div className="bg-card border-2 border-border/50 rounded-lg p-4 animate-in fade-in slide-in-from-top-4 duration-300">
+        <div className="bg-card border-2 rounded-lg p-4 animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Category */}
             <div className="space-y-2">
@@ -260,7 +258,7 @@ export function EventFilters() {
             {/* Price Filter */}
             <div className="space-y-2">
               <Label className="text-sm font-medium">Price</Label>
-              <div className="flex items-center space-x-2 h-10 px-3 border-2 border-border/50 rounded-md hover:border-emerald-500/30 transition-colors">
+              <div className="flex items-center space-x-2 h-10 px-3 border-2 rounded-md transition-colors hover:border-emerald-500/30">
                 <Switch
                   id="free-only"
                   checked={freeOnly}
@@ -276,7 +274,7 @@ export function EventFilters() {
             {/* Accessibility Filter */}
             <div className="space-y-2">
               <Label className="text-sm font-medium">Accessibility</Label>
-              <div className="flex items-center space-x-2 h-10 px-3 border-2 border-border/50 rounded-md hover:border-emerald-500/30 transition-colors">
+              <div className="flex items-center space-x-2 h-10 px-3 border-2 rounded-md transition-colors hover:border-emerald-500/30">
                 <Switch
                   id="accessible-only"
                   checked={accessibleOnly}
