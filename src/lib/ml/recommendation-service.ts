@@ -1,6 +1,5 @@
 import { extractEventFeatures, cosineSimilarity } from '@/lib/ml';
-import { CATEGORIES } from '../constants/categories';
-import { Event, UserInteraction, type IEvent } from '@/lib/models';
+import { Event, type IEvent } from '@/lib/models';
 import mongoose from 'mongoose';
 
 /**

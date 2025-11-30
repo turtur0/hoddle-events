@@ -1,30 +1,29 @@
-
+// app/api/events/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Types, FilterQuery } from 'mongoose';
 import { Event, type IEvent } from '@/lib/models';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { getPersonalisedRecommendations } from '@/lib/ml/user-profile-service';
 
 const EVENTS_PER_PAGE = 18;
+
+type SortOption =
+  | 'recommended'
+  | 'popular'
+  | 'price-low'
+  | 'price-high'
+  | 'date-soon'
+  | 'date-late'
+  | 'recently-added';
 
 interface AggregatedEvent extends IEvent {
   _id: Types.ObjectId;
   relevanceScore?: number;
+  mlScore?: number;
 }
 
-/**
- * GET /api/events
- * Retrieves paginated events with optional filtering and search.
- * 
- * Query params:
- * - page: page number (default: 1)
- * - q: search query
- * - category: filter by category
- * - subcategory: filter by subcategory
- * - date: filter by date range (today, this-week, this-month, next-month)
- * - priceMin/priceMax: price range filters
- * - free: show only free events
- * - accessible: show only accessible events
- */
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
@@ -32,47 +31,72 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get('page') || '1');
     const searchQuery = searchParams.get('q') || '';
+    const sortOption = (searchParams.get('sort') as SortOption) || null;
 
+    const session = await getServerSession(authOptions);
     const matchConditions = buildMatchConditions(searchParams);
 
-    // Simple query without search
-    if (!searchQuery.trim()) {
-      return await fetchSimpleEvents(matchConditions, page);
+    // Handle personalised recommendations
+    if (sortOption === 'recommended' && session?.user?.id) {
+      return await fetchRecommendedEvents(
+        matchConditions,
+        page,
+        new Types.ObjectId(session.user.id)
+      );
     }
 
-    // Advanced search with relevance scoring
-    return await fetchSearchResults(matchConditions, searchQuery, page);
+    // Handle search with relevance
+    if (searchQuery.trim()) {
+      return await fetchSearchResults(
+        matchConditions,
+        searchQuery,
+        page,
+        sortOption || 'date-soon'
+      );
+    }
+
+    // Handle standard sorted queries
+    return await fetchSortedEvents(
+      matchConditions,
+      page,
+      sortOption || 'date-soon'
+    );
   } catch (error) {
     console.error('Events API error:', error);
-    return NextResponse.json({ error: 'Failed to fetch events' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch events' },
+      { status: 500 }
+    );
   }
 }
 
-/**
- * Builds MongoDB match conditions from query parameters.
- */
 function buildMatchConditions(searchParams: URLSearchParams): FilterQuery<IEvent> {
   const matchConditions: FilterQuery<IEvent> = {
-    startDate: { $gte: new Date() }
+    startDate: { $gte: new Date() },
   };
 
-  // Category filter (case-insensitive)
+  // Category filter
   const category = searchParams.get('category');
-  if (category) {
+  if (category && category !== 'all') {
     matchConditions.category = { $regex: new RegExp(`^${category}$`, 'i') };
   }
 
   // Subcategory filter
   const subcategory = searchParams.get('subcategory');
-  if (subcategory) {
+  if (subcategory && subcategory !== 'all') {
     matchConditions.subcategories = {
-      $elemMatch: { $regex: new RegExp(`^${subcategory}$`, 'i') }
+      $elemMatch: { $regex: new RegExp(`^${subcategory}$`, 'i') },
     };
   }
 
   // Date range filter
   const dateFilter = searchParams.get('date');
-  if (dateFilter) {
+  const dateFrom = searchParams.get('dateFrom');
+  const dateTo = searchParams.get('dateTo');
+
+  if (dateFrom || dateTo) {
+    applyCustomDateRange(matchConditions, dateFrom || undefined, dateTo || undefined);
+  } else if (dateFilter && dateFilter !== 'all') {
     applyDateFilter(matchConditions, dateFilter);
   }
 
@@ -87,22 +111,16 @@ function buildMatchConditions(searchParams: URLSearchParams): FilterQuery<IEvent
   // Accessibility filter
   const accessibleOnly = searchParams.get('accessible') === 'true';
   if (accessibleOnly) {
-    matchConditions.$and = matchConditions.$and || [];
-    matchConditions.$and.push({
-      accessibility: {
-        $exists: true,
-        $ne: null,
-        $not: { $size: 0 }
-      }
-    });
+    matchConditions.accessibility = {
+      $exists: true,
+      $ne: null,
+      $not: { $size: 0 },
+    } as any;
   }
 
   return matchConditions;
 }
 
-/**
- * Applies date range filter to match conditions.
- */
 function applyDateFilter(matchConditions: FilterQuery<IEvent>, dateFilter: string) {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -134,10 +152,39 @@ function applyDateFilter(matchConditions: FilterQuery<IEvent>, dateFilter: strin
   }
 }
 
-/**
- * Applies price range filters to match conditions.
- */
-function applyPriceFilters(matchConditions: FilterQuery<IEvent>, searchParams: URLSearchParams) {
+function applyCustomDateRange(
+  matchConditions: FilterQuery<IEvent>,
+  dateFrom?: string,
+  dateTo?: string
+) {
+  if (!dateFrom && !dateTo) return;
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dateConditions: any = {};
+
+  if (dateFrom) {
+    const fromDate = new Date(dateFrom);
+    fromDate.setHours(0, 0, 0, 0);
+    dateConditions.$gte = fromDate >= today ? fromDate : today;
+  } else {
+    dateConditions.$gte = today;
+  }
+
+  if (dateTo) {
+    const toDate = new Date(dateTo);
+    toDate.setDate(toDate.getDate() + 1);
+    toDate.setHours(0, 0, 0, 0);
+    dateConditions.$lt = toDate;
+  }
+
+  matchConditions.startDate = dateConditions;
+}
+
+function applyPriceFilters(
+  matchConditions: FilterQuery<IEvent>,
+  searchParams: URLSearchParams
+) {
   const priceMin = searchParams.get('priceMin');
   const priceMax = searchParams.get('priceMax');
 
@@ -149,15 +196,100 @@ function applyPriceFilters(matchConditions: FilterQuery<IEvent>, searchParams: U
   }
 }
 
-/**
- * Fetches events without search (simple query with sorting).
- */
-async function fetchSimpleEvents(matchConditions: FilterQuery<IEvent>, page: number) {
+function getSortConfig(sortOption: SortOption): Record<string, 1 | -1> {
+  const configs: Record<SortOption, Record<string, 1 | -1>> = {
+    popular: { 'stats.categoryPopularityPercentile': -1, startDate: 1 },
+    'price-low': { priceMin: 1, startDate: 1 },
+    'price-high': { priceMax: -1, startDate: 1 },
+    'date-soon': { startDate: 1 },
+    'date-late': { startDate: -1 },
+    'recently-added': { scrapedAt: -1, startDate: 1 },
+    recommended: { startDate: 1 }, // fallback
+  };
+
+  return configs[sortOption] || configs['date-soon'];
+}
+
+async function fetchRecommendedEvents(
+  matchConditions: FilterQuery<IEvent>,
+  page: number,
+  userId: Types.ObjectId
+) {
+  try {
+    const User = (await import('@/lib/models/User')).default;
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return fetchSortedEvents(matchConditions, page, 'date-soon');
+    }
+
+    const recommendations = await getPersonalisedRecommendations(userId, user, {
+      limit: EVENTS_PER_PAGE * 5,
+      excludeFavourited: false,
+      category: matchConditions.category?.$regex?.source,
+      minDate: matchConditions.startDate?.$gte as Date,
+    });
+
+    let filteredEvents = recommendations.map(r => r.event);
+
+    // Apply subcategory filter
+    if (matchConditions.subcategories?.$elemMatch) {
+      const subcatRegex = matchConditions.subcategories.$elemMatch.$regex;
+      if (subcatRegex) {
+        filteredEvents = filteredEvents.filter(event =>
+          event.subcategories?.some(sub => subcatRegex.test(sub))
+        );
+      }
+    }
+
+    // Apply date range filters
+    if (matchConditions.startDate) {
+      const { $gte, $lt } = matchConditions.startDate;
+      filteredEvents = filteredEvents.filter(event => {
+        const eventDate = new Date(event.startDate);
+        if ($gte && eventDate < $gte) return false;
+        if ($lt && eventDate >= $lt) return false;
+        return true;
+      });
+    }
+
+    // Apply free filter
+    if (matchConditions.isFree === true) {
+      filteredEvents = filteredEvents.filter(event => event.isFree === true);
+    }
+
+    // Apply accessibility filter
+    if (matchConditions.accessibility) {
+      filteredEvents = filteredEvents.filter(
+        event => event.accessibility && event.accessibility.length > 0
+      );
+    }
+
+    // Paginate
+    const skip = (page - 1) * EVENTS_PER_PAGE;
+    const paginatedEvents = filteredEvents.slice(skip, skip + EVENTS_PER_PAGE);
+
+    return NextResponse.json({
+      events: paginatedEvents.map(serialiseEvent),
+      pagination: buildPagination(page, filteredEvents.length),
+    });
+  } catch (error) {
+    console.error('Error fetching recommendations:', error);
+    return fetchSortedEvents(matchConditions, page, 'date-soon');
+  }
+}
+
+async function fetchSortedEvents(
+  matchConditions: FilterQuery<IEvent>,
+  page: number,
+  sortOption: SortOption
+) {
   const skip = (page - 1) * EVENTS_PER_PAGE;
+  const sortConfig = getSortConfig(sortOption);
 
   const [events, totalEvents] = await Promise.all([
     Event.find(matchConditions)
-      .sort({ startDate: 1 })
+      .sort(sortConfig)
       .skip(skip)
       .limit(EVENTS_PER_PAGE)
       .lean(),
@@ -170,51 +302,54 @@ async function fetchSimpleEvents(matchConditions: FilterQuery<IEvent>, page: num
   });
 }
 
-/**
- * Fetches search results with relevance scoring.
- * 
- * Relevance scoring algorithm:
- * - Exact category match: 100 points
- * - Partial category match: 50 points
- * - Title starts with query: 40 points
- * - Title contains query: 20 points
- * - Venue contains query: 10 points
- * - Description contains query: 5 points
- */
 async function fetchSearchResults(
   matchConditions: FilterQuery<IEvent>,
   searchQuery: string,
-  page: number
+  page: number,
+  sortOption: SortOption
 ) {
   const skip = (page - 1) * EVENTS_PER_PAGE;
-  const normalisedQuery = searchQuery.trim().toLowerCase();
+  const escapedQuery = searchQuery.trim().toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-  // Add search conditions
-  matchConditions.$or = [
-    { category: { $regex: normalisedQuery, $options: 'i' } },
-    { subcategories: { $elemMatch: { $regex: normalisedQuery, $options: 'i' } } },
-    { title: { $regex: normalisedQuery, $options: 'i' } },
-    { description: { $regex: normalisedQuery, $options: 'i' } },
-    { 'venue.name': { $regex: normalisedQuery, $options: 'i' } },
-  ];
+  const searchConditions: FilterQuery<IEvent> = {
+    ...matchConditions,
+    $or: [
+      { title: { $regex: escapedQuery, $options: 'i' } },
+      { description: { $regex: escapedQuery, $options: 'i' } },
+      { 'venue.name': { $regex: escapedQuery, $options: 'i' } },
+      { category: { $regex: escapedQuery, $options: 'i' } },
+      { subcategories: { $elemMatch: { $regex: escapedQuery, $options: 'i' } } },
+    ],
+  };
+
+  const sortConfigs: Record<string, Record<string, 1 | -1>> = {
+    popular: { relevanceScore: -1, 'stats.categoryPopularityPercentile': -1, startDate: 1 },
+    'price-low': { relevanceScore: -1, priceMin: 1, startDate: 1 },
+    'price-high': { relevanceScore: -1, priceMax: -1, startDate: 1 },
+    'date-late': { relevanceScore: -1, startDate: -1 },
+    'recently-added': { relevanceScore: -1, scrapedAt: -1 },
+    default: { relevanceScore: -1, startDate: 1 },
+  };
+
+  const finalSort = sortConfigs[sortOption] || sortConfigs.default;
 
   const pipeline = [
-    { $match: matchConditions },
+    { $match: searchConditions },
     {
       $addFields: {
         relevanceScore: {
           $sum: [
-            { $cond: [{ $regexMatch: { input: { $toLower: '$category' }, regex: `^${normalisedQuery}$` } }, 100, 0] },
-            { $cond: [{ $regexMatch: { input: { $toLower: '$category' }, regex: normalisedQuery } }, 50, 0] },
-            { $cond: [{ $regexMatch: { input: { $toLower: '$title' }, regex: `^${normalisedQuery}` } }, 40, 0] },
-            { $cond: [{ $regexMatch: { input: { $toLower: '$title' }, regex: normalisedQuery } }, 20, 0] },
-            { $cond: [{ $regexMatch: { input: { $toLower: '$venue.name' }, regex: normalisedQuery } }, 10, 0] },
-            { $cond: [{ $regexMatch: { input: { $toLower: '$description' }, regex: normalisedQuery } }, 5, 0] },
+            { $cond: [{ $regexMatch: { input: { $toLower: '$category' }, regex: `^${escapedQuery}$` } }, 100, 0] },
+            { $cond: [{ $regexMatch: { input: { $toLower: '$category' }, regex: escapedQuery } }, 50, 0] },
+            { $cond: [{ $regexMatch: { input: { $toLower: '$title' }, regex: `^${escapedQuery}` } }, 40, 0] },
+            { $cond: [{ $regexMatch: { input: { $toLower: '$title' }, regex: escapedQuery } }, 20, 0] },
+            { $cond: [{ $regexMatch: { input: { $toLower: '$venue.name' }, regex: escapedQuery } }, 10, 0] },
+            { $cond: [{ $regexMatch: { input: { $toLower: '$description' }, regex: escapedQuery } }, 5, 0] },
           ],
         },
       },
     },
-    { $sort: { relevanceScore: -1 as const, startDate: 1 as const } },
+    { $sort: finalSort },
     {
       $facet: {
         events: [{ $skip: skip }, { $limit: EVENTS_PER_PAGE }],
@@ -233,16 +368,21 @@ async function fetchSearchResults(
   });
 }
 
-/** Serialises an event for API response. */
 function serialiseEvent(event: any) {
   return {
     _id: event._id.toString(),
     title: event.title,
     description: event.description,
     category: event.category,
-    subcategories: event.subcategories,
-    startDate: event.startDate.toISOString(),
-    endDate: event.endDate?.toISOString(),
+    subcategories: event.subcategories || [],
+    startDate: event.startDate instanceof Date
+      ? event.startDate.toISOString()
+      : new Date(event.startDate).toISOString(),
+    endDate: event.endDate
+      ? (event.endDate instanceof Date
+        ? event.endDate.toISOString()
+        : new Date(event.endDate).toISOString())
+      : undefined,
     venue: event.venue,
     priceMin: event.priceMin,
     priceMax: event.priceMax,
@@ -250,18 +390,22 @@ function serialiseEvent(event: any) {
     bookingUrl: event.bookingUrl,
     bookingUrls: event.bookingUrls,
     imageUrl: event.imageUrl,
-    accessibility: event.accessibility,
+    accessibility: event.accessibility || [],
     duration: event.duration,
     ageRestriction: event.ageRestriction,
-    sources: event.sources,
+    sources: event.sources || [],
     sourceIds: event.sourceIds,
     primarySource: event.primarySource,
-    scrapedAt: event.scrapedAt.toISOString(),
-    lastUpdated: event.lastUpdated.toISOString(),
+    scrapedAt: event.scrapedAt instanceof Date
+      ? event.scrapedAt.toISOString()
+      : new Date(event.scrapedAt).toISOString(),
+    lastUpdated: event.lastUpdated instanceof Date
+      ? event.lastUpdated.toISOString()
+      : new Date(event.lastUpdated).toISOString(),
+    stats: event.stats,
   };
 }
 
-/** Builds pagination metadata. */
 function buildPagination(page: number, totalEvents: number) {
   const totalPages = Math.ceil(totalEvents / EVENTS_PER_PAGE);
 

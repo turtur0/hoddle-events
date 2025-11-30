@@ -1,4 +1,4 @@
-// app/events/page.tsx
+// app/(public)/events/page.tsx
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { EventsPageLayout } from '@/components/layout/EventsPageLayout';
@@ -17,8 +17,11 @@ interface EventsPageProps {
     category?: string;
     subcategory?: string;
     date?: string;
+    dateFrom?: string;
+    dateTo?: string;
     free?: string;
     accessible?: string;
+    sort?: string;
   }>;
 }
 
@@ -35,40 +38,53 @@ async function fetchEvents(params: URLSearchParams) {
   return response.json();
 }
 
-async function EventsGridWrapper({
-  page,
-  searchQuery,
-  category,
-  subcategory,
-  dateFilter,
-  freeOnly,
-  accessibleOnly,
-  userFavourites,
-}: {
+interface EventsGridWrapperProps {
   page: number;
   searchQuery: string;
   category: string;
   subcategory: string;
   dateFilter: string;
+  dateFrom: string;
+  dateTo: string;
   freeOnly: boolean;
   accessibleOnly: boolean;
+  sortOption: string;
   userFavourites: Set<string>;
-}) {
+}
+
+async function EventsGridWrapper(props: EventsGridWrapperProps) {
+  const {
+    page,
+    searchQuery,
+    category,
+    subcategory,
+    dateFilter,
+    dateFrom,
+    dateTo,
+    freeOnly,
+    accessibleOnly,
+    sortOption,
+    userFavourites,
+  } = props;
+
   const params = new URLSearchParams({ page: page.toString() });
 
   if (searchQuery.trim()) params.set('q', searchQuery.trim());
   if (category) params.set('category', category);
   if (subcategory) params.set('subcategory', subcategory);
   if (dateFilter) params.set('date', dateFilter);
+  if (dateFrom) params.set('dateFrom', dateFrom);
+  if (dateTo) params.set('dateTo', dateTo);
   if (freeOnly) params.set('free', 'true');
   if (accessibleOnly) params.set('accessible', 'true');
+  if (sortOption) params.set('sort', sortOption);
 
   const data = await fetchEvents(params);
   const eventsData: SerializedEvent[] = data.events;
   const { totalEvents, totalPages } = data.pagination;
 
   const source = searchQuery ? 'search' : category ? 'category_browse' : 'direct';
-  const hasFilters = searchQuery || category || subcategory || dateFilter || freeOnly || accessibleOnly;
+  const hasFilters = searchQuery || category || subcategory || dateFilter || dateFrom || dateTo || freeOnly || accessibleOnly;
 
   return (
     <EventsGrid
@@ -90,23 +106,28 @@ async function EventsGridWrapper({
 
 export default async function EventsPage({ searchParams }: EventsPageProps) {
   const params = await searchParams;
+
   const currentPage = Number(params.page) || 1;
   const searchQuery = params.q || '';
   const category = params.category || '';
   const subcategory = params.subcategory || '';
   const dateFilter = params.date || '';
+  const dateFrom = params.dateFrom || '';
+  const dateTo = params.dateTo || '';
   const freeOnly = params.free === 'true';
   const accessibleOnly = params.accessible === 'true';
+  const sortOption = params.sort || '';
 
   const session = await getServerSession(authOptions);
-  let userFavourites = new Set<string>();
+  const isAuthenticated = Boolean(session?.user);
 
+  let userFavourites = new Set<string>();
   if (session?.user?.id) {
     const favouriteIds = await getUserFavourites(session.user.id);
     userFavourites = new Set(favouriteIds);
   }
 
-  const suspenseKey = `${currentPage}-${searchQuery}-${category}-${subcategory}-${dateFilter}-${freeOnly}-${accessibleOnly}`;
+  const suspenseKey = `${currentPage}-${searchQuery}-${category}-${subcategory}-${dateFilter}-${dateFrom}-${dateTo}-${freeOnly}-${accessibleOnly}-${sortOption}`;
 
   return (
     <EventsPageLayout
@@ -118,7 +139,7 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
       filters={
         <div className="space-y-4">
           <SearchBar />
-          <EventFilters />
+          <EventFilters isAuthenticated={isAuthenticated} />
         </div>
       }
     >
@@ -129,8 +150,11 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
           category={category}
           subcategory={subcategory}
           dateFilter={dateFilter}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
           freeOnly={freeOnly}
           accessibleOnly={accessibleOnly}
+          sortOption={sortOption}
           userFavourites={userFavourites}
         />
       </Suspense>
