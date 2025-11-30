@@ -2,9 +2,8 @@
 import Link from "next/link";
 import { ArrowRight, Calendar, MapPin, Clock } from "lucide-react";
 import { Button } from '@/components/ui/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Skeleton } from '@/components/ui/Skeleton';
 import { EventCard } from '@/components/events/EventCard';
+import { EventSection } from '@/components/events/EventSection';
 import { connectDB } from "@/lib/db";
 import { Event } from '@/lib/models';
 
@@ -12,7 +11,6 @@ interface UpcomingEventsProps {
     userFavourites: Set<string>;
 }
 
-// Helper to convert MongoDB Map to plain object
 function mapToObject(map: any): Record<string, string> {
     if (!map) return {};
     if (typeof map.get === 'function') {
@@ -25,47 +23,8 @@ function mapToObject(map: any): Record<string, string> {
     return map;
 }
 
-// Skeleton for compact event list items
-function CompactEventSkeleton() {
-    return (
-        <div className="flex gap-4 p-4 rounded-lg border-2 border-border/50 bg-card">
-            <Skeleton className="shrink-0 w-16 h-16 rounded-lg" />
-            <div className="flex-1 space-y-2">
-                <Skeleton className="h-5 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-                <Skeleton className="h-4 w-1/3" />
-            </div>
-        </div>
-    );
-}
-
-export async function UpcomingEvents({ userFavourites }: UpcomingEventsProps) {
-    await connectDB();
-
-    const now = new Date();
-    const endOfWeek = new Date(now);
-    endOfWeek.setDate(now.getDate() + 7);
-
-    // Fetch this week's events
-    const thisWeekEvents = await Event.find({
-        startDate: { $gte: now, $lte: endOfWeek },
-        imageUrl: { $exists: true, $ne: null },
-    })
-        .sort({ startDate: 1 })
-        .limit(6)
-        .lean();
-
-    // Fetch upcoming events (after this week)
-    const upcomingEvents = await Event.find({
-        startDate: { $gt: endOfWeek },
-        imageUrl: { $exists: true, $ne: null },
-    })
-        .sort({ startDate: 1 })
-        .limit(6)
-        .lean();
-
-    // Serialize MongoDB documents for client components
-    const serializeEvent = (e: any) => ({
+function serializeEvent(e: any) {
+    return {
         _id: e._id.toString(),
         title: e.title,
         description: e.description,
@@ -87,57 +46,62 @@ export async function UpcomingEvents({ userFavourites }: UpcomingEventsProps) {
         scrapedAt: e.scrapedAt.toISOString(),
         lastUpdated: e.lastUpdated.toISOString(),
         stats: e.stats || { viewCount: 0, favouriteCount: 0, clickthroughCount: 0 },
-    });
+    };
+}
+
+export async function UpcomingEvents({ userFavourites }: UpcomingEventsProps) {
+    await connectDB();
+
+    const now = new Date();
+    const endOfWeek = new Date(now);
+    endOfWeek.setDate(now.getDate() + 7);
+
+    const [thisWeekEvents, upcomingEvents] = await Promise.all([
+        Event.find({
+            startDate: { $gte: now, $lte: endOfWeek },
+            imageUrl: { $exists: true, $ne: null },
+        })
+            .sort({ startDate: 1 })
+            .limit(6)
+            .lean(),
+        Event.find({
+            startDate: { $gt: endOfWeek },
+            imageUrl: { $exists: true, $ne: null },
+        })
+            .sort({ startDate: 1 })
+            .limit(6)
+            .lean(),
+    ]);
 
     const serializedThisWeek = thisWeekEvents.map(serializeEvent);
     const serializedUpcoming = upcomingEvents.map(serializeEvent);
 
-    // Empty state
     if (serializedThisWeek.length === 0 && serializedUpcoming.length === 0) {
         return (
-            <Card className="border-2 border-primary/20 shadow-sm hover:shadow-md hover:border-primary/30 transition-all">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-2xl">
-                        <Calendar className="h-6 w-6 text-primary" />
-                        Upcoming Events
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-muted-foreground text-center py-8">
-                        No upcoming events at the moment. Check back soon!
-                    </p>
-                </CardContent>
-            </Card>
+            <EventSection
+                title="Upcoming Events"
+                description="Don't miss what's happening in Melbourne"
+                icon={<Calendar className="h-6 w-6 text-primary" />}
+                viewAllHref="/events"
+                borderClass="border-primary/20"
+                gradientClass="from-primary/5"
+                isEmpty
+                emptyMessage="No upcoming events at the moment. Check back soon!"
+            />
         );
     }
 
     return (
-        <Card className="border-2 border-primary/20 shadow-sm hover:shadow-md hover:border-primary/30 transition-all">
-            <CardHeader>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div>
-                        <CardTitle className="flex items-center gap-2 text-2xl mb-2">
-                            <Calendar className="h-6 w-6 text-primary" />
-                            Upcoming Events
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground">
-                            Don't miss what's happening in Melbourne
-                        </p>
-                    </div>
-                    <Button
-                        variant="outline"
-                        asChild
-                        className="border-2 border-primary/30 hover:border-primary/50 hover:bg-primary/10 transition-all hover-lift group"
-                    >
-                        <Link href="/events" className="flex items-center">
-                            View all
-                            <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-                        </Link>
-                    </Button>
-                </div>
-            </CardHeader>
-            <CardContent className="space-y-8">
-                {/* This Week - Compact list with teal accent */}
+        <EventSection
+            title="Upcoming Events"
+            description="Don't miss what's happening in Melbourne"
+            icon={<Calendar className="h-6 w-6 text-primary" />}
+            viewAllHref="/events"
+            borderClass="border-primary/20"
+            gradientClass="from-primary/5"
+        >
+            <div className="space-y-8">
+                {/* This Week - Compact list */}
                 {serializedThisWeek.length > 0 && (
                     <div>
                         <div className="flex items-center justify-between mb-4">
@@ -172,7 +136,6 @@ export async function UpcomingEvents({ userFavourites }: UpcomingEventsProps) {
                                         href={`/events/${event._id}`}
                                         className="group flex gap-4 p-4 rounded-lg border-2 border-border/50 bg-card hover:bg-secondary/10 hover:border-secondary/50 hover:shadow-md transition-all duration-200 hover-lift"
                                     >
-                                        {/* Date badge */}
                                         <div className="shrink-0 w-16 h-16 rounded-lg border-2 border-secondary/20 bg-secondary/5 flex flex-col items-center justify-center group-hover:bg-secondary/15 group-hover:border-secondary/40 group-hover:scale-105 transition-all">
                                             <span className="text-xs font-medium text-muted-foreground uppercase">
                                                 {dayName}
@@ -184,7 +147,6 @@ export async function UpcomingEvents({ userFavourites }: UpcomingEventsProps) {
                                                 {month}
                                             </span>
                                         </div>
-                                        {/* Event details */}
                                         <div className="min-w-0 flex-1">
                                             <h4 className="font-semibold line-clamp-2 mb-1 group-hover:text-secondary transition-colors">
                                                 {event.title}
@@ -205,7 +167,7 @@ export async function UpcomingEvents({ userFavourites }: UpcomingEventsProps) {
                     </div>
                 )}
 
-                {/* Coming Soon - Grid with orange accent */}
+                {/* Coming Soon - Grid */}
                 {serializedUpcoming.length > 0 && (
                     <div>
                         <div className="flex items-center justify-between mb-4">
@@ -234,7 +196,7 @@ export async function UpcomingEvents({ userFavourites }: UpcomingEventsProps) {
                         </div>
                     </div>
                 )}
-            </CardContent>
-        </Card>
+            </div>
+        </EventSection>
     );
 }
