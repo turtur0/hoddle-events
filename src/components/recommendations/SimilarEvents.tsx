@@ -1,4 +1,3 @@
-// components/recommendations/SimilarEvents.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -19,7 +18,7 @@ export function SimilarEvents({ eventId, userFavourites }: SimilarEventsProps) {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        async function fetchSimilar() {
+        async function fetchSimilarEvents() {
             try {
                 const res = await fetch(`/api/recommendations/similar/${eventId}`);
 
@@ -46,7 +45,7 @@ export function SimilarEvents({ eventId, userFavourites }: SimilarEventsProps) {
         }
 
         if (eventId) {
-            fetchSimilar();
+            fetchSimilarEvents();
         }
     }, [eventId]);
 

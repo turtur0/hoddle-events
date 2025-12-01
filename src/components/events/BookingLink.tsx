@@ -37,7 +37,7 @@ export function BookingLink({
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center"
+                className="flex items-center justify-center"
             >
                 {children || 'Get Tickets'}
                 <ExternalLink className="h-4 w-4 ml-2 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />

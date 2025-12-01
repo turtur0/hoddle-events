@@ -1,4 +1,3 @@
-// components/events/FavouriteButton.tsx
 'use client';
 
 import { useState, useTransition } from 'react';
@@ -38,7 +37,7 @@ export function FavouriteButton({
             return;
         }
 
-        // Optimistic update
+        // Optimistic update for immediate feedback
         setIsFavourited(!isFavourited);
 
         startTransition(async () => {
