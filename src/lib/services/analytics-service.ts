@@ -1,4 +1,3 @@
-// lib/services/analytics.ts
 import { CATEGORIES } from '@/lib/constants/categories';
 import { Event } from '@/lib/models';
 
@@ -21,14 +20,16 @@ export interface PriceDistribution {
 
 export interface TimelineData {
     month: string;
+    monthDate: Date;
     total: number;
-    [category: string]: number | string;
+    [category: string]: number | string | Date;
 }
 
 export interface PopularityData {
     title: string;
     category: string;
     priceMin: number;
+    priceMax?: number;
     popularity: number;
     favourites: number;
 }
@@ -93,7 +94,6 @@ export async function computePriceDistribution(
     const now = new Date();
     const categoryFilter = buildCategoryFilter(selectedCategories);
 
-    // Query upcoming paid events
     const events = await Event.find({
         startDate: { $gte: now },
         isFree: false,
@@ -105,43 +105,36 @@ export async function computePriceDistribution(
 
     if (!events.length) return [];
 
-    // Group ALL price points (min and max) by category/subcategory
     const groups: Record<string, number[]> = {};
 
     events.forEach(event => {
         const addPrices = (categoryName: string) => {
             groups[categoryName] ??= [];
 
-            // Add minimum price
             if (event.priceMin) {
                 groups[categoryName].push(event.priceMin);
             }
 
-            // Add maximum price if it exists and is different
             if (event.priceMax && event.priceMax > (event.priceMin || 0)) {
                 groups[categoryName].push(event.priceMax);
             }
         };
 
         if (selectedCategories?.length) {
-            // Group by selected subcategories
             const selectedSubs = event.subcategories?.filter(sub =>
                 selectedCategories.includes(sub)
             ) || [];
 
             selectedSubs.forEach(addPrices);
 
-            // Add to main category if selected and no subcategories matched
             if (selectedCategories.includes(event.category) && !selectedSubs.length) {
                 addPrices(event.category);
             }
         } else {
-            // Default: group by main category only
             addPrices(event.category);
         }
     });
 
-    // Calculate statistics for each group
     const result: PriceDistribution[] = [];
 
     for (const [categoryName, prices] of Object.entries(groups)) {
@@ -178,28 +171,38 @@ export async function computeTimeline(
         .select('startDate category')
         .lean();
 
-    const monthGroups: Record<string, Record<string, number>> = {};
+    const monthGroups: Record<string, { date: Date; categories: Record<string, number> }> = {};
 
     events.forEach(event => {
-        const monthKey = event.startDate.toLocaleDateString('en-US', {
-            month: 'short',
-            year: 'numeric',
-        });
+        const year = event.startDate.getFullYear();
+        const month = event.startDate.getMonth();
+        const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
 
-        monthGroups[monthKey] ??= {};
+        if (!monthGroups[monthKey]) {
+            monthGroups[monthKey] = {
+                date: new Date(year, month, 1),
+                categories: {}
+            };
+        }
+
         const categoryKey = event.category;
-        monthGroups[monthKey][categoryKey] = (monthGroups[monthKey][categoryKey] || 0) + 1;
+        monthGroups[monthKey].categories[categoryKey] =
+            (monthGroups[monthKey].categories[categoryKey] || 0) + 1;
     });
 
-    const result: TimelineData[] = Object.entries(monthGroups).map(([month, categories]) => ({
-        month,
-        total: Object.values(categories).reduce((sum, count) => sum + count, 0),
-        ...categories,
-    }));
+    const result: TimelineData[] = Object.entries(monthGroups)
+        .map(([key, data]) => ({
+            month: data.date.toLocaleDateString('en-US', {
+                month: 'short',
+                year: 'numeric',
+            }),
+            monthDate: data.date,
+            total: Object.values(data.categories).reduce((sum, count) => sum + count, 0),
+            ...data.categories,
+        }))
+        .sort((a, b) => a.monthDate.getTime() - b.monthDate.getTime());
 
-    return result.sort((a, b) =>
-        new Date(a.month).getTime() - new Date(b.month).getTime()
-    );
+    return result;
 }
 
 export async function computePopularityData(
@@ -214,7 +217,7 @@ export async function computePopularityData(
         'stats.categoryPopularityPercentile': { $exists: true },
         ...categoryFilter,
     })
-        .select('title category subcategories priceMin stats.categoryPopularityPercentile stats.favouriteCount')
+        .select('title category subcategories priceMin priceMax stats.categoryPopularityPercentile stats.favouriteCount')
         .limit(500)
         .lean();
 
@@ -226,6 +229,7 @@ export async function computePopularityData(
         title: event.title,
         category: event.category,
         priceMin: event.priceMin || 0,
+        priceMax: event.priceMax,
         popularity: event.stats?.categoryPopularityPercentile || 0,
         favourites: event.stats?.favouriteCount || 0,
     }));

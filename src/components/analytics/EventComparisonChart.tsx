@@ -36,6 +36,7 @@ interface EventComparisonData {
         _id: string;
         title: string;
         price: number;
+        priceMax?: number;
         popularity: number;
     }>;
 }
@@ -82,7 +83,6 @@ export function EventComparison({ eventId, category, isFree, priceMin, priceMax 
         }
     };
 
-    // Don't show comparison for free events
     if (isFree) {
         return null;
     }
@@ -139,6 +139,9 @@ export function EventComparison({ eventId, category, isFree, priceMin, priceMax 
         : priceMinPosition;
     const medianPosition = ((data.categoryStats.medianPrice - data.categoryStats.minPrice) / categoryRange) * 100;
 
+    // Value zone: bottom 33% of price range
+    const valueZoneThreshold = data.categoryStats.minPrice + (categoryRange * 0.33);
+
     return (
         <ChartWrapper
             icon={BarChart3}
@@ -146,9 +149,7 @@ export function EventComparison({ eventId, category, isFree, priceMin, priceMax 
             description={`Compared to ${data.categoryStats.totalEvents.toLocaleString()} other ${category} events`}
         >
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Main comparison chart */}
                 <div className="lg:col-span-2 space-y-6">
-                    {/* Price comparison visualisation */}
                     <div>
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
@@ -178,12 +179,13 @@ export function EventComparison({ eventId, category, isFree, priceMin, priceMax 
                             </Badge>
                         </div>
 
-                        {/* Price comparison bar showing full category range */}
                         <div className="relative h-14 bg-muted rounded-lg overflow-hidden mb-3">
-                            {/* Value zone indicator (first 25% of range) */}
+                            {/* Value zone: bottom third of price range */}
                             <div
                                 className="absolute inset-y-0 left-0 bg-linear-to-r from-emerald-500/20 to-emerald-500/5 pointer-events-none"
-                                style={{ width: '25%' }}
+                                style={{
+                                    width: `${(valueZoneThreshold - data.categoryStats.minPrice) / categoryRange * 100}%`
+                                }}
                             />
 
                             {/* Median line */}
@@ -207,7 +209,6 @@ export function EventComparison({ eventId, category, isFree, priceMin, priceMax 
 
                             {hasPriceRange ? (
                                 <>
-                                    {/* Price range bar */}
                                     <TooltipProvider>
                                         <Tooltip open={hoveredElement === 'range'}>
                                             <TooltipTrigger asChild>
@@ -229,7 +230,6 @@ export function EventComparison({ eventId, category, isFree, priceMin, priceMax 
                                         </Tooltip>
                                     </TooltipProvider>
 
-                                    {/* Min price marker */}
                                     <TooltipProvider>
                                         <Tooltip open={hoveredElement === 'min'}>
                                             <TooltipTrigger asChild>
@@ -253,7 +253,6 @@ export function EventComparison({ eventId, category, isFree, priceMin, priceMax 
                                         </Tooltip>
                                     </TooltipProvider>
 
-                                    {/* Max price marker */}
                                     <TooltipProvider>
                                         <Tooltip open={hoveredElement === 'max'}>
                                             <TooltipTrigger asChild>
@@ -278,7 +277,6 @@ export function EventComparison({ eventId, category, isFree, priceMin, priceMax 
                                     </TooltipProvider>
                                 </>
                             ) : (
-                                /* Single price marker */
                                 <TooltipProvider>
                                     <Tooltip open={hoveredElement === 'min'}>
                                         <TooltipTrigger asChild>
@@ -304,50 +302,29 @@ export function EventComparison({ eventId, category, isFree, priceMin, priceMax 
                             )}
                         </div>
 
-                        {/* Scale labels showing full category range */}
                         <div className="flex justify-between text-xs text-muted-foreground mb-2 mt-8">
                             <span className="font-medium">${data.categoryStats.minPrice}</span>
                             <span className="font-medium">${data.categoryStats.maxPrice}</span>
                         </div>
 
-                        {/* Legend */}
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-3 pt-3 border-t">
-                            {hasPriceRange ? (
-                                <>
-                                    <div className="flex items-center gap-1.5">
-                                        <div className="w-6 h-3 bg-linear-to-r from-primary/40 to-primary/40 rounded" />
-                                        <span>This event's price range</span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5">
-                                        <div className="w-3 h-3 rounded-full bg-primary" />
-                                        <span>Min/Max prices</span>
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="flex items-center gap-1.5">
-                                    <div className="w-3 h-3 rounded-full bg-primary" />
-                                    <span>This event's price</span>
-                                </div>
-                            )}
+                        {/* Simplified legend */}
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground mt-3 pt-3 border-t">
                             <div className="flex items-center gap-1.5">
-                                <div className="w-3 h-3 bg-emerald-500/20" />
-                                <span>Best value zone</span>
+                                <div className="w-3 h-3 rounded-full bg-primary" />
+                                <span>This event</span>
                             </div>
                             <div className="flex items-center gap-1.5">
                                 <div className="w-0.5 h-3 bg-border" />
                                 <span>Category median</span>
                             </div>
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-3 h-3 bg-emerald-500/20" />
+                                <span>Value zone (bottom third of price range)</span>
+                            </div>
                         </div>
-
-                        {/* Hover instruction */}
-                        <p className="text-xs text-muted-foreground mt-2 italic">
-                            Hover over the {hasPriceRange ? 'range or markers' : 'marker'} to see exact values
-                        </p>
                     </div>
 
-                    {/* Metrics grid - combined popularity and category insights */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Popularity metric */}
                         <div className="p-4 rounded-lg border-2 bg-linear-to-br from-muted/50 to-transparent">
                             <div className="flex items-center gap-2 mb-3">
                                 <TrendingUp className="h-4 w-4 text-secondary" />
@@ -369,7 +346,6 @@ export function EventComparison({ eventId, category, isFree, priceMin, priceMax 
                             </p>
                         </div>
 
-                        {/* Category insights - condensed */}
                         <div className="p-4 rounded-lg border-2 bg-linear-to-br from-primary/5 to-transparent">
                             <div className="flex items-center gap-2 mb-3">
                                 <BarChart3 className="h-4 w-4" />
@@ -397,7 +373,6 @@ export function EventComparison({ eventId, category, isFree, priceMin, priceMax 
                     </div>
                 </div>
 
-                {/* Similar events sidebar */}
                 {data.similarEvents.length > 0 && (
                     <div className="lg:col-span-1">
                         <div className="sticky top-4">
@@ -420,7 +395,9 @@ export function EventComparison({ eventId, category, isFree, priceMin, priceMax 
                                                 {event.title}
                                             </h5>
                                             <span className="text-sm font-bold text-primary shrink-0">
-                                                ${event.price}
+                                                {event.priceMax && event.priceMax > event.price
+                                                    ? `$${event.price}-${event.priceMax}`
+                                                    : `$${event.price}`}
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-2 text-xs text-muted-foreground">

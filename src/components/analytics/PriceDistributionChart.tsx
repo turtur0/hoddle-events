@@ -1,8 +1,8 @@
 // components/analytics/PriceDistributionChart.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
-import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { JSX, useEffect, useState } from 'react';
+import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Rectangle } from 'recharts';
 import { Loader2, DollarSign } from 'lucide-react';
 import { CATEGORIES } from '@/lib/constants/categories';
 import { ChartWrapper } from './ChartWrapper';
@@ -83,13 +83,73 @@ export function PriceDistributionChart() {
 
     const allCategories = Array.from(new Set(data.map(getCategoryKey)));
 
+    // Calculate 95th percentile for better Y-axis scaling
+    const allPrices = data.flatMap(d => [d.min, d.q1, d.median, d.q3, d.max]);
+    const sortedPrices = allPrices.sort((a, b) => a - b);
+    const percentile95 = sortedPrices[Math.floor(sortedPrices.length * 0.95)] || 100;
+    const yAxisMax = Math.ceil(percentile95 * 1.15);
+
+    // Custom shape that renders both full range and IQR as overlapping bars
+    const OverlappingBars = (props: any): JSX.Element => {
+        const { x, y, width, height, payload, index } = props;
+
+        // Return empty rect if no data
+        if (!payload || index === undefined || !data[index]) {
+            return <rect x={x} y={y} width={0} height={0} />;
+        }
+
+        const entry = data[index];
+        const categoryKey = getCategoryKey(entry);
+        const isHovered = hoveredCategory === null || hoveredCategory === categoryKey;
+        const color = getColorForCategory(entry);
+
+        // Calculate Y positions for the chart coordinate system
+        const yAxisMaxValue = yAxisMax;
+
+        // Calculate pixel positions from price values
+        const minY = y + height - ((entry.min / yAxisMaxValue) * height);
+        const maxY = y + height - ((entry.max / yAxisMaxValue) * height);
+        const q1Y = y + height - ((entry.q1 / yAxisMaxValue) * height);
+        const q3Y = y + height - ((entry.q3 / yAxisMaxValue) * height);
+
+        const fullRangeHeight = Math.max(0, minY - maxY);
+        const iqrHeight = Math.max(0, q1Y - q3Y);
+
+        return (
+            <g>
+                {/* Full range bar (light) */}
+                <rect
+                    x={x}
+                    y={maxY}
+                    width={width}
+                    height={fullRangeHeight}
+                    fill={color}
+                    opacity={isHovered ? 0.25 : 0.08}
+                    rx={3}
+                    ry={3}
+                />
+
+                {/* IQR bar (dark) - overlaid on top */}
+                <rect
+                    x={x}
+                    y={q3Y}
+                    width={width}
+                    height={iqrHeight}
+                    fill={color}
+                    opacity={isHovered ? 0.7 : 0.25}
+                    rx={3}
+                    ry={3}
+                />
+            </g>
+        );
+    };
+
     return (
         <ChartWrapper
             icon={DollarSign}
             title="Price Distribution"
             description="Compare pricing patterns across categories"
         >
-            {/* Filter Section */}
             <div className="mb-6">
                 <CategoryFilter
                     selectedCategories={selectedCategories}
@@ -99,46 +159,40 @@ export function PriceDistributionChart() {
                 />
             </div>
 
-            {/* Chart */}
             {data.length > 0 ? (
                 <>
-                    <ResponsiveContainer width="100%" height={300} className="sm:h-[400px]">
-                        <ComposedChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 60 }}>
+                    <ResponsiveContainer width="100%" height={400} className="sm:h-[450px]">
+                        <ComposedChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
                             <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                             <XAxis
                                 dataKey="displayName"
                                 angle={-45}
                                 textAnchor="end"
-                                height={70}
+                                height={80}
                                 tick={{ fontSize: 10 }}
                                 interval={0}
                             />
                             <YAxis
                                 label={{ value: 'Price (AUD)', angle: -90, position: 'insideLeft', style: { fontSize: 11 } }}
                                 tick={{ fontSize: 10 }}
+                                domain={[0, yAxisMax]}
                             />
                             <Tooltip content={<PriceTooltip />} />
 
-                            {/* Transparent bar for Q1 baseline */}
-                            <Bar dataKey="q1" stackId="range" fill="transparent" />
-
-                            {/* Interquartile range bar (Q1 to Q3) */}
-                            <Bar dataKey={(entry) => entry.q3 - entry.q1} stackId="range">
-                                {data.map((entry, index) => {
-                                    const categoryKey = getCategoryKey(entry);
-                                    const color = getColorForCategory(entry);
-                                    const isHovered = hoveredCategory === null || hoveredCategory === categoryKey;
-                                    return (
-                                        <Cell
-                                            key={`price-cell-${index}`}
-                                            fill={color}
-                                            opacity={isHovered ? 0.3 : 0.08}
-                                        />
-                                    );
-                                })}
+                            {/* Single bar component that renders both ranges overlapping */}
+                            <Bar
+                                dataKey="max"
+                                shape={OverlappingBars}
+                            >
+                                {data.map((entry, index) => (
+                                    <Cell
+                                        key={`bar-cell-${index}`}
+                                        fill={getColorForCategory(entry)}
+                                    />
+                                ))}
                             </Bar>
 
-                            {/* Median price line */}
+                            {/* Median line on top */}
                             <Line
                                 type="monotone"
                                 dataKey="median"
@@ -150,7 +204,6 @@ export function PriceDistributionChart() {
                         </ComposedChart>
                     </ResponsiveContainer>
 
-                    {/* Interactive Summary Cards with Legend */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-6">
                         {data.map((item, index) => {
                             const color = getColorForCategory(item);
@@ -158,11 +211,11 @@ export function PriceDistributionChart() {
                             const isHovered = hoveredCategory === categoryKey;
 
                             return (
-                                <button
+                                <div
                                     key={`summary-${index}`}
                                     onMouseEnter={() => setHoveredCategory(categoryKey)}
                                     onMouseLeave={() => setHoveredCategory(null)}
-                                    className="p-4 rounded-lg border bg-muted/30 text-left cursor-pointer transition-all duration-300 hover:shadow-sm hover:-translate-y-0.5"
+                                    className="p-4 rounded-lg border bg-muted/30 text-left transition-all duration-300 hover:shadow-sm hover:-translate-y-0.5"
                                     style={{
                                         borderColor: isHovered ? color : undefined,
                                         borderWidth: isHovered ? '2px' : '1px',
@@ -170,7 +223,6 @@ export function PriceDistributionChart() {
                                         transform: isHovered ? 'translateY(-2px) scale(1.02)' : 'translateY(0) scale(1)'
                                     }}
                                 >
-                                    {/* Category indicator with animation */}
                                     <div className="flex items-center gap-2 mb-2">
                                         <div
                                             className="w-3 h-3 rounded-full transition-all duration-300"
@@ -187,7 +239,6 @@ export function PriceDistributionChart() {
                                         </div>
                                     </div>
 
-                                    {/* Main price */}
                                     <div className="text-2xl sm:text-3xl font-bold mb-1 transition-all duration-300"
                                         style={{
                                             color: isHovered ? color : undefined,
@@ -197,35 +248,72 @@ export function PriceDistributionChart() {
                                         ${item.median}
                                     </div>
 
-                                    {/* Details */}
                                     <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                                         <span className="flex items-center gap-1">
                                             <span className="font-medium">{item.count}</span> events
                                         </span>
                                         <span className="flex items-center gap-1">
-                                            Range: <span className="font-medium">${item.min}-${item.max}</span>
+                                            Full range: <span className="font-medium">${item.min}-${item.max}</span>
                                         </span>
                                     </div>
 
-                                    {/* Average price (subtle) */}
-                                    <div className="mt-2 pt-2 border-t text-xs">
-                                        <span className="text-muted-foreground">Avg: </span>
-                                        <span className="font-medium">${item.avgPrice}</span>
+                                    <div className="mt-2 pt-2 border-t text-xs space-y-1">
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Middle 50%:</span>
+                                            <span className="font-medium">${item.q1}-${item.q3}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Average:</span>
+                                            <span className="font-medium">${item.avgPrice}</span>
+                                        </div>
                                     </div>
-                                </button>
+                                </div>
                             );
                         })}
                     </div>
 
-                    {/* Median Legend */}
-                    <div className="mt-4 flex justify-center">
-                        <div className="flex items-center gap-2 px-4 py-2 rounded-lg border bg-muted/30">
-                            <div className="w-3 h-0.5 bg-orange-600 rounded-full" style={{ width: '16px' }} />
-                            <span className="text-xs font-medium text-muted-foreground">
-                                Orange line = Median price
-                            </span>
+                    {/* Enhanced legend */}
+                    <div className="mt-4 p-4 bg-muted/30 rounded-lg border">
+                        <div className="text-xs font-medium mb-3 text-muted-foreground">Chart Guide</div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                            <div className="flex items-start gap-2">
+                                <div className="w-8 h-6 rounded mt-0.5" style={{
+                                    background: 'linear-gradient(to right, rgb(59 130 246 / 0.25), rgb(59 130 246 / 0.25))',
+                                    border: '1px solid rgb(59 130 246 / 0.4)'
+                                }} />
+                                <div>
+                                    <div className="font-medium">Light bar</div>
+                                    <div className="text-muted-foreground">Full price range (min-max)</div>
+                                </div>
+                            </div>
+                            <div className="flex items-start gap-2">
+                                <div className="w-8 h-6 rounded mt-0.5" style={{
+                                    background: 'linear-gradient(to right, rgb(59 130 246 / 0.7), rgb(59 130 246 / 0.7))',
+                                    border: '1px solid rgb(59 130 246 / 0.9)'
+                                }} />
+                                <div>
+                                    <div className="font-medium">Dark bar</div>
+                                    <div className="text-muted-foreground">Middle 50% (Q1-Q3), overlaid on light bar</div>
+                                </div>
+                            </div>
+                            <div className="flex items-start gap-2">
+                                <div className="w-8 h-0.5 bg-orange-600 rounded mt-2.5" />
+                                <div>
+                                    <div className="font-medium">Orange line</div>
+                                    <div className="text-muted-foreground">Median price (50th percentile)</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
+
+                    {/* Note about scaling */}
+                    {yAxisMax < Math.max(...data.map(d => d.max)) && (
+                        <div className="mt-2 flex justify-center">
+                            <p className="text-xs text-muted-foreground italic">
+                                Note: Y-axis scaled to 95th percentile for better visibility of typical prices
+                            </p>
+                        </div>
+                    )}
                 </>
             ) : (
                 <div className="py-12 text-center">
@@ -246,16 +334,20 @@ function PriceTooltip({ active, payload }: any) {
             <div className="font-medium mb-2 truncate">{data.displayName}</div>
             <div className="space-y-1">
                 <div className="flex justify-between gap-4">
-                    <span className="text-muted-foreground">Count:</span>
-                    <span className="font-medium">{data.count} events</span>
+                    <span className="text-muted-foreground">Events:</span>
+                    <span className="font-medium">{data.count}</span>
+                </div>
+                <div className="flex justify-between gap-4 pt-1 border-t">
+                    <span className="text-muted-foreground">Full Range:</span>
+                    <span className="font-medium">${data.min} - ${data.max}</span>
                 </div>
                 <div className="flex justify-between gap-4">
-                    <span className="text-muted-foreground">Range:</span>
-                    <span>${data.min} - ${data.max}</span>
+                    <span className="text-muted-foreground">Middle 50%:</span>
+                    <span className="font-medium">${data.q1} - ${data.q3}</span>
                 </div>
                 <div className="flex justify-between gap-4 pt-1 border-t">
                     <span className="text-muted-foreground">Median:</span>
-                    <span className="font-bold text-primary">${data.median}</span>
+                    <span className="font-bold text-orange-600">${data.median}</span>
                 </div>
                 <div className="flex justify-between gap-4">
                     <span className="text-muted-foreground">Average:</span>

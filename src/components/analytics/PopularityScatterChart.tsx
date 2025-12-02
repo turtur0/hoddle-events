@@ -69,13 +69,16 @@ export function PopularityScatterChart() {
 
     const categoriesInData = Array.from(new Set(chartData.map(d => d.category)));
 
+    // Calculate proper axis domains
+    const maxPrice = chartData.length > 0 ? Math.max(...chartData.map(d => d.x)) : 100;
+    const minPrice = chartData.length > 0 ? Math.min(...chartData.map(d => d.x)) : 0;
+
     return (
         <ChartWrapper
             icon={TrendingUp}
             title="Popularity Analysis"
             description="Price vs popularity correlation (bubble size = favourites)"
         >
-            {/* Filter Section */}
             <div className="mb-6">
                 <CategoryFilter
                     selectedCategories={selectedCategories}
@@ -85,7 +88,6 @@ export function PopularityScatterChart() {
                 />
             </div>
 
-            {/* Chart */}
             {chartData.length > 0 ? (
                 <>
                     <ResponsiveContainer width="100%" height={300} className="sm:h-[400px]">
@@ -97,7 +99,7 @@ export function PopularityScatterChart() {
                                 name="Price"
                                 label={{ value: 'Price (AUD)', position: 'insideBottom', offset: -10, style: { fontSize: 11 } }}
                                 tick={{ fontSize: 10 }}
-                                domain={[0, 'auto']}
+                                domain={[0, Math.ceil(maxPrice * 1.1)]}
                             />
                             <YAxis
                                 type="number"
@@ -124,14 +126,13 @@ export function PopularityScatterChart() {
                         </ScatterChart>
                     </ResponsiveContainer>
 
-                    {/* Interactive Legend */}
                     <div className="flex flex-wrap gap-3 mt-4 justify-center">
                         {categoriesInData.map(category => (
-                            <button
+                            <div
                                 key={category}
                                 onMouseEnter={() => setHoveredCategory(category)}
                                 onMouseLeave={() => setHoveredCategory(null)}
-                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 transition-all hover:shadow-sm cursor-pointer"
+                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 transition-all"
                                 style={{
                                     borderColor: hoveredCategory === category ? CATEGORY_COLORS[category] : 'transparent',
                                     backgroundColor: hoveredCategory === category ? `${CATEGORY_COLORS[category]}15` : 'transparent'
@@ -145,11 +146,10 @@ export function PopularityScatterChart() {
                                     }}
                                 />
                                 <span className="text-sm font-medium capitalize">{category}</span>
-                            </button>
+                            </div>
                         ))}
                     </div>
 
-                    {/* Insight Zones */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
                         <div className="p-4 bg-muted/30 border-2 rounded-lg transition-all hover:shadow-sm">
                             <div className="flex items-center gap-2 mb-1">
@@ -171,7 +171,6 @@ export function PopularityScatterChart() {
                         </div>
                     </div>
 
-                    {/* Statistics */}
                     <div className="mt-4 p-4 bg-muted/30 rounded-lg border-2">
                         <div className="text-sm font-medium mb-3">Statistics</div>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
