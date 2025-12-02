@@ -59,6 +59,8 @@ export const createMockUser = (overrides: Partial<IUser> = {}): IUser => ({
                 enabled: true,
                 minRecommendationScore: 0.6,
             },
+            includeFavouriteUpdates: false,
+            recommendationsSize: 'minimal'
         },
     },
     createdAt: new Date(),
