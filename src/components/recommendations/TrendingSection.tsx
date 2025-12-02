@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { TrendingUp, Sparkles, Rocket, LucideIcon } from 'lucide-react';
+import { TrendingUp, Sparkles, LucideIcon } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { EventCarousel } from '@/components/events/sections/EventCarousel';
 import { CarouselSkeleton } from '@/components/other/CarouselSkeleton';
@@ -12,7 +12,7 @@ interface TrendingSectionProps {
     userFavourites: Set<string>;
 }
 
-type TrendingType = 'trending' | 'rising' | 'undiscovered';
+type TrendingType = 'trending' | 'undiscovered';
 
 interface TrendingConfig {
     title: string;
@@ -25,11 +25,6 @@ const TRENDING_CONFIG: Record<TrendingType, TrendingConfig> = {
         title: 'Trending Now',
         description: "Popular events everyone's talking about",
         icon: TrendingUp,
-    },
-    rising: {
-        title: 'Rising Stars',
-        description: 'Fast-growing events gaining momentum',
-        icon: Rocket,
     },
     undiscovered: {
         title: 'Hidden Gems',
@@ -76,13 +71,6 @@ export function TrendingSection({ userFavourites }: TrendingSectionProps) {
                 >
                     <TrendingUp className="h-4 w-4 mr-2" />
                     Trending
-                </TabsTrigger>
-                <TabsTrigger
-                    value="rising"
-                    className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary transition-all duration-300 hover:bg-primary/5 hover:scale-105"
-                >
-                    <Rocket className="h-4 w-4 mr-2" />
-                    Rising
                 </TabsTrigger>
                 <TabsTrigger
                     value="undiscovered"

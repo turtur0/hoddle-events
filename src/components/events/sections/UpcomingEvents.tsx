@@ -63,7 +63,10 @@ export async function UpcomingEvents({ userFavourites }: UpcomingEventsProps) {
     const [thisWeekEvents, upcomingEvents] = await Promise.all([
         Event.find({
             startDate: { $gte: now, $lte: endOfWeek },
-            isArchived: false,
+            $or: [
+                { isArchived: false },
+                { isArchived: { $exists: false } }
+            ],
             imageUrl: { $exists: true, $ne: null },
         })
             .sort({ startDate: 1 })
@@ -71,7 +74,10 @@ export async function UpcomingEvents({ userFavourites }: UpcomingEventsProps) {
             .lean(),
         Event.find({
             startDate: { $gt: endOfWeek },
-            isArchived: false,
+            $or: [
+                { isArchived: false },
+                { isArchived: { $exists: false } }
+            ],
             imageUrl: { $exists: true, $ne: null },
         })
             .sort({ startDate: 1 })

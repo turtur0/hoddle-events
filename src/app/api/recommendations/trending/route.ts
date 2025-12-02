@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import { getRisingStars, getTrendingEvents, getUndiscoveredGems } from '@/lib/ml';
+import { getTrendingEvents, getUndiscoveredGems } from '@/lib/ml';
 
-type EventType = 'trending' | 'rising' | 'undiscovered';
+type EventType = 'trending' | 'undiscovered';
 
 /**
- * GET /api/events
- * Returns events based on type: trending, rising stars, or undiscovered gems.
+ * GET /api/recommendations/trending
+ * Returns events based on type: trending or undiscovered gems.
  * 
  * Query params:
- * - type: 'trending' | 'rising' | 'undiscovered' (default: 'trending')
+ * - type: 'trending' | 'undiscovered' (default: 'trending')
  * - limit: number of events (default: 12)
  * - category: filter by category
  */
@@ -47,8 +47,6 @@ async function fetchEventsByType(
     switch (type) {
         case 'trending':
             return getTrendingEvents(options);
-        case 'rising':
-            return getRisingStars(options);
         case 'undiscovered':
             return getUndiscoveredGems(options);
         default:
@@ -73,6 +71,11 @@ function formatEvents(events: any[]) {
         bookingUrl: event.bookingUrl,
         imageUrl: event.imageUrl,
         primarySource: event.primarySource,
+        ageRestriction: event.ageRestriction,
+        duration: event.duration,
+        accessibility: event.accessibility,
+        sources: event.sources,
+        isArchived: event.isArchived || false,
         stats: {
             viewCount: event.stats?.viewCount || 0,
             favouriteCount: event.stats?.favouriteCount || 0,

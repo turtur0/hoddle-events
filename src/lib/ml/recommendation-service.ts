@@ -25,9 +25,17 @@ export async function getTrendingEvents(options: {
     const query: any = {
         startDate: { $gte: minDate },
         $or: [
-            { 'stats.favouriteCount': { $gte: 1 } },
-            { 'stats.clickthroughCount': { $gte: 1 } },
-            { 'stats.viewCount': { $gte: 5 } }
+            { isArchived: false },
+            { isArchived: { $exists: false } }
+        ],
+        $and: [
+            {
+                $or: [
+                    { 'stats.favouriteCount': { $gte: 1 } },
+                    { 'stats.clickthroughCount': { $gte: 1 } },
+                    { 'stats.viewCount': { $gte: 5 } }
+                ]
+            }
         ]
     };
     if (category) query.category = category;
@@ -73,44 +81,6 @@ function calculateTrendingScore(event: IEvent): number {
 }
 
 /**
- * Get rising stars - fast-growing events not yet mainstream
- * 
- * Target: Events with high velocity but below 70th percentile popularity
- */
-export async function getRisingStars(options: {
-    limit?: number;
-    category?: string;
-} = {}): Promise<IEvent[]> {
-    const { limit = 20, category } = options;
-
-    const query: any = {
-        startDate: { $gte: new Date() },
-        'stats.categoryPopularityPercentile': { $lt: 0.7 },
-        $or: [
-            { 'stats.favouriteCount': { $gte: 2 } },
-            { 'stats.clickthroughCount': { $gte: 3 } },
-            { 'stats.viewCount': { $gte: 15 } }
-        ]
-    };
-    if (category) query.category = category;
-
-    const events = await Event.find(query).limit(100).lean();
-
-    // Score by velocity
-    const scored = events.map(event => {
-        const { viewCount = 0, favouriteCount = 0, clickthroughCount = 0 } = event.stats || {};
-        const totalEngagement = viewCount * 0.1 + favouriteCount * 5 + clickthroughCount * 3;
-        const daysSinceListed = Math.max(1, (Date.now() - event.scrapedAt.getTime()) / (1000 * 60 * 60 * 24));
-        const velocity = totalEngagement / daysSinceListed;
-
-        return { event, velocity };
-    });
-
-    scored.sort((a, b) => b.velocity - a.velocity);
-    return scored.slice(0, limit).map(item => item.event);
-}
-
-/**
  * Get undiscovered gems - quality venues with low engagement
  * 
  * Target: Events with high raw popularity score (good venue/price)
@@ -124,6 +94,10 @@ export async function getUndiscoveredGems(options: {
 
     const query: any = {
         startDate: { $gte: new Date() },
+        $or: [
+            { isArchived: false },
+            { isArchived: { $exists: false } }
+        ],
         'stats.favouriteCount': { $lte: 2 },
         'stats.viewCount': { $lte: 20 },
         'stats.rawPopularityScore': { $gte: 6 }
@@ -169,6 +143,10 @@ export async function getSimilarEvents(
     const candidates = await Event.find({
         category: targetEvent.category,
         startDate: { $gte: new Date() },
+        $or: [
+            { isArchived: false },
+            { isArchived: { $exists: false } }
+        ],
         _id: { $ne: eventId },
     }).limit(50).lean();
 

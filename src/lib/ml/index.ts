@@ -15,7 +15,6 @@ export {
 // ============================================
 export {
     getTrendingEvents,
-    getRisingStars,
     getUndiscoveredGems,
     getSimilarEvents,
 } from './recommendation-service';
@@ -73,7 +72,6 @@ export default {
 
     // Recommendations
     getTrendingEvents: recommendationService.getTrendingEvents,
-    getRisingStars: recommendationService.getRisingStars,
     getUndiscoveredGems: recommendationService.getUndiscoveredGems,
     getSimilarEvents: recommendationService.getSimilarEvents,
 
