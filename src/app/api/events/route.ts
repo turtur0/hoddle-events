@@ -1,4 +1,6 @@
-// app/api/events/route.ts
+// src/app/api/events/route.ts
+// Key change: All queries now exclude archived events by default (isArchived: { $ne: true })
+
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Types, FilterQuery } from 'mongoose';
@@ -73,6 +75,7 @@ export async function GET(request: NextRequest) {
 function buildMatchConditions(searchParams: URLSearchParams): FilterQuery<IEvent> {
   const matchConditions: FilterQuery<IEvent> = {
     startDate: { $gte: new Date() },
+    isArchived: { $ne: true }, // Exclude archived events
   };
 
   // Category filter
@@ -230,7 +233,9 @@ async function fetchRecommendedEvents(
       minDate: matchConditions.startDate?.$gte as Date,
     });
 
-    let filteredEvents = recommendations.map(r => r.event);
+    let filteredEvents = recommendations
+      .map(r => r.event)
+      .filter(event => !event.isArchived); // Filter out archived events
 
     // Apply subcategory filter
     if (matchConditions.subcategories?.$elemMatch) {
@@ -403,6 +408,7 @@ function serialiseEvent(event: any) {
       ? event.lastUpdated.toISOString()
       : new Date(event.lastUpdated).toISOString(),
     stats: event.stats,
+    isArchived: event.isArchived || false,
   };
 }
 

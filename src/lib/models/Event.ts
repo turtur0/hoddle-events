@@ -38,6 +38,10 @@ export interface IEvent {
   lastUpdated: Date;
   mergedFrom?: string[];
 
+  // Archiving fields
+  isArchived: boolean;
+  archivedAt?: Date;
+
   stats: {
     viewCount: number;
     favouriteCount: number;
@@ -90,6 +94,10 @@ const EventSchema = new Schema<IEvent>({
   lastUpdated: { type: Date, default: Date.now },
   mergedFrom: [String],
 
+  // Archiving fields
+  isArchived: { type: Boolean, default: false, index: true },
+  archivedAt: Date,
+
   stats: {
     viewCount: { type: Number, default: 0 },
     favouriteCount: { type: Number, default: 0 },
@@ -103,6 +111,7 @@ const EventSchema = new Schema<IEvent>({
 // Indexes
 EventSchema.index({ title: 'text', description: 'text', 'venue.name': 'text' });
 EventSchema.index({ startDate: 1, category: 1 });
+EventSchema.index({ startDate: 1, isArchived: 1 }); // Optimise active/archived queries
 EventSchema.index({ sources: 1 });
 EventSchema.index({ primarySource: 1, 'sourceIds.$**': 1 });
 EventSchema.index({ 'stats.categoryPopularityPercentile': 1 });
@@ -114,10 +123,11 @@ EventSchema.index(
 const Event: Model<IEvent> = mongoose.models.Event || mongoose.model<IEvent>('Event', EventSchema);
 export default Event;
 
-export interface SerializedEvent extends Omit<IEvent, 'startDate' | 'endDate' | 'scrapedAt' | 'lastUpdated'> {
+export interface SerializedEvent extends Omit<IEvent, 'startDate' | 'endDate' | 'scrapedAt' | 'lastUpdated' | 'archivedAt'> {
   _id: string;
   startDate: string;
   endDate?: string;
   scrapedAt: string;
   lastUpdated: string;
+  archivedAt?: string;
 }

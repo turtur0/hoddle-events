@@ -60,6 +60,11 @@ const FEATURES = [
         title: "Powerful Insights",
         desc: "Compare ticket prices across categories, spot seasonal trends and discover the best value events."
     },
+    {
+        icon: Database,
+        title: "Complete Event Archive",
+        desc: "Explore Melbourne's event history. Our archive preserves past concerts, shows and festivals for research, trend analysis and cultural reference."
+    },
 ];
 
 const ETHICAL_PRACTICES = [
@@ -73,7 +78,7 @@ const ETHICAL_PRACTICES = [
     },
     {
         title: "Respectful scraping",
-        desc: "We follow robots.txt rules, implement rate limiting and never overload source servers."
+        desc: "We follow robots.txt rules, implement rate limiting and avoid overload source servers."
     },
     {
         title: "Transparent data use",
@@ -102,15 +107,16 @@ export default function AboutPage() {
                     </CardHeader>
                     <CardContent className="space-y-4 text-base leading-relaxed">
                         <p className="text-muted-foreground">
-                            Melbourne's events scene is world-class, but finding them shouldn't be.
+                            Melbourne has an incredible cultural scene, but finding events shouldn't be as challenging as it is.
                         </p>
                         <p className="text-muted-foreground">
-                            Right now, discovering what's on means juggling multiple ticketing sites, signing up for endless newsletters,
-                            and manually tracking events across venues. We thought there had to be a better way.
+                            Finding what's on often means checking multiple ticketing sites, signing up for endless newsletters, and manually tracking
+                            venues, or worse, missing your favourite artist because you found out too late. We thought there had to be a better way.
                         </p>
                         <p className="text-muted-foreground">
-                            Melbourne Events brings everything together from stadium gigs to local theatre, with one search, custom alerts for what
-                            you actually care about, plus insights into pricing patterns and trends you won't find anywhere else.
+                            Melbourne Events brings it all together: concerts, theatre, sports and festivals in one search. Get custom alerts
+                            for what you actually care about, explore pricing trends across our entire database, and dive into our archive
+                            of past events preserving Melbourne's cultural history for future reference and research..
                         </p>
                     </CardContent>
                 </Card>
@@ -121,7 +127,7 @@ export default function AboutPage() {
                         <CardTitle className="text-2xl">What Makes Us Different</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid gap-6 md:grid-cols-3">
+                        <div className="grid gap-6 md:grid-cols-2">
                             {FEATURES.map((feature, i) => {
                                 const Icon = feature.icon;
                                 return (

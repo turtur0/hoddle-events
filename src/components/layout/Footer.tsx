@@ -5,27 +5,32 @@ export function Footer() {
     return (
         <footer className="border-t bg-muted/20">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
                     {/* Brand */}
-                    <div>
+                    <div className="md:col-span-2">
                         <Link href="/" className="inline-flex items-center gap-2 font-bold text-xl mb-3 group">
                             <span className="bg-primary text-primary-foreground px-2 py-1 rounded text-sm group-hover:scale-105 transition-transform">
                                 ME
                             </span>
                             <span>Melbourne Events</span>
                         </Link>
-                        <p className="text-muted-foreground text-sm max-w-md">
-                            All your Melbourne events in one place. Smart alerts, powerful insights.
+                        <p className="text-muted-foreground text-sm max-w-md leading-relaxed">
+                            All your Melbourne events in one place. Smart alerts, powerful insights and a comprehensive archive of past events.
                         </p>
                     </div>
 
                     {/* Quick Links */}
-                    <div className="sm:text-right">
+                    <div>
                         <h4 className="font-semibold mb-3 text-sm">Quick Links</h4>
                         <ul className="space-y-2 text-sm text-muted-foreground">
                             <li>
                                 <Link href="/events" className="hover:text-primary transition-colors">
                                     Browse Events
+                                </Link>
+                            </li>
+                            <li>
+                                <Link href="/events/archived" className="hover:text-primary transition-colors">
+                                    Archived Events
                                 </Link>
                             </li>
                             <li>

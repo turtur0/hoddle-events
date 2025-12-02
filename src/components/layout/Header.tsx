@@ -1,10 +1,11 @@
+// src/components/layout/Header.tsx
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { Search, ChevronDown, Music, Theater, Trophy, Palette, Users, Sparkles, Menu, LogOut, Settings, User, Heart, BarChart3 } from "lucide-react";
+import { Search, ChevronDown, Music, Theater, Trophy, Palette, Users, Sparkles, Menu, LogOut, Settings, User, Heart, BarChart3, Archive } from "lucide-react";
 import { ThemeToggle } from '../other/ThemeToggle';
 import { NotificationBell } from "../notifications/NotificationBell";
 import { AuthModal } from '../auth/AuthModals';
@@ -57,7 +58,8 @@ function HeaderContent() {
   const isOnCategoryPage = pathname?.startsWith('/category/');
   const currentCategory = isOnCategoryPage ? pathname.split('/')[2] : null;
   const isOnEventsPage = pathname === '/events';
-  const isOnBrowsePage = isOnCategoryPage || isOnEventsPage;
+  const isOnArchivedPage = pathname === '/events/archived';
+  const isOnBrowsePage = isOnCategoryPage || isOnEventsPage || isOnArchivedPage;
   const isOnInsightsPage = pathname === '/insights';
   const isOnNotificationsPage = pathname === '/notifications';
   const isOnProfilePages = pathname === '/favourites' || pathname === '/profile' || pathname === '/settings';
@@ -151,6 +153,18 @@ function HeaderContent() {
                     </div>
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link
+                    href="/events/archived"
+                    className={cn("flex items-center gap-3 py-2 cursor-pointer transition-colors", isOnArchivedPage && "bg-accent")}
+                  >
+                    <Archive className={cn("h-5 w-5", isOnArchivedPage ? "text-primary" : "text-muted-foreground")} />
+                    <div>
+                      <p className={cn("font-medium", isOnArchivedPage && "text-primary")}>Event Archive</p>
+                      <p className="text-xs text-muted-foreground">Browse past events</p>
+                    </div>
+                  </Link>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -167,6 +181,12 @@ function HeaderContent() {
                   <Link href="/events" className={cn("flex items-center gap-2 cursor-pointer transition-colors", isOnEventsPage && "bg-accent text-primary")}>
                     <Search className="h-4 w-4" />
                     All Events
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/events/archived" className={cn("flex items-center gap-2 cursor-pointer transition-colors", isOnArchivedPage && "bg-accent text-primary")}>
+                    <Archive className="h-4 w-4" />
+                    Event Archive
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>

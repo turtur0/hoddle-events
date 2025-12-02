@@ -42,12 +42,23 @@ export {
 export type { EventChanges } from './notification-service';
 
 // ============================================
+// ARCHIVE SERVICE
+// ============================================
+
+export {
+    archivePastEvents,
+    getArchivedCount,
+    unarchiveEvent,
+} from './archive-service';
+
+// ============================================
 // DEFAULT EXPORT (All Services)
 // ============================================
 
 import * as analyticsService from './analytics-service';
 import * as emailDigestService from './email-digest-service';
 import * as notificationService from './notification-service';
+import * as archiveService from './archive-service';
 
 /**
  * Default export providing all service functions
@@ -70,4 +81,9 @@ export default {
     getUnreadCount: notificationService.getUnreadCount,
     markAsRead: notificationService.markAsRead,
     markAllAsRead: notificationService.markAllAsRead,
+
+    // Archive
+    archivePastEvents: archiveService.archivePastEvents,
+    getArchivedCount: archiveService.getArchivedCount,
+    unarchiveEvent: archiveService.unarchiveEvent,
 } as const;

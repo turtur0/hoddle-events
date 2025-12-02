@@ -7,6 +7,7 @@ import { connectDB, disconnectDB } from '@/lib/db';
 import Event from '@/lib/models/Event';
 import { scrapeAll } from '@/lib/scrapers';
 import { processEventsWithDeduplication } from './scrape-with-dedup';
+import { archivePastEvents } from '@/lib/services/archive-service';
 
 interface ScrapeStats {
   inserted: number;
@@ -16,9 +17,15 @@ interface ScrapeStats {
   notifications: number;
 }
 
+interface ArchiveStats {
+  archived: number;
+  skipped: number;
+  errors: number;
+}
+
 /**
  * Main scraper orchestrator that coordinates scraping from all sources,
- * processes events with deduplication, and reports statistics.
+ * processes events with deduplication, archives past events, and reports statistics.
  */
 async function main() {
   const startTime = Date.now();
@@ -30,6 +37,13 @@ async function main() {
   try {
     await connectDB();
 
+    // Step 1: Archive past events before scraping new ones
+    console.log('Step 1: Archiving past events...\n');
+    const archiveStats = await archivePastEvents();
+    console.log(''); // Blank line for readability
+
+    // Step 2: Scrape new events
+    console.log('Step 2: Scraping new events...\n');
     const { events, results } = await scrapeAll({
       verbose: true,
       sources: ['ticketmaster', 'marriner', 'whatson'],
@@ -49,13 +63,22 @@ async function main() {
 
     if (!events?.length) {
       console.log('No events scraped from any source.');
+      await displaySummary(
+        { inserted: 0, updated: 0, merged: 0, skipped: 0, notifications: 0 },
+        0,
+        results,
+        startTime,
+        archiveStats
+      );
       return;
     }
 
-    console.log('\nProcessing events with deduplication...');
+    // Step 3: Process events with deduplication
+    console.log('\nStep 3: Processing events with deduplication...\n');
+    const scrapeStats = await processAllEvents(events);
 
-    const stats = await processAllEvents(events);
-    await displaySummary(stats, events.length, results, startTime);
+    // Step 4: Display summary
+    await displaySummary(scrapeStats, events.length, results, startTime, archiveStats);
 
   } catch (error) {
     console.error('Scraper failed:', error);
@@ -112,22 +135,34 @@ async function displaySummary(
   stats: ScrapeStats,
   totalScraped: number,
   results: any[],
-  startTime: number
+  startTime: number,
+  archiveStats: ArchiveStats
 ) {
   const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-  const totalInDb = await Event.countDocuments();
+  const totalInDb = await Event.countDocuments({ isArchived: { $ne: true } });
+  const totalArchived = await Event.countDocuments({ isArchived: true });
 
   console.log('\n========================================================');
   console.log('SCRAPE COMPLETE');
   console.log('========================================================');
   console.log(`Duration:       ${duration}s`);
-  console.log(`Scraped:        ${totalScraped}`);
-  console.log(`Inserted:       ${stats.inserted}`);
-  console.log(`Updated:        ${stats.updated}`);
-  console.log(`Merged:         ${stats.merged}`);
-  console.log(`Skipped:        ${stats.skipped}`);
-  console.log(`Notifications:  ${stats.notifications}`);
-  console.log(`Total in DB:    ${totalInDb}`);
+  console.log('');
+  console.log('ARCHIVING:');
+  console.log(`  Archived:     ${archiveStats.archived}`);
+  console.log(`  Errors:       ${archiveStats.errors}`);
+  console.log('');
+  console.log('SCRAPING:');
+  console.log(`  Scraped:      ${totalScraped}`);
+  console.log(`  Inserted:     ${stats.inserted}`);
+  console.log(`  Updated:      ${stats.updated}`);
+  console.log(`  Merged:       ${stats.merged}`);
+  console.log(`  Skipped:      ${stats.skipped}`);
+  console.log(`  Notifications: ${stats.notifications}`);
+  console.log('');
+  console.log('DATABASE:');
+  console.log(`  Active:       ${totalInDb}`);
+  console.log(`  Archived:     ${totalArchived}`);
+  console.log(`  Total:        ${totalInDb + totalArchived}`);
   console.log('========================================================\n');
 
   console.log('Source Breakdown:');
