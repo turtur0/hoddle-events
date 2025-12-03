@@ -12,7 +12,7 @@ import { getRecommendationsCount } from '@/lib/constants/preferences';
 
 const EMAIL_CONFIG = {
     from: 'Hoddle Events <hello@hoddleevents.com.au>',
-    baseUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://hoddleevents.com.au',
+    baseUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://www.hoddleevents.com.au',
     rateLimit: 100, // ms between emails
 };
 
