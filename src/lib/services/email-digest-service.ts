@@ -1,6 +1,6 @@
 import { Resend } from 'resend';
 import { render } from '@react-email/render';
-import DigestEmail from '../email/templates/digest-email';
+import DigestEmail from '@/lib/email/templates/digest-email';
 
 import { Event, User, UserFavourite, type IEvent } from '@/lib/models';
 import { computeUserProfile, scoreEventForUser, type ScoredEvent } from '@/lib/ml';
