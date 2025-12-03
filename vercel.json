@@ -1,11 +1,11 @@
 {
     "crons": [
         {
-            "path": "/api/cron/send-digests?frequency=weekly",
+            "path": "/api/cron/send-digest?frequency=weekly",
             "schedule": "0 8 * * 0"
         },
         {
-            "path": "/api/cron/send-digests?frequency=monthly",
+            "path": "/api/cron/send-digest?frequency=monthly",
             "schedule": "0 8 1-7 * 0"
         }
     ]
