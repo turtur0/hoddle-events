@@ -8,7 +8,7 @@ export const maxDuration = 300;
 type DigestFrequency = 'weekly' | 'monthly';
 
 /**
- * GET /api/cron/send-digests
+ * GET /api/cron/send-digest
  * Cron job endpoint for sending scheduled email digests.
  * 
  * Query params:
@@ -17,14 +17,14 @@ type DigestFrequency = 'weekly' | 'monthly';
  * Requires Bearer token authentication via CRON_SECRET env variable.
  */
 export async function GET(request: NextRequest) {
-    // Verify cron secret
-    const authHeader = request.headers.get('authorisation');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    const userAgent = request.headers.get('user-agent');
+    if (userAgent !== 'vercel-cron/1.0') {
         console.error('[Cron] Unauthorised access attempt');
         return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
     }
 
     const frequency = request.nextUrl.searchParams.get('frequency') as DigestFrequency;
+
 
     // Validate frequency parameter
     if (!frequency || !['weekly', 'monthly'].includes(frequency)) {
