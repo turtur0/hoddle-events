@@ -10,7 +10,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "scrape": "tsx scripts/scrapers/scrape.ts",
+    "scrape": "tsx scripts/scrapers/scrape-all.ts",
     "update-popularity": "tsx scripts/jobs/update-popularity.ts",
     "cron:scrape": "npm run scrape && npm run update-popularity",
     "scrape:ticketmaster": "tsx scripts/scrapers/scrape-ticketmaster.ts",
