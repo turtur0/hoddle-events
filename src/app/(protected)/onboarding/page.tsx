@@ -14,13 +14,6 @@ import { NotificationSettings } from '@/components/preferences/NotificationSetti
 import { PriceRangeSelector } from '@/components/preferences/PriceRangeSelector';
 import { CATEGORIES } from '@/lib/constants/categories';
 import type { DigestRecommendationsSize } from '@/lib/constants/preferences';
-import { Metadata } from "next";
-
-export const metadata: Metadata = {
-    title: "Personalise Your Experience | Hoddle",
-    description: "Set up your event preferences to get personalised recommendations for concerts, shows and festivals across Melbourne.",
-    robots: "noindex, nofollow",
-};
 
 const MIN_CATEGORIES = 2;
 type Step = 'username' | 'categories' | 'preferences' | 'notifications';

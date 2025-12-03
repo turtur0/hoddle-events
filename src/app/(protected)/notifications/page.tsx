@@ -9,13 +9,6 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { PageLayout } from '@/components/layout/PageLayout';
-import { Metadata } from "next";
-
-export const metadata: Metadata = {
-    title: "Notifications | Hoddle",
-    description: "Stay updated on events you care about. View your personalised event notifications and recommendations.",
-    robots: "noindex, nofollow",
-};
 
 interface Notification {
     _id: string;

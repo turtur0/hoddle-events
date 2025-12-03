@@ -6,16 +6,6 @@ import { PriceDistributionChart } from '@/components/analytics/PriceDistribution
 import { TimelineChart } from '@/components/analytics/TimelineChart';
 import { Sparkles, TrendingUp, DollarSign, Calendar, BarChart3, Grid3x3, List } from 'lucide-react';
 import { BackButton } from '@/components/layout/BackButton';
-import { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "Event Insights | Hoddle",
-  description: "Explore Melbourne's event trends and analytics. Discover pricing patterns, popular events and seasonal trends across the city.",
-  openGraph: {
-    title: "Event Insights | Hoddle",
-    description: "Melbourne's event trends and analytics at a glance.",
-  },
-};
 
 const AVAILABLE_CHARTS = [
     {

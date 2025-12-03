@@ -25,14 +25,6 @@ import {
   Package,
   Heart
 } from 'lucide-react';
-import { Metadata } from "next";
-
-export const metadata: Metadata = {
-    title: "My Profile | Hoddle",
-    description: "View your account details and event preferences.",
-    robots: "noindex, nofollow",
-};
-
 
 interface NotificationSettings {
   inApp: boolean;

@@ -17,13 +17,6 @@ import { NotificationSettings } from '@/components/preferences/NotificationSetti
 import { PriceRangeSelector } from '@/components/preferences/PriceRangeSelector';
 import { CATEGORIES } from '@/lib/constants/categories';
 import type { DigestRecommendationsSize } from '@/lib/constants/preferences';
-import { Metadata } from "next";
-
-export const metadata: Metadata = {
-    title: "Account Settings | Hoddle",
-    description: "Manage your account, preferences and notification settings.",
-    robots: "noindex, nofollow",
-};
 
 type EmailFrequency = 'weekly' | 'monthly';
 
