@@ -4,9 +4,6 @@ import {
     buildUserVectorFromPreferences,
     computeUserProfile,
 } from '@/lib/ml';
-import { IUser } from '@/lib/models/User';
-import { IUserInteraction } from '@/lib/models/UserInteraction';
-import { IEvent } from '@/lib/models/Event';
 import UserInteraction from '@/lib/models/UserInteraction';
 import { createMockEvent, createMockInteraction, createMockUser, createMockQueryChain } from '../helpers/factories';
 

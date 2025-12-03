@@ -1,7 +1,6 @@
 import {
     extractEventFeatures,
     cosineSimilarity,
-    type EventVector,
 } from '@/lib/ml';
 import type { IEvent } from '@/lib/models';
 
@@ -29,6 +28,7 @@ describe('Vector Service', () => {
         sourceIds: {},
         scrapedAt: new Date(),
         lastUpdated: new Date(),
+        isArchived: false,
         stats: {
             viewCount: 0,
             favouriteCount: 0,

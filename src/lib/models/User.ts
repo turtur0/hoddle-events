@@ -4,6 +4,7 @@ export interface IUser {
     email: string;
     name: string;
     username?: string;
+    usernameLower?: string; // For case-insensitive uniqueness
     passwordHash?: string;
     provider?: 'credentials' | 'google';
 
@@ -57,10 +58,15 @@ const UserSchema = new Schema<IUser>(
         },
         username: {
             type: String,
-            unique: true,
             sparse: true,
             trim: true,
+        },
+        usernameLower: {
+            type: String,
+            unique: true,
+            sparse: true,
             lowercase: true,
+            trim: true,
         },
         passwordHash: {
             type: String,

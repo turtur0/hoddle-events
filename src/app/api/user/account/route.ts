@@ -115,13 +115,14 @@ export async function DELETE() {
     }
 }
 
-/** Validates and updates username. */
+/** Validates and updates username (preserves case). */
 async function validateAndUpdateUsername(user: any, username: string) {
-    const existing = await User.findOne({ username: username.toLowerCase() });
+    const existing = await User.findOne({ usernameLower: username.toLowerCase() });
     if (existing) {
         throw new Error('Username already taken');
     }
-    user.username = username.toLowerCase();
+    user.username = username;
+    user.usernameLower = username.toLowerCase();
 }
 
 /** Updates user password after verifying current password. */

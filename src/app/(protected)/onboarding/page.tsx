@@ -101,7 +101,7 @@ export default function Onboarding() {
             const res = await fetch('/api/user/username', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username }),
+                body: JSON.stringify({ username }), // Keep original case
             });
 
             if (!res.ok) {
@@ -217,7 +217,7 @@ export default function Onboarding() {
                                 <Input
                                     id="username"
                                     type="text"
-                                    placeholder="johndoe"
+                                    placeholder="JohnDoe"
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
                                     disabled={isLoading}
@@ -434,10 +434,10 @@ export default function Onboarding() {
                             <div
                                 key={s}
                                 className={`h-2 rounded-full transition-all duration-300 ${step === s
-                                        ? 'bg-primary w-12'
-                                        : idx < currentIdx
-                                            ? 'bg-primary/60 w-2'
-                                            : 'bg-border w-2'
+                                    ? 'bg-primary w-12'
+                                    : idx < currentIdx
+                                        ? 'bg-primary/60 w-2'
+                                        : 'bg-border w-2'
                                     }`}
                                 role="progressbar"
                                 aria-valuenow={idx < currentIdx ? 100 : step === s ? 50 : 0}

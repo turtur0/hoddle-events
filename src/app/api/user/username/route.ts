@@ -26,9 +26,9 @@ export async function POST(request: NextRequest) {
 
         await connectDB();
 
-        // Check if username is already taken (excluding current user)
+        // Check if username is already taken (case-insensitive, excluding current user)
         const existingUser = await User.findOne({
-            username: username.toLowerCase(),
+            usernameLower: username.toLowerCase(),
             email: { $ne: session.user.email }
         });
 
@@ -39,16 +39,19 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Update username
+        // Update username (preserve original case)
         await User.findOneAndUpdate(
             { email: session.user.email },
-            { username: username.toLowerCase() },
+            {
+                username: username,
+                usernameLower: username.toLowerCase()
+            },
             { new: true }
         );
 
         return NextResponse.json({
             message: 'Username updated successfully',
-            username: username.toLowerCase(),
+            username: username,
         });
     } catch (error: any) {
         console.error('Username update error:', error);

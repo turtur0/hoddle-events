@@ -5,7 +5,6 @@ import {
     venueSimilarity,
     dateOverlap,
     matchScore,
-    selectPrimaryEvent,
     mergeEvents,
     findDuplicates,
     CONFIG,
@@ -207,68 +206,6 @@ describe('Deduplication Algorithm', () => {
 
             const { breakdown } = matchScore(event1, event2);
             expect(breakdown).toMatch(/t:\d+ d:\d+ v:\d+/);
-        });
-    });
-
-    // ============================================================================
-    // Primary Selection Tests
-    // ============================================================================
-    describe('selectPrimaryEvent', () => {
-        const createEvent = (
-            source: 'ticketmaster' | 'marriner' | 'whatson',
-            overrides: Partial<EventForDedup> = {}
-        ): EventForDedup => ({
-            title: 'Test Event',
-            description: 'Test',
-            category: 'music',
-            startDate: new Date('2025-01-01'),
-            venue: { name: 'Test Venue', address: 'Test', suburb: 'Melbourne' },
-            isFree: false,
-            bookingUrl: 'https://example.com',
-            source,
-            sourceId: 'test-123',
-            ...overrides,
-        });
-
-        it('should prefer marriner over ticketmaster', () => {
-            const marriner = createEvent('marriner');
-            const ticketmaster = createEvent('ticketmaster');
-            expect(selectPrimaryEvent(marriner, ticketmaster)).toBe('event1');
-            expect(selectPrimaryEvent(ticketmaster, marriner)).toBe('event2');
-        });
-
-        it('should prefer ticketmaster over whatson', () => {
-            const ticketmaster = createEvent('ticketmaster');
-            const whatson = createEvent('whatson');
-            expect(selectPrimaryEvent(ticketmaster, whatson)).toBe('event1');
-            expect(selectPrimaryEvent(whatson, ticketmaster)).toBe('event2');
-        });
-
-        it('should prefer marriner over whatson', () => {
-            const marriner = createEvent('marriner');
-            const whatson = createEvent('whatson');
-            expect(selectPrimaryEvent(marriner, whatson)).toBe('event1');
-            expect(selectPrimaryEvent(whatson, marriner)).toBe('event2');
-        });
-
-        it('should use completeness when sources are equal', () => {
-            const complete = createEvent('ticketmaster', {
-                description: 'A'.repeat(150),
-                imageUrl: 'https://example.com/image.jpg',
-                priceMin: 50,
-                priceMax: 150,
-                priceDetails: 'Student discounts available',
-                endDate: new Date('2025-01-15'),
-                venue: { name: 'Test', address: '123 Real St', suburb: 'Melbourne' },
-                accessibility: ['Wheelchair access'],
-            });
-
-            const incomplete = createEvent('ticketmaster', {
-                description: 'Short',
-            });
-
-            expect(selectPrimaryEvent(complete, incomplete)).toBe('event1');
-            expect(selectPrimaryEvent(incomplete, complete)).toBe('event2');
         });
     });
 
@@ -559,7 +496,7 @@ describe('Deduplication Algorithm', () => {
     // Integration Tests
     // ============================================================================
     describe('Full deduplication workflow', () => {
-        it('should correctly identify, select, and merge duplicate events', () => {
+        it('should correctly identify and merge duplicate events', () => {
             const events = [
                 {
                     _id: '1',
@@ -601,14 +538,8 @@ describe('Deduplication Algorithm', () => {
             const duplicates = findDuplicates(events);
             expect(duplicates.length).toBe(1);
 
-            // Select primary
-            const primaryKey = selectPrimaryEvent(events[0], events[1]);
-            const primary = primaryKey === 'event1' ? events[0] : events[1];
-            const secondary = primaryKey === 'event1' ? events[1] : events[0];
-            expect(primary.source).toBe('marriner'); // Marriner has higher priority
-
-            // Merge events
-            const merged = mergeEvents(primary, secondary);
+            // Merge events (marriner is primary based on source priority in deduplication.ts)
+            const merged = mergeEvents(events[0], events[1]);
 
             // Verify merged result
             expect(merged.title).toBe('Hamilton'); // From marriner

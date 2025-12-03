@@ -1,7 +1,6 @@
 import {
     calculateRawPopularityScore,
     getColdStartPopularityScore,
-    type IEvent
 } from '@/lib/ml/popularity-service';
 import { createMockEvent } from '../helpers/factories';
 

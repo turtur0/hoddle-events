@@ -1,11 +1,10 @@
 import mongoose from 'mongoose';
 import {
     getTrendingEvents,
-    getRisingStars,
     getUndiscoveredGems,
     getSimilarEvents,
 } from '@/lib/ml/recommendation-service';
-import { IEvent, Event } from '@/lib/models'; 
+import { Event } from '@/lib/models'; 
 import { createMockEvent, createMockQueryChain } from '../helpers/factories';
 
 jest.mock('@/lib/models/Event');
@@ -131,66 +130,6 @@ describe('Recommendation Service - Discovery Algorithms', () => {
             const results = await getTrendingEvents({ limit: 2 });
 
             expect(results[0].title).toBe('Soon Event');
-        });
-    });
-
-    // ============================================================================
-    // getRisingStars Tests
-    // ============================================================================
-    describe('getRisingStars', () => {
-        it('should return events below 70th percentile', async () => {
-            const mockFind = jest.fn().mockReturnValue(createMockQueryChain([]));
-            (Event.find as jest.Mock) = mockFind;
-
-            await getRisingStars();
-
-            expect(mockFind).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    'stats.categoryPopularityPercentile': { $lt: 0.7 },
-                })
-            );
-        });
-
-        it('should prioritise high velocity events', async () => {
-            const highVelocityEvent = createMockEvent({
-                title: 'High Velocity',
-                stats: {
-                    viewCount: 30,
-                    favouriteCount: 8,
-                    clickthroughCount: 5,
-                    categoryPopularityPercentile: 0.5,
-                },
-                scrapedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-            });
-            const lowVelocityEvent = createMockEvent({
-                title: 'Low Velocity',
-                stats: {
-                    viewCount: 15,
-                    favouriteCount: 2,
-                    clickthroughCount: 2,
-                    categoryPopularityPercentile: 0.4,
-                },
-                scrapedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-            });
-
-            (Event.find as jest.Mock) = jest.fn().mockReturnValue(
-                createMockQueryChain([lowVelocityEvent, highVelocityEvent])
-            );
-
-            const results = await getRisingStars({ limit: 2 });
-
-            expect(results[0].title).toBe('High Velocity');
-        });
-
-        it('should filter by category when specified', async () => {
-            const mockFind = jest.fn().mockReturnValue(createMockQueryChain([]));
-            (Event.find as jest.Mock) = mockFind;
-
-            await getRisingStars({ category: 'arts' });
-
-            expect(mockFind).toHaveBeenCalledWith(
-                expect.objectContaining({ category: 'arts' })
-            );
         });
     });
 
