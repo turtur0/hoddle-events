@@ -241,9 +241,9 @@ export default function AboutPage() {
                         </p>
                         <div className="flex flex-wrap gap-4 mb-6">
                             <Button variant="outline" size="lg" asChild className="border-2 transition-all hover-lift">
-                                <a href="mailto:hello@hoddleevents.com.au" className="flex items-center">
+                                <a href="mailto:hoddlevents@gmail.com" className="flex items-center">
                                     <Mail className="h-5 w-5 mr-2" />
-                                    hello@hoddleevents.com.au
+                                    hoddleevents@gmail.com
                                 </a>
                             </Button>
                             <Button variant="outline" size="lg" asChild className="border-2 transition-all hover-lift">
