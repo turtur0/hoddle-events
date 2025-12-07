@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { EventCard } from '@/components/events/cards/EventCard';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -8,203 +8,217 @@ import { Button } from '@/components/ui/Button';
 import { SerializedEvent } from '@/lib/models/Event';
 
 interface EventCarouselProps {
-    events: SerializedEvent[];
-    userFavourites: Set<string>;
-    title: string;
-    description?: string;
-    icon: React.ReactNode;
-    source?: 'search' | 'recommendation' | 'category_browse' | 'homepage' | 'direct' | 'similar_events';
-    borderClass?: string;
-    gradientClass?: string;
-    autoScroll?: boolean;
-    autoScrollInterval?: number;
-    showProgress?: boolean;
-    children?: React.ReactNode; // For additional header content like tabs
+  events: SerializedEvent[];
+  userFavourites: Set<string>;
+  title: string;
+  description?: string;
+  icon: React.ReactNode;
+  source?: 'search' | 'recommendation' | 'category_browse' | 'homepage' | 'direct' | 'similar_events';
+  borderClass?: string;
+  gradientClass?: string;
+  autoScroll?: boolean;
+  autoScrollInterval?: number;
+  showProgress?: boolean;
+  children?: React.ReactNode;
 }
 
 export function EventCarousel({
-    events,
-    userFavourites,
-    title,
-    description,
-    icon,
-    source = 'direct',
-    borderClass = 'border-primary/20',
-    gradientClass = 'from-primary/5',
-    autoScroll = true,
-    autoScrollInterval = 5000,
-    showProgress = true,
-    children,
+  events,
+  userFavourites,
+  title,
+  description,
+  icon,
+  source = 'direct',
+  borderClass = 'border-primary/20',
+  gradientClass = 'from-primary/5',
+  autoScroll = true,
+  autoScrollInterval = 5000,
+  showProgress = true,
+  children,
 }: EventCarouselProps) {
-    const [currentIndex, setCurrentIndex] = useState(0);
-    const [isHovered, setIsHovered] = useState(false);
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [visibleCards, setVisibleCards] = useState(1);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+  const isDragging = useRef(false);
 
-    // Create infinite loop by tripling the events array
-    const infiniteEvents = events.length > 0 ? [...events, ...events, ...events] : [];
-    const actualLength = events.length;
+  const totalEvents = events.length;
+  const infiniteEvents = totalEvents > 0 ? [...events, ...events, ...events] : [];
 
-    // Auto-scroll functionality
-    useEffect(() => {
-        if (!autoScroll || actualLength === 0 || isHovered) return;
+  // Calculate visible cards based on screen size
+  useEffect(() => {
+    const updateVisibleCards = () => {
+      const width = window.innerWidth;
+      if (width < 640) setVisibleCards(1);
+      else if (width < 1024) setVisibleCards(2);
+      else setVisibleCards(3);
+    };
 
-        const interval = setInterval(() => {
-            setCurrentIndex((prev) => prev + 1);
-        }, autoScrollInterval);
+    updateVisibleCards();
+    window.addEventListener('resize', updateVisibleCards);
+    return () => window.removeEventListener('resize', updateVisibleCards);
+  }, []);
 
-        return () => clearInterval(interval);
-    }, [autoScroll, autoScrollInterval, actualLength, isHovered]);
+  // Auto-scroll timer
+  useEffect(() => {
+    if (!autoScroll || totalEvents === 0 || isPaused) return;
 
-    // Handle infinite scrolling with seamless wrapping
-    useEffect(() => {
-        if (!scrollContainerRef.current || actualLength === 0) return;
+    const timer = setInterval(() => {
+      setCurrentIndex(prev => prev + 1);
+    }, autoScrollInterval);
 
-        const container = scrollContainerRef.current;
-        const containerWidth = container.offsetWidth;
-        const gap = 24; // 6 * 4px (gap-6)
-        const cardWidth = (containerWidth - gap * 2) / 3; // Account for 3 visible cards
+    return () => clearInterval(timer);
+  }, [autoScroll, autoScrollInterval, totalEvents, isPaused]);
 
-        // Calculate scroll position
-        let scrollIndex = currentIndex;
-        let shouldAnimate = true;
+  // Smooth infinite scroll with proper centring
+  useEffect(() => {
+    if (!scrollRef.current || totalEvents === 0) return;
 
-        // Reset to middle section when reaching boundaries (seamless loop)
-        if (currentIndex >= actualLength * 2) {
-            // Reached end, jump to start of middle section
-            scrollIndex = currentIndex - actualLength;
-            setCurrentIndex(scrollIndex);
-            shouldAnimate = false;
-        } else if (currentIndex < actualLength) {
-            // Haven't reached middle section yet, let it scroll naturally
-            scrollIndex = currentIndex;
-        }
+    const container = scrollRef.current;
+    const containerWidth = container.offsetWidth;
+    const gap = 24;
+    const cardWidth = (containerWidth - (gap * (visibleCards - 1))) / visibleCards;
+    const scrollPos = currentIndex * (cardWidth + gap);
 
-        const scrollPosition = scrollIndex * (cardWidth + gap);
+    container.scrollTo({ left: scrollPos, behavior: 'smooth' });
 
-        if (shouldAnimate) {
-            // Smooth animated scroll
-            container.style.scrollBehavior = 'smooth';
-            container.scrollLeft = scrollPosition;
-        } else {
-            // Instant jump for seamless loop
-            container.style.scrollBehavior = 'auto';
-            container.scrollLeft = scrollPosition;
-            // Re-enable smooth scrolling after jump
-            setTimeout(() => {
-                container.style.scrollBehavior = 'smooth';
-            }, 50);
-        }
-    }, [currentIndex, actualLength]);
+    // Seamless wrap - reset to middle section
+    if (currentIndex >= totalEvents * 2) {
+      setTimeout(() => {
+        container.scrollTo({ left: totalEvents * (cardWidth + gap), behavior: 'auto' });
+        setCurrentIndex(totalEvents);
+      }, 500);
+    } else if (currentIndex < totalEvents) {
+      setTimeout(() => {
+        container.scrollTo({ left: (totalEvents + currentIndex) * (cardWidth + gap), behavior: 'auto' });
+        setCurrentIndex(totalEvents + currentIndex);
+      }, 500);
+    }
+  }, [currentIndex, totalEvents, visibleCards]);
 
-    // Navigation handlers
-    const handlePrevious = useCallback(() => {
-        setCurrentIndex((prev) => {
-            if (prev <= actualLength) {
-                // Jump to end of middle section
-                return prev + actualLength - 1;
-            }
-            return prev - 1;
-        });
-    }, [actualLength]);
+  // Touch/drag handlers
+  const handleTouchStart = (e: React.TouchEvent | React.MouseEvent) => {
+    isDragging.current = true;
+    touchStartX.current = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    setIsPaused(true);
+  };
 
-    const handleNext = useCallback(() => {
-        setCurrentIndex((prev) => prev + 1);
-    }, []);
+  const handleTouchMove = (e: React.TouchEvent | React.MouseEvent) => {
+    if (!isDragging.current) return;
+    touchEndX.current = 'touches' in e ? e.touches[0].clientX : e.clientX;
+  };
 
-    // Direct navigation to specific index
-    const handleDotClick = useCallback((index: number) => {
-        setCurrentIndex(actualLength + index);
-    }, [actualLength]);
+  const handleTouchEnd = () => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
 
-    // Get normalized index for progress indicators
-    const normalizedIndex = currentIndex % actualLength;
+    const swipeDistance = touchStartX.current - touchEndX.current;
+    const threshold = 50;
 
-    if (actualLength === 0) return null;
+    if (Math.abs(swipeDistance) > threshold) {
+      setCurrentIndex(prev => swipeDistance > 0 ? prev + 1 : prev - 1);
+    }
 
-    return (
-        <Card className={`relative overflow-hidden border-2 ${borderClass} bg-linear-to-br ${gradientClass} via-transparent to-transparent shadow-sm hover:shadow-md hover:border-opacity-50 transition-all`}>
-            <CardHeader>
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex-1 min-w-0">
-                        <CardTitle className="flex items-center gap-2 text-2xl mb-2">
-                            {icon}
-                            {title}
-                        </CardTitle>
-                        {description && (
-                            <p className="text-sm text-muted-foreground">
-                                {description}
-                            </p>
-                        )}
-                    </div>
-                    <div className="flex gap-2 ml-4">
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={handlePrevious}
-                            className={`h-9 w-9 border-2 ${borderClass} hover:border-opacity-70 hover:bg-opacity-10 transition-all duration-300 hover-lift hover:scale-110 active:scale-95`}
-                            aria-label="Previous event"
-                        >
-                            <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={handleNext}
-                            className={`h-9 w-9 border-2 ${borderClass} hover:border-opacity-70 hover:bg-opacity-10 transition-all duration-300 hover-lift hover:scale-110 active:scale-95`}
-                            aria-label="Next event"
-                        >
-                            <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                        </Button>
-                    </div>
-                </div>
+    setTimeout(() => setIsPaused(false), 1000);
+  };
 
-                {/* Additional header content (e.g., tabs) */}
-                {children}
-            </CardHeader>
+  // Navigation
+  const goToPrevious = () => setCurrentIndex(prev => prev - 1);
+  const goToNext = () => setCurrentIndex(prev => prev + 1);
+  const goToIndex = (index: number) => setCurrentIndex(totalEvents + index);
 
-            <CardContent>
-                {/* Event carousel */}
-                <div
-                    ref={scrollContainerRef}
-                    className="flex gap-6 overflow-x-hidden transition-all duration-500 ease-out"
-                    onMouseEnter={() => setIsHovered(true)}
-                    onMouseLeave={() => setIsHovered(false)}
-                    style={{
-                        scrollbarWidth: 'none',
-                        msOverflowStyle: 'none',
-                    }}
-                >
-                    {infiniteEvents.map((event, idx) => (
-                        <div
-                            key={`${event._id}-${idx}`}
-                            className="flex-none w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] transition-transform duration-500 ease-out"
-                        >
-                            <EventCard
-                                event={event}
-                                source={source}
-                                initialFavourited={userFavourites.has(event._id)}
-                            />
-                        </div>
-                    ))}
-                </div>
+  const normalizedIndex = ((currentIndex % totalEvents) + totalEvents) % totalEvents;
 
-                {/* Progress indicators */}
-                {showProgress && actualLength > 1 && (
-                    <div className="flex justify-center gap-2 mt-6">
-                        {events.map((_, index) => (
-                            <button
-                                key={index}
-                                onClick={() => handleDotClick(index)}
-                                className={`h-1.5 rounded-full transition-all duration-500 ease-out hover:scale-125 ${index === normalizedIndex
-                                        ? 'w-8 bg-primary shadow-sm shadow-primary/50'
-                                        : 'w-1.5 bg-muted-foreground/30 hover:bg-muted-foreground/50'
-                                    }`}
-                                aria-label={`Go to event ${index + 1}`}
-                            />
-                        ))}
-                    </div>
-                )}
-            </CardContent>
-        </Card>
-    );
+  if (totalEvents === 0) return null;
+
+  return (
+    <Card className={`relative overflow-hidden border-2 ${borderClass} bg-linear-to-br ${gradientClass} via-transparent to-transparent shadow-sm hover:shadow-md hover:border-opacity-50 transition-all`}>
+      <CardHeader>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex-1 min-w-0">
+            <CardTitle className="flex items-center gap-2 text-xl sm:text-2xl mb-2">
+              {icon}
+              {title}
+            </CardTitle>
+            {description && (
+              <p className="text-sm text-muted-foreground">{description}</p>
+            )}
+          </div>
+          <div className="flex gap-2 ml-4">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={goToPrevious}
+              className={`h-8 w-8 sm:h-9 sm:w-9 border-2 ${borderClass} hover:border-opacity-70 transition-all hover:scale-110 active:scale-95`}
+              aria-label="Previous event"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={goToNext}
+              className={`h-8 w-8 sm:h-9 sm:w-9 border-2 ${borderClass} hover:border-opacity-70 transition-all hover:scale-110 active:scale-95`}
+              aria-label="Next event"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        {children}
+      </CardHeader>
+
+      <CardContent>
+        <div
+          ref={scrollRef}
+          className="flex gap-6 overflow-x-hidden cursor-grab active:cursor-grabbing select-none"
+          onMouseEnter={() => setIsPaused(true)}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onMouseDown={handleTouchStart}
+          onMouseMove={handleTouchMove}
+          onMouseUp={handleTouchEnd}
+          onMouseLeave={(e) => {
+            setIsPaused(false);
+            handleTouchEnd();
+          }}
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          {infiniteEvents.map((event, idx) => (
+            <div
+              key={`${event._id}-${idx}`}
+              className="flex-none w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)]"
+              style={{ pointerEvents: isDragging.current ? 'none' : 'auto' }}
+            >
+              <EventCard
+                event={event}
+                source={source}
+                initialFavourited={userFavourites.has(event._id)}
+              />
+            </div>
+          ))}
+        </div>
+
+        {showProgress && totalEvents > 1 && (
+          <div className="flex justify-center gap-2 mt-6">
+            {events.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => goToIndex(index)}
+                className={`h-1.5 rounded-full transition-all duration-300 hover:scale-125 ${
+                  index === normalizedIndex
+                    ? 'w-8 bg-primary shadow-sm shadow-primary/50'
+                    : 'w-1.5 bg-muted-foreground/30 hover:bg-muted-foreground/50'
+                }`}
+                aria-label={`Go to event ${index + 1}`}
+              />
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
