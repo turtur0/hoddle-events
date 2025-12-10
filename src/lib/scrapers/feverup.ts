@@ -5,459 +5,449 @@ import { canScrape } from '../utils/robots-checker';
 const BASE_URL = 'https://feverup.com';
 const MELBOURNE_URL = `${BASE_URL}/en/melbourne/things-to-do`;
 
-/** Polite headers to avoid detection */
 const HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-    'Accept-Language': 'en-AU,en;q=0.9',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'Connection': 'keep-alive',
-    'Cache-Control': 'max-age=0',
-    'Referer': 'https://feverup.com/en/melbourne',
+  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+  'Accept-Language': 'en-AU,en;q=0.9',
+  'Accept-Encoding': 'gzip, deflate, br',
+  'Connection': 'keep-alive',
+  'Cache-Control': 'max-age=0',
+  'Referer': 'https://feverup.com/en/melbourne',
 };
 
-interface FeverUpEvent {
-    url: string;
-    title: string;
-    description: string;
-    startDate?: Date;
-    endDate?: Date;
-    venue?: string;
-    address?: string;
-    suburb?: string;
-    latitude?: number;
-    longitude?: number;
-    priceMin?: number;
-    priceMax?: number;
-    imageUrl?: string;
-    category?: string;
-    rating?: number;
-    ratingCount?: number;
-}
-
 export interface FeverUpScrapeOptions {
-    /** Maximum events to collect */
-    maxEvents?: number;
-    /** Whether to fetch individual event details */
-    fetchDetails?: boolean;
-    /** Delay between detail page fetches in milliseconds */
-    detailFetchDelay?: number;
+  maxEvents?: number;
+  fetchDetails?: boolean;
+  detailFetchDelay?: number;
 }
 
 /**
- * Scrapes events from FeverUp Melbourne.
- * Uses structured data (JSON-LD) for reliable extraction.
- * 
- * @param opts - Scraping options
- * @returns Array of normalised events
+ * Scrapes events from FeverUp Melbourne using structured data (JSON-LD).
  */
 export async function scrapeFeverUpMelbourne(opts: FeverUpScrapeOptions = {}): Promise<NormalisedEvent[]> {
-    const maxEvents = opts.maxEvents || 50;
-    const fetchDetails = opts.fetchDetails ?? true;
-    const allEvents: NormalisedEvent[] = [];
-    const seenUrls = new Set<string>();
+  const { maxEvents = 50, fetchDetails = true, detailFetchDelay = 1500 } = opts;
+  const allEvents: NormalisedEvent[] = [];
+  const seenUrls = new Set<string>();
 
-    console.log('[FeverUp] Checking robots.txt compliance');
-    const allowed = await canScrape(MELBOURNE_URL);
-    if (!allowed) {
-        console.log('[FeverUp] Scraping disallowed by robots.txt');
-        return [];
+  console.log('[FeverUp] Checking robots.txt compliance');
+  if (!await canScrape(MELBOURNE_URL)) {
+    console.log('[FeverUp] Scraping disallowed by robots.txt');
+    return [];
+  }
+
+  console.log('[FeverUp] Starting scrape of Melbourne events');
+  console.log(`[FeverUp] Detail fetching: ${fetchDetails ? 'enabled' : 'disabled'}`);
+
+  try {
+    const eventUrls = await fetchEventListingUrls();
+    console.log(`[FeverUp] Found ${eventUrls.length} event URLs`);
+
+    const limit = Math.min(maxEvents, eventUrls.length);
+    let processedCount = 0;
+
+    for (const url of eventUrls) {
+      if (processedCount >= limit || seenUrls.has(url)) continue;
+      if (!await canScrape(url)) {
+        console.log(`[FeverUp] Skipping ${url} - disallowed by robots.txt`);
+        continue;
+      }
+
+      const event = await fetchAndNormaliseEvent(url);
+      if (event) {
+        allEvents.push(event);
+        seenUrls.add(url);
+        processedCount++;
+        console.log(`[FeverUp] Processed ${processedCount}/${limit}: ${event.title}`);
+      }
+
+      await delay(detailFetchDelay);
     }
 
-    console.log('[FeverUp] Starting scrape of Melbourne events');
-    console.log(`[FeverUp] Detail fetching: ${fetchDetails ? 'enabled' : 'disabled'}`);
+    console.log(`[FeverUp] Total: ${allEvents.length} events scraped`);
+    return allEvents;
 
-    try {
-        // Fetch listing page
-        const eventUrls = await fetchEventListingUrls();
-        console.log(`[FeverUp] Found ${eventUrls.length} event URLs`);
-
-        const limit = Math.min(maxEvents, eventUrls.length);
-        let processedCount = 0;
-
-        for (let i = 0; i < eventUrls.length && processedCount < limit; i++) {
-            const url = eventUrls[i];
-
-            if (seenUrls.has(url)) {
-                continue;
-            }
-
-            // Check robots.txt for individual event page
-            const detailAllowed = await canScrape(url);
-            if (!detailAllowed) {
-                console.log(`[FeverUp] Skipping ${url} - disallowed by robots.txt`);
-                continue;
-            }
-
-            const eventData = await fetchEventDetails(url);
-
-            if (eventData && !isGiftCard(eventData)) {
-                const normalisedEvent = toNormalisedEvent(eventData);
-
-                if (normalisedEvent) {
-                    allEvents.push(normalisedEvent);
-                    seenUrls.add(url);
-                    processedCount++;
-                    console.log(`[FeverUp] Processed ${processedCount}/${limit}: ${normalisedEvent.title}`);
-                }
-            } else if (eventData && isGiftCard(eventData)) {
-                console.log(`[FeverUp] Skipping gift card: ${eventData.title}`);
-            }
-
-            // Polite delay between requests
-            await delay(opts.detailFetchDelay || 1500);
-        }
-
-        console.log(`[FeverUp] Total: ${allEvents.length} events scraped`);
-        return allEvents;
-
-    } catch (error: any) {
-        console.error('[FeverUp] Scraping failed:', error.message);
-        return allEvents; // Return what we've collected so far
-    }
+  } catch (error: any) {
+    console.error('[FeverUp] Scraping failed:', error.message);
+    return allEvents;
+  }
 }
 
 /**
- * Fetches event URLs from the listing page using structured data.
+ * Fetches event URLs from listing page using JSON-LD structured data.
  */
 async function fetchEventListingUrls(): Promise<string[]> {
+  await delay(1000);
+
+  const response = await fetch(MELBOURNE_URL, {
+    headers: HEADERS,
+    signal: AbortSignal.timeout(20000),
+  });
+
+  if (!response.ok) {
+    console.error(`[FeverUp] Listing fetch failed: ${response.status}`);
+    return [];
+  }
+
+  const $ = load(await response.text());
+  const eventUrls: string[] = [];
+
+  $('script[type="application/ld+json"]').each((_: number, el: any) => {
     try {
-        await delay(1000); // Initial polite delay
-
-        const response = await fetch(MELBOURNE_URL, {
-            headers: HEADERS,
-            signal: AbortSignal.timeout(20000),
+      const data = JSON.parse($(el).html() || '{}');
+      if (data['@type'] === 'ItemList' && Array.isArray(data.itemListElement)) {
+        data.itemListElement.forEach((item: any) => {
+          if (item.url?.includes('/m/')) {
+            eventUrls.push(item.url.startsWith('http') ? item.url : `${BASE_URL}${item.url}`);
+          }
         });
+      }
+    } catch { }
+  });
 
-        if (!response.ok) {
-            console.error(`[FeverUp] Listing fetch failed: ${response.status}`);
-            return [];
-        }
+  // Fallback to HTML scraping
+  if (eventUrls.length === 0) {
+    $('a[href*="/m/"]').each((_: number, el: any) => {
+      const href = $(el).attr('href');
+      if (href?.includes('/m/')) {
+        eventUrls.push(href.startsWith('http') ? href : `${BASE_URL}${href}`);
+      }
+    });
+  }
 
-        const html = await response.text();
-        const $ = load(html);
-
-        // Extract event URLs from structured data (JSON-LD)
-        const eventUrls: string[] = [];
-
-        $('script[type="application/ld+json"]').each((_, el) => {
-            try {
-                const data = JSON.parse($(el).html() || '{}');
-
-                // Look for ItemList with event URLs
-                if (data['@type'] === 'ItemList' && Array.isArray(data.itemListElement)) {
-                    data.itemListElement.forEach((item: any) => {
-                        if (item.url && item.url.includes('/m/')) {
-                            const fullUrl = item.url.startsWith('http') ? item.url : `${BASE_URL}${item.url}`;
-                            eventUrls.push(fullUrl);
-                        }
-                    });
-                }
-            } catch (e) {
-                // Ignore JSON parse errors
-            }
-        });
-
-        // Fallback: scrape from HTML if structured data doesn't work
-        if (eventUrls.length === 0) {
-            $('a[href*="/m/"]').each((_, el) => {
-                const href = $(el).attr('href');
-                if (href && href.includes('/m/')) {
-                    const fullUrl = href.startsWith('http') ? href : `${BASE_URL}${href}`;
-                    if (!eventUrls.includes(fullUrl)) {
-                        eventUrls.push(fullUrl);
-                    }
-                }
-            });
-        }
-
-        return [...new Set(eventUrls)]; // Remove duplicates
-
-    } catch (error: any) {
-        console.error('[FeverUp] Listing fetch error:', error.message);
-        return [];
-    }
+  return [...new Set(eventUrls)];
 }
 
 /**
- * Fetches and parses individual event page using structured data.
+ * Fetches and normalises a single event.
  */
-async function fetchEventDetails(url: string): Promise<FeverUpEvent | null> {
-    try {
-        const response = await fetch(url, {
-            headers: HEADERS,
-            signal: AbortSignal.timeout(15000),
-        });
+async function fetchAndNormaliseEvent(url: string): Promise<NormalisedEvent | null> {
+  try {
+    const response = await fetch(url, {
+      headers: HEADERS,
+      signal: AbortSignal.timeout(15000),
+    });
 
-        if (!response.ok) {
-            console.log(`[FeverUp] Event fetch failed for ${url}: ${response.status}`);
-            return null;
-        }
+    if (!response.ok) return null;
 
-        const html = await response.text();
-        const $ = load(html);
+    const $ = load(await response.text());
+    const structuredData = extractStructuredData($);
 
-        // Extract structured data (JSON-LD) - this is the most reliable method
-        let structuredData: any = null;
-
-        $('script[type="application/ld+json"]').each((_, el) => {
-            try {
-                const data = JSON.parse($(el).html() || '{}');
-                if (data['@type'] === 'Product' || data['@type'] === 'Event') {
-                    structuredData = data;
-                }
-            } catch (e) {
-                // Ignore parse errors
-            }
-        });
-
-        if (!structuredData) {
-            console.log(`[FeverUp] No structured data found for ${url}`);
-            return null;
-        }
-
-        // Extract event details from structured data
-        const event: FeverUpEvent = {
-            url,
-            title: structuredData.name || '',
-            description: cleanDescription(structuredData.description || ''),
-            imageUrl: extractImageUrl(structuredData),
-        };
-
-        // Extract pricing from offers
-        if (Array.isArray(structuredData.offers) && structuredData.offers.length > 0) {
-            const prices = structuredData.offers
-                .map((offer: any) => offer.price)
-                .filter((price: any) => typeof price === 'number' && price > 0);
-
-            if (prices.length > 0) {
-                event.priceMin = Math.min(...prices);
-                event.priceMax = prices.length > 1 ? Math.max(...prices) : undefined;
-            }
-        }
-
-        // Extract venue and location
-        const firstOffer = structuredData.offers?.[0];
-        if (firstOffer?.areaServed) {
-            event.venue = firstOffer.areaServed.name || 'Venue TBA';
-            const addressLocality = firstOffer.areaServed.address?.addressLocality || 'Melbourne';
-            event.address = addressLocality;
-            event.suburb = extractSuburb(addressLocality);
-
-            if (firstOffer.areaServed.geo) {
-                event.latitude = firstOffer.areaServed.geo.latitude;
-                event.longitude = firstOffer.areaServed.geo.longitude;
-            }
-        }
-
-        // Extract rating
-        if (structuredData.aggregateRating) {
-            event.rating = structuredData.aggregateRating.ratingValue;
-            event.ratingCount = structuredData.aggregateRating.ratingCount;
-        }
-
-        // Parse dates from HTML since structured data doesn't always have them
-        const dateText = $('[class*="date"]').first().text().trim();
-        const dates = parseDateRange(dateText);
-        event.startDate = dates.startDate;
-        event.endDate = dates.endDate;
-
-        // Categorise event
-        event.category = categoriseFeverUpEvent(event.title, event.description);
-
-        return event;
-
-    } catch (error: any) {
-        console.log(`[FeverUp] Detail error for ${url}:`, error.message);
-        return null;
-    }
-}
-
-/**
- * Checks if an event is a gift card (not an actual event).
- */
-function isGiftCard(event: FeverUpEvent): boolean {
-    const titleLower = event.title.toLowerCase();
-    return titleLower.includes('gift card') || titleLower.includes('giftcard');
-}
-
-/**
- * Extracts image URL from structured data.
- */
-function extractImageUrl(structuredData: any): string | undefined {
-    if (structuredData.image?.contentUrl) {
-        return structuredData.image.contentUrl;
+    if (!structuredData) {
+      console.log(`[FeverUp] No structured data found for ${url}`);
+      return null;
     }
 
-    if (Array.isArray(structuredData.images) && structuredData.images.length > 0) {
-        return structuredData.images[0].url || structuredData.images[0];
+    const title = structuredData.name || '';
+    if (title.toLowerCase().includes('gift card')) {
+      console.log(`[FeverUp] Skipping gift card: ${title}`);
+      return null;
     }
 
-    if (typeof structuredData.image === 'string') {
-        return structuredData.image;
+    const dates = extractDates(structuredData, $);
+    if (!dates.startDate) {
+      console.log('[FeverUp] Skipping event - missing required fields');
+      return null;
     }
 
-    return undefined;
-}
-
-/**
- * Cleans description text by removing HTML and limiting length.
- */
-function cleanDescription(desc: string): string {
-    return desc
-        .replace(/<[^>]*>/g, '') // Remove HTML tags
-        .replace(/\s+/g, ' ') // Normalise whitespace
-        .replace(/\n+/g, ' ') // Remove newlines
-        .trim()
-        .substring(0, 500); // Limit length
-}
-
-/**
- * Parses date range from text like "09 Dec - 01 Feb" or "Oct 2025".
- */
-function parseDateRange(dateText: string): { startDate?: Date; endDate?: Date } {
-    if (!dateText || dateText === 'Not found') {
-        return {};
-    }
-
-    const currentYear = new Date().getFullYear();
-
-    // Match "DD MMM - DD MMM" format
-    const rangeMatch = dateText.match(/(\d{1,2})\s+(\w{3})\s*-\s*(\d{1,2})\s+(\w{3})/);
-    if (rangeMatch) {
-        const [, startDay, startMonth, endDay, endMonth] = rangeMatch;
-        return {
-            startDate: parseDate(startDay, startMonth, currentYear),
-            endDate: parseDate(endDay, endMonth, currentYear),
-        };
-    }
-
-    // Match "MMM YYYY" format
-    const monthYearMatch = dateText.match(/(\w{3,})\s+(\d{4})/);
-    if (monthYearMatch) {
-        const [, month, year] = monthYearMatch;
-        const date = new Date(`${month} 1, ${year}`);
-        if (!isNaN(date.getTime())) {
-            return { startDate: date };
-        }
-    }
-
-    return {};
-}
-
-/**
- * Parses a date from day, month name, and year.
- */
-function parseDate(day: string, month: string, year: number): Date | undefined {
-    const date = new Date(`${month} ${day}, ${year}`);
-    return !isNaN(date.getTime()) ? date : undefined;
-}
-
-/**
- * Extracts suburb from venue name or address.
- */
-function extractSuburb(text: string): string {
-    const melbourneSuburbs = [
-        'Melbourne', 'Carlton', 'Fitzroy', 'Collingwood', 'Richmond',
-        'Southbank', 'St Kilda', 'South Yarra', 'Docklands', 'CBD',
-    ];
-
-    for (const suburb of melbourneSuburbs) {
-        if (text.includes(suburb)) {
-            return suburb;
-        }
-    }
-
-    return 'Melbourne';
-}
-
-/**
- * Categorises FeverUp event based on title and description.
- */
-function categoriseFeverUpEvent(title: string, description: string): string {
-    const text = `${title} ${description}`.toLowerCase();
-
-    // Music indicators
-    if (text.match(/\b(concert|music|symphony|orchestra|jazz|rock|pop|band)\b/)) {
-        return 'music';
-    }
-
-    // Theatre indicators
-    if (text.match(/\b(theatre|musical|play|opera|ballet|performance|show)\b/)) {
-        return 'theatre';
-    }
-
-    // Arts & Culture indicators
-    if (text.match(/\b(exhibition|gallery|art|museum|immersive|experience)\b/)) {
-        return 'arts';
-    }
-
-    // Family indicators
-    if (text.match(/\b(family|kids|children|interactive|workshop)\b/)) {
-        return 'family';
-    }
-
-    // Sports indicators
-    if (text.match(/\b(sport|game|match|race|tournament)\b/)) {
-        return 'sports';
-    }
-
-    return 'other';
-}
-
-/**
- * Converts FeverUp event to normalised format.
- */
-function toNormalisedEvent(event: FeverUpEvent): NormalisedEvent | null {
-    if (!event.title || !event.startDate) {
-        console.log('[FeverUp] Skipping event - missing required fields');
-        return null;
-    }
+    const venue = extractVenue(structuredData, $);
+    const pricing = extractPricing(structuredData);
+    const description = cleanText(structuredData.description || '', 500);
 
     return {
-        title: event.title,
-        description: event.description || 'No description available',
-        category: event.category || 'other',
-        subcategory: undefined, // FeverUp doesn't provide subcategories
-        subcategories: [],
+      title,
+      description: description || 'No description available',
+      category: categoriseEvent(title, description),
+      subcategory: undefined,
+      subcategories: [],
 
-        startDate: event.startDate,
-        endDate: event.endDate,
+      startDate: dates.startDate,
+      endDate: dates.endDate,
 
-        venue: {
-            name: event.venue || 'Venue TBA',
-            address: event.address || 'Melbourne VIC',
-            suburb: event.suburb || 'Melbourne',
-        },
+      venue: {
+        name: venue.name,
+        address: venue.address,
+        suburb: venue.suburb,
+      },
 
-        priceMin: event.priceMin,
-        priceMax: event.priceMax,
-        priceDetails: event.rating
-            ? `Rating: ${event.rating}/5 (${event.ratingCount} reviews)`
-            : undefined,
-        isFree: event.priceMin === 0,
+      priceMin: pricing.priceMin,
+      priceMax: pricing.priceMax,
+      priceDetails: pricing.priceDetails,
+      isFree: pricing.priceMin === 0,
 
-        bookingUrl: event.url,
-        imageUrl: event.imageUrl,
+      bookingUrl: url,
+      imageUrl: extractImage(structuredData),
 
-        source: 'feverup' as any, // Note: needs to be added to the source type
-        sourceId: extractSourceId(event.url),
-        scrapedAt: new Date(),
-        lastUpdated: new Date(),
+      accessibility: extractAccessibility($),
+      ageRestriction: extractAgeRestriction($),
+      duration: extractDuration($),
+
+      source: 'feverup' as any,
+      sourceId: url.match(/\/m\/(\d+)/)?.[1] || url,
+      scrapedAt: new Date(),
+      lastUpdated: new Date(),
     };
+
+  } catch (error: any) {
+    console.log(`[FeverUp] Error for ${url}:`, error.message);
+    return null;
+  }
 }
 
 /**
- * Extracts source ID from FeverUp URL.
+ * Extracts JSON-LD structured data from page.
  */
-function extractSourceId(url: string): string {
-    const match = url.match(/\/m\/(\d+)/);
-    return match ? match[1] : url;
+function extractStructuredData($: any): any | null {
+  let data: any = null;
+  $('script[type="application/ld+json"]').each((_: number, el: any) => {
+    try {
+      const parsed = JSON.parse($(el).html() || '{}');
+      if (parsed['@type'] === 'Product' || parsed['@type'] === 'Event') {
+        data = parsed;
+        return false;
+      }
+    } catch { }
+  });
+  return data;
 }
 
 /**
- * Polite delay utility for rate limiting.
+ * Extracts main image URL.
+ */
+function extractImage(data: any): string | undefined {
+  if (data.image?.contentUrl) return data.image.contentUrl;
+  if (Array.isArray(data.images) && data.images[0]) {
+    return typeof data.images[0] === 'string' ? data.images[0] : data.images[0].url;
+  }
+  if (typeof data.image === 'string') return data.image;
+  return undefined;
+}
+
+/**
+ * Extracts pricing information from structured data.
+ * Note: FeverUp only includes base ticket price in structured data.
+ */
+function extractPricing(data: any): {
+  priceMin?: number;
+  priceMax?: number;
+  priceDetails?: string;
+} {
+  const tickets: Array<{ name: string; price: number }> = [];
+  const prices: number[] = [];
+
+  if (Array.isArray(data.offers)) {
+    data.offers.forEach((offer: any) => {
+      if (offer.price && offer.price > 0) {
+        prices.push(offer.price);
+        if (offer.name) {
+          const name = offer.name.includes(' - ')
+            ? offer.name.split(' - ').pop()!
+            : offer.name;
+          tickets.push({ name, price: offer.price });
+        }
+      }
+    });
+  }
+
+  return {
+    priceMin: prices.length > 0 ? Math.min(...prices) : undefined,
+    priceMax: prices.length > 1 ? Math.max(...prices) : undefined,
+    priceDetails: tickets.length > 0
+      ? tickets.map(t => `${t.name}: $${t.price.toFixed(2)}`).join('; ')
+      : undefined,
+  };
+}
+
+/**
+ * Extracts venue information.
+ */
+function extractVenue(data: any, $: any): {
+  name: string;
+  address: string;
+  suburb: string;
+} {
+  let name = 'Venue TBA';
+  let address = 'Melbourne VIC';
+
+  // Try structured data first
+  const location = data.location || data.offers?.[0]?.areaServed;
+  if (location) {
+    if (location.name) name = location.name;
+    if (location.address) {
+      const parts = [
+        location.name,
+        location.address.line1,
+        location.address.line2,
+        location.address.addressLocality
+      ].filter(Boolean);
+      if (parts.length > 0) address = parts.join(', ');
+    }
+  }
+
+  // Fallback to HTML
+  if (name === 'Venue TBA' || name.includes('Secret Location')) {
+    const htmlName = $('[data-testid="plan-location-name"]').first().text().trim();
+    const htmlAddress = $('[data-testid="plan-location-address"]').first().text().trim();
+    if (htmlName) name = htmlName;
+    if (htmlAddress) address = htmlAddress;
+  }
+
+  return {
+    name,
+    address,
+    suburb: extractSuburb(address),
+  };
+}
+
+/**
+ * Extracts start and end dates.
+ */
+function extractDates(data: any, $: any): { startDate?: Date; endDate?: Date } {
+  // Try structured data first
+  if (data.startDate) {
+    const start = new Date(data.startDate);
+    const end = data.endDate ? new Date(data.endDate) : undefined;
+    if (!isNaN(start.getTime())) {
+      return {
+        startDate: start,
+        endDate: end && !isNaN(end.getTime()) ? end : undefined,
+      };
+    }
+  }
+
+  // Extract from HTML date elements
+  const dates: string[] = [];
+  $('[class*="date"]').each((_: number, el: any) => {
+    const text = $(el).text().trim();
+    if (/^[A-Z][a-z]{2,8}\s+\d{4}$/.test(text)) dates.push(text);
+  });
+
+  if (dates.length > 0) {
+    const unique = [...new Set(dates)].sort((a, b) =>
+      new Date(a).getTime() - new Date(b).getTime()
+    );
+
+    const start = new Date(`${unique[0]} 1`);
+    const end = new Date(`${unique[unique.length - 1]} 1`);
+    end.setMonth(end.getMonth() + 1);
+    end.setDate(0);
+
+    return { startDate: start, endDate: end };
+  }
+
+  return {};
+}
+
+/**
+ * Extracts accessibility features.
+ */
+function extractAccessibility($: any): string[] {
+  const features: string[] = [];
+  const text = $('#plan-description').text();
+
+  if (/wheelchair accessible/i.test(text)) features.push('Wheelchair accessible');
+  if (/audio guide/i.test(text)) features.push('Audio guide available');
+  if (/hearing loop/i.test(text)) features.push('Hearing loop available');
+  if (/accessible parking/i.test(text)) features.push('Accessible parking');
+
+  return features;
+}
+
+/**
+ * Extracts age restriction.
+ */
+function extractAgeRestriction($: any): string | undefined {
+  const text = $('#plan-description').text();
+
+  const patterns = [
+    /👤\s*Age requirement:\s*([^👤📍⏳♿🎁📅\n]+)/i,
+    /(all ages are welcome[^👤📍⏳♿\n.]{0,100})/i,
+    /(minimum age[:\s]+\d+[^👤📍⏳♿\n.]{0,80})/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match?.[1]) {
+      let result = match[1].trim().replace(/\s+/g, ' ');
+
+      if (result.length > 100 && !result.endsWith('.')) {
+        const lastPeriod = result.substring(0, 120).lastIndexOf('.');
+        result = lastPeriod > 50
+          ? result.substring(0, lastPeriod + 1)
+          : result.substring(0, 100) + '...';
+      }
+
+      return result.substring(0, 150);
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * Extracts duration.
+ */
+function extractDuration($: any): string | undefined {
+  const text = $('#plan-description').text();
+  const match = text.match(/⏳\s*Duration:\s*([^\n📍]+)/i) ||
+    text.match(/duration[:\s]+([^\n📍]+)/i) ||
+    text.match(/(\d+)\s*(?:hour|hr|minute|min)s?/i);
+
+  return match?.[1]?.trim() || match?.[0]?.replace(/^⏳\s*Duration:\s*/i, '').trim();
+}
+
+/**
+ * Extracts suburb from address.
+ */
+function extractSuburb(address: string): string {
+  const suburbs = [
+    'Melbourne', 'Carlton', 'Fitzroy', 'Collingwood', 'Richmond',
+    'Southbank', 'St Kilda', 'South Yarra', 'Docklands', 'CBD',
+    'Brunswick', 'Northcote', 'Prahran', 'South Melbourne', 'Port Melbourne',
+  ];
+
+  return suburbs.find(s => address.includes(s)) || 'Melbourne';
+}
+
+/**
+ * Categorises event based on title and description.
+ */
+function categoriseEvent(title: string, description: string): string {
+  const text = `${title} ${description}`.toLowerCase();
+
+  if (text.match(/\b(candlelight|concert|music|symphony|orchestra|jazz|rock|pop|band|classical|tribute)\b/)) {
+    return 'music';
+  }
+  if (text.match(/\b(theatre|musical|play|opera|ballet|performance|show|dance)\b/)) {
+    return 'theatre';
+  }
+  if (text.match(/\b(exhibition|gallery|art|museum|immersive|experience)\b/)) {
+    return 'arts';
+  }
+  if (text.match(/\b(family|kids|children|interactive|workshop)\b/)) {
+    return 'family';
+  }
+  if (text.match(/\b(sport|game|match|race|tournament)\b/)) {
+    return 'sports';
+  }
+
+  return 'other';
+}
+
+/**
+ * Cleans text by removing HTML and limiting length.
+ */
+function cleanText(text: string, maxLength: number): string {
+  return text
+    .replace(/<[^>]*>/g, '')
+    .replace(/\\r\\n/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .substring(0, maxLength);
+}
+
+/**
+ * Polite delay for rate limiting.
  */
 function delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
