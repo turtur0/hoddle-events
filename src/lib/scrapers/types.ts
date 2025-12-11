@@ -3,7 +3,7 @@ export interface NormalisedEvent {
   description: string;
   category: string;
   subcategory?: string;
-  subcategories?: string[];  // Support multiple
+  subcategories?: string[];
 
   startDate: Date;
   endDate?: Date;
@@ -23,7 +23,6 @@ export interface NormalisedEvent {
   imageUrl?: string;
   videoUrl?: string;
 
-  // Additional fields
   accessibility?: string[];
   ageRestriction?: string;
   duration?: string;
@@ -34,7 +33,6 @@ export interface NormalisedEvent {
   lastUpdated: Date;
 }
 
-// For deduplication
 export interface EventForDedup {
   _id?: string;
   title: string;
@@ -66,21 +64,17 @@ export interface DuplicateMatch {
   reason: string;
 }
 
-// ============================================
-// Ticketmaster API Response Types
-// ============================================
-
 export interface TicketmasterEvent {
   id: string;
   name: string;
   description?: string;
-  info?: string; // Additional info field that Ticketmaster sometimes includes
+  info?: string;
   url?: string;
   dates: {
     start: {
       localDate: string;
       localTime?: string;
-      dateTime?: string; // ISO datetime
+      dateTime?: string;
     };
     end?: {
       localDate: string;
@@ -117,15 +111,15 @@ export interface TicketmasterEvent {
   }>;
   priceRanges?: Array<{
     type?: string;
-    currency?: string; // e.g., "AUD", "USD"
+    currency?: string;
     min?: number;
     max?: number;
   }>;
   images?: Array<{
     url: string;
     width: number;
-    height?: number; // Some images include height
-    ratio?: string; // e.g., "16_9", "3_2"
+    height?: number;
+    ratio?: string;
     fallback?: boolean;
   }>;
   _embedded?: {
@@ -192,7 +186,6 @@ export interface TicketmasterEvent {
   };
 }
 
-// Scraper options
 export interface ScrapeOptions {
   maxCategories?: number;
   maxEventsPerCategory?: number;

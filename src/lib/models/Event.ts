@@ -81,7 +81,7 @@ const EventSchema = new Schema<IEvent>({
   sources: [{ type: String }],
   primarySource: {
     type: String,
-    enum: ['ticketmaster', 'marriner', 'whatson', "feverup"],
+    enum: ['ticketmaster', 'marriner', 'whatson', 'feverup'],
     required: true,
   },
   sourceIds: { type: Map, of: String },
@@ -108,18 +108,15 @@ const EventSchema = new Schema<IEvent>({
   },
 }, { timestamps: true });
 
-// Indexes
+// Indexes for performance
 EventSchema.index({ title: 'text', description: 'text', 'venue.name': 'text' });
 EventSchema.index({ startDate: 1, category: 1 });
+EventSchema.index({ endDate: 1, isArchived: 1 });
 EventSchema.index({ startDate: 1, isArchived: 1 });
 EventSchema.index({ sources: 1 });
 EventSchema.index({ primarySource: 1, 'sourceIds.$**': 1 });
 EventSchema.index({ 'stats.categoryPopularityPercentile': 1 });
 EventSchema.index({ lastContentChange: 1 });
-EventSchema.index(
-  { title: 1, 'venue.name': 1, startDate: 1 },
-  { unique: true }
-);
 
 const Event: Model<IEvent> = mongoose.models.Event || mongoose.model<IEvent>('Event', EventSchema);
 export default Event;

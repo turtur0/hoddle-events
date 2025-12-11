@@ -35,6 +35,12 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'whatson.melbourne.vic.gov.au',
       },
+      {
+        protocol: 'https',
+        hostname: 'applications-media.feverup.com',
+        port: '',
+        pathname: '/image/upload/**',
+      },
     ],
   },
 };

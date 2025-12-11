@@ -417,12 +417,24 @@ async function notifyFavouritedUsers(eventId: any, changes: EventChanges): Promi
 
 /** Builds a map of source:sourceId → event for fast lookups */
 function buildSourceIdMap(events: any[]): Map<string, any> {
-  return new Map(
-    events.map(e => {
-      const sourceId = getSourceId(e, e.primarySource);
-      return [`${e.primarySource}:${sourceId}`, e];
-    })
-  );
+  const map = new Map<string, any>();
+
+  for (const e of events) {
+    const sourceId = getSourceId(e, e.primarySource);
+    const key = `${e.primarySource}:${sourceId}`;
+
+    // If duplicate key exists, keep the one with the earliest start date
+    if (map.has(key)) {
+      const existing = map.get(key);
+      if (new Date(e.startDate) < new Date(existing.startDate)) {
+        map.set(key, e);
+      }
+    } else {
+      map.set(key, e);
+    }
+  }
+
+  return map;
 }
 
 /** Converts database events to EventForDedup format */

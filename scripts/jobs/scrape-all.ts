@@ -12,18 +12,12 @@ import { scrapeAll } from '@/lib/scrapers';
 import { processEventsWithDeduplication } from '../utils/scrape-with-dedup';
 import { archivePastEvents } from '@/lib/services/archive-service';
 
-interface ScrapeStats {
+interface Stats {
   inserted: number;
   updated: number;
   merged: number;
   skipped: number;
   notifications: number;
-}
-
-interface ArchiveStats {
-  archived: number;
-  skipped: number;
-  errors: number;
 }
 
 async function main() {
@@ -36,12 +30,12 @@ async function main() {
   try {
     await connectDB();
 
-    // Step 1: Archive past events
+    // Archive past events
     console.log('Step 1: Archiving past events...\n');
     const archiveStats = await archivePastEvents();
     console.log('');
 
-    // Step 2: Scrape new events
+    // Scrape new events
     console.log('Step 2: Scraping new events...\n');
     const { events, results } = await scrapeAll({
       verbose: true,
@@ -52,8 +46,8 @@ async function main() {
         usePuppeteer: true,
       },
       whatsonOptions: {
-        categories: ['theatre', 'music', 'comedy', 'sport', 'arts', "film", "family-and-kids", "festival"],
-        maxPages: 15,
+        categories: ['theatre', 'music', 'comedy', 'sport', 'arts', 'film', 'family-and-kids', 'festival'],
+        maxPages: 20,
         maxEventsPerCategory: 300,
         fetchDetails: true,
         detailFetchDelay: 1500,
@@ -72,11 +66,11 @@ async function main() {
       return;
     }
 
-    // Step 3: Process events with deduplication
+    // Process events with deduplication
     console.log('\nStep 3: Processing events with deduplication...\n');
     const scrapeStats = await processAllEvents(events);
 
-    // Step 4: Display summary
+    // Display summary
     await displaySummary(scrapeStats, events.length, results, startTime, archiveStats);
 
   } catch (error) {
@@ -87,14 +81,8 @@ async function main() {
   }
 }
 
-async function processAllEvents(events: any[]): Promise<ScrapeStats> {
-  const stats: ScrapeStats = {
-    inserted: 0,
-    updated: 0,
-    merged: 0,
-    skipped: 0,
-    notifications: 0,
-  };
+async function processAllEvents(events: any[]): Promise<Stats> {
+  const stats: Stats = { inserted: 0, updated: 0, merged: 0, skipped: 0, notifications: 0 };
 
   const eventsBySource = groupEventsBySource(events);
 
@@ -126,11 +114,11 @@ function groupEventsBySource(events: any[]): Map<string, any[]> {
 }
 
 async function displaySummary(
-  stats: ScrapeStats,
+  stats: Stats,
   totalScraped: number,
   results: any[],
   startTime: number,
-  archiveStats: ArchiveStats
+  archiveStats: { archived: number; skipped: number; errors: number }
 ) {
   const duration = ((Date.now() - startTime) / 1000).toFixed(1);
   const totalInDb = await Event.countDocuments({ isArchived: { $ne: true } });

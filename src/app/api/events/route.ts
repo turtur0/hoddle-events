@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Types, FilterQuery } from 'mongoose';
@@ -71,9 +70,16 @@ export async function GET(request: NextRequest) {
 }
 
 function buildMatchConditions(searchParams: URLSearchParams): FilterQuery<IEvent> {
+  const now = new Date();
+
   const matchConditions: FilterQuery<IEvent> = {
-    startDate: { $gte: new Date() },
-    isArchived: { $ne: true }, // Exclude archived events
+    // Show events where endDate >= now, or if no endDate, where startDate >= now
+    $or: [
+      { endDate: { $gte: now } },
+      { endDate: { $exists: false }, startDate: { $gte: now } },
+      { endDate: null, startDate: { $gte: now } },
+    ],
+    isArchived: { $ne: true },
   };
 
   // Category filter
@@ -96,9 +102,9 @@ function buildMatchConditions(searchParams: URLSearchParams): FilterQuery<IEvent
   const dateTo = searchParams.get('dateTo');
 
   if (dateFrom || dateTo) {
-    applyCustomDateRange(matchConditions, dateFrom || undefined, dateTo || undefined);
+    applyCustomDateRange(matchConditions, dateFrom || undefined, dateTo || undefined, now);
   } else if (dateFilter && dateFilter !== 'all') {
-    applyDateFilter(matchConditions, dateFilter);
+    applyDateFilter(matchConditions, dateFilter, now);
   }
 
   // Price filters
@@ -122,8 +128,7 @@ function buildMatchConditions(searchParams: URLSearchParams): FilterQuery<IEvent
   return matchConditions;
 }
 
-function applyDateFilter(matchConditions: FilterQuery<IEvent>, dateFilter: string) {
-  const now = new Date();
+function applyDateFilter(matchConditions: FilterQuery<IEvent>, dateFilter: string, now: Date) {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
   switch (dateFilter) {
@@ -156,12 +161,12 @@ function applyDateFilter(matchConditions: FilterQuery<IEvent>, dateFilter: strin
 function applyCustomDateRange(
   matchConditions: FilterQuery<IEvent>,
   dateFrom?: string,
-  dateTo?: string
+  dateTo?: string,
+  now?: Date
 ) {
   if (!dateFrom && !dateTo) return;
 
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const today = now ? new Date(now.getFullYear(), now.getMonth(), now.getDate()) : new Date();
   const dateConditions: any = {};
 
   if (dateFrom) {
@@ -205,7 +210,7 @@ function getSortConfig(sortOption: SortOption): Record<string, 1 | -1> {
     'date-soon': { startDate: 1 },
     'date-late': { startDate: -1 },
     'recently-added': { scrapedAt: -1, startDate: 1 },
-    recommended: { startDate: 1 }, // fallback
+    recommended: { startDate: 1 },
   };
 
   return configs[sortOption] || configs['date-soon'];
@@ -233,7 +238,16 @@ async function fetchRecommendedEvents(
 
     let filteredEvents = recommendations
       .map(r => r.event)
-      .filter(event => !event.isArchived); // Filter out archived events
+      .filter(event => !event.isArchived);
+
+    // Apply date filter (endDate or startDate logic)
+    const now = new Date();
+    filteredEvents = filteredEvents.filter(event => {
+      if (event.endDate) {
+        return new Date(event.endDate) >= now;
+      }
+      return new Date(event.startDate) >= now;
+    });
 
     // Apply subcategory filter
     if (matchConditions.subcategories?.$elemMatch) {
