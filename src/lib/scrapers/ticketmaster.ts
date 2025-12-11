@@ -8,6 +8,10 @@ const RADIUS = '50';
 
 /**
  * Fetches a single page of events from Ticketmaster API.
+ * 
+ * @param page - Zero-based page number
+ * @param size - Number of events per page (max 100)
+ * @returns Array of raw Ticketmaster events
  */
 export async function fetchTicketmasterEvents(
   page = 0,
@@ -42,19 +46,21 @@ export async function fetchTicketmasterEvents(
 
 /**
  * Fetches all available events from Ticketmaster API with pagination.
- * Groups events by their ID to handle multi-day events properly.
+ * Deduplicates events that appear multiple times due to multiple dates.
+ * 
+ * @returns Array of unique Ticketmaster events
  */
 export async function fetchAllTicketmasterEvents(): Promise<TicketmasterEvent[]> {
-  const eventsByIdMap = new Map<string, TicketmasterEvent>();
+  const uniqueEventsMap = new Map<string, TicketmasterEvent>();
   let page = 0;
   let hasMore = true;
-  const maxPages = 100;
+  const maxPages = 100; // Safety limit to prevent infinite loops
 
-  console.log('[Ticketmaster] Fetching events');
+  console.log('[Ticketmaster] Fetching events (unlimited mode)');
 
   while (hasMore && page < maxPages) {
     try {
-      const events = await fetchTicketmasterEvents(page, 200);
+      const events = await fetchTicketmasterEvents(page, 200); // Increased from 100
 
       if (events.length === 0) {
         console.log('[Ticketmaster] No more events found, stopping');
@@ -62,18 +68,18 @@ export async function fetchAllTicketmasterEvents(): Promise<TicketmasterEvent[]>
         break;
       }
 
-      // Group by event ID - this is the key fix
       events.forEach(event => {
-        if (!eventsByIdMap.has(event.id)) {
-          eventsByIdMap.set(event.id, event);
+        const key = createEventKey(event);
+
+        if (!uniqueEventsMap.has(key)) {
+          uniqueEventsMap.set(key, event);
         } else {
-          // Event already exists - merge the dates
-          const existing = eventsByIdMap.get(event.id)!;
-          eventsByIdMap.set(event.id, mergeEventDates(existing, event));
+          const existing = uniqueEventsMap.get(key)!;
+          uniqueEventsMap.set(key, mergeEventDates(existing, event));
         }
       });
 
-      console.log(`[Ticketmaster] Page ${page + 1}: ${eventsByIdMap.size} unique events`);
+      console.log(`[Ticketmaster] Page ${page + 1}: ${uniqueEventsMap.size} unique events`);
       page++;
 
       await delay(200);
@@ -83,13 +89,14 @@ export async function fetchAllTicketmasterEvents(): Promise<TicketmasterEvent[]>
     }
   }
 
-  const uniqueEvents = Array.from(eventsByIdMap.values());
-  console.log(`[Ticketmaster] Total: ${uniqueEvents.length} unique events`);
-  return uniqueEvents;
+  console.log(`[Ticketmaster] Total: ${Array.from(uniqueEventsMap.values()).length} events`);
+  return Array.from(uniqueEventsMap.values());
 }
-
 /**
  * Normalises a Ticketmaster event to the standard event format.
+ * 
+ * @param event - Raw Ticketmaster event data
+ * @returns Normalised event object
  */
 export function normaliseTicketmasterEvent(event: TicketmasterEvent): NormalisedEvent {
   const classification = event.classifications?.[0];
@@ -141,42 +148,46 @@ export function normaliseTicketmasterEvent(event: TicketmasterEvent): Normalised
 }
 
 /**
- * Merges date ranges when the same event (by ID) appears multiple times.
+ * Creates a unique key for deduplication based on event name and venue.
+ */
+function createEventKey(event: TicketmasterEvent): string {
+  const venue = event._embedded?.venues?.[0]?.name || 'unknown';
+  const name = event.name
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '')
+    .trim()
+    .replace(/\s+/g, '-');
+  return `${name}::${venue}`;
+}
+
+/**
+ * Merges date ranges when the same event appears multiple times.
  * Keeps the earliest start date and latest end date.
  */
 function mergeEventDates(
   existing: TicketmasterEvent,
   incoming: TicketmasterEvent
 ): TicketmasterEvent {
-  const existingStart = new Date(existing.dates.start.localDate);
-  const incomingStart = new Date(incoming.dates.start.localDate);
+  const existingDate = new Date(existing.dates.start.localDate);
+  const incomingDate = new Date(incoming.dates.start.localDate);
 
-  const existingEnd = existing.dates.end?.localDate
-    ? new Date(existing.dates.end.localDate)
-    : existingStart;
+  if (incomingDate < existingDate) {
+    return {
+      ...incoming,
+      dates: {
+        ...incoming.dates,
+        end: existing.dates.end || { localDate: existing.dates.start.localDate },
+      },
+    };
+  }
 
-  const incomingEnd = incoming.dates.end?.localDate
-    ? new Date(incoming.dates.end.localDate)
-    : incomingStart;
-
-  // Find earliest start and latest end
-  const finalStart = existingStart < incomingStart ? existingStart : incomingStart;
-  const finalEnd = existingEnd > incomingEnd ? existingEnd : incomingEnd;
-
-  // Use the existing event as base, update dates
   return {
     ...existing,
     dates: {
       ...existing.dates,
-      start: {
-        ...existing.dates.start,
-        localDate: finalStart.toISOString().split('T')[0],
+      end: {
+        localDate: incoming.dates.end?.localDate || incoming.dates.start.localDate,
       },
-      end: finalStart.getTime() !== finalEnd.getTime()
-        ? {
-          localDate: finalEnd.toISOString().split('T')[0],
-        }
-        : undefined,
     },
   };
 }
