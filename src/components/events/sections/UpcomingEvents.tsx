@@ -13,52 +13,40 @@ interface UpcomingEventsProps {
 }
 
 export function UpcomingEvents({ userFavourites }: UpcomingEventsProps) {
-    const [thisWeekEvents, setThisWeekEvents] = useState<any[] | null>(null);
-    const [thisMonthEvents, setThisMonthEvents] = useState<any[] | null>(null);
+    const [thisWeekEvents, setThisWeekEvents] = useState<any[]>([]);
+    const [thisMonthEvents, setThisMonthEvents] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        async function fetchUpcomingEvents() {
+        async function fetchEvents() {
             try {
                 const now = new Date();
-                const endOfWeek = new Date(now);
-                endOfWeek.setDate(now.getDate() + 7);
-                endOfWeek.setHours(23, 59, 59, 999);
-
                 const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-                endOfMonth.setHours(23, 59, 59, 999);
+                const dateToParam = endOfMonth.toISOString().split('T')[0];
 
-                const allEvents: any[] = [];
-                for (let page = 1; page <= 3; page++) {
-                    const res = await fetch(`/api/events?page=${page}&sort=startDate`, {
-                        method: 'GET',
-                        headers: { 'Cache-Control': 'no-cache' },
-                        cache: 'no-store',
-                    });
-                    const data = await res.json();
-                    const filtered = (data.events || []).filter((e: any) => {
-                        const d = new Date(e.startDate);
-                        return d >= now && d <= endOfMonth;
-                    });
-                    allEvents.push(...filtered);
-                    if (!data.pagination?.hasMore || filtered.length === 0) break;
-                }
+                const res = await fetch(`/api/events?sort=date-soon&dateTo=${dateToParam}`);
+                if (!res.ok) throw new Error('Failed to fetch events');
 
-                const weekEvents = allEvents.filter(e => new Date(e.startDate) <= endOfWeek);
-                const laterEvents = allEvents.filter(e => new Date(e.startDate) > endOfWeek);
+                const { events = [] } = await res.json();
 
-                setThisWeekEvents(weekEvents.slice(0, 12));
-                setThisMonthEvents(laterEvents.slice(0, 12));
+                // Split events into this week and later
+                const weekEnd = new Date(now);
+                weekEnd.setDate(now.getDate() + 7);
+
+                const week = events.filter((e: any) => new Date(e.startDate) <= weekEnd).slice(0, 12);
+                const later = events.filter((e: any) => new Date(e.startDate) > weekEnd).slice(0, 12);
+
+                setThisWeekEvents(week);
+                setThisMonthEvents(later);
             } catch (error) {
                 console.error('[UpcomingEvents] Error:', error);
-                setThisWeekEvents([]);
-                setThisMonthEvents([]);
             } finally {
                 setIsLoading(false);
             }
         }
-        fetchUpcomingEvents();
-    }, [userFavourites]);
+
+        fetchEvents();
+    }, []);
 
     if (isLoading) {
         return (
@@ -70,14 +58,11 @@ export function UpcomingEvents({ userFavourites }: UpcomingEventsProps) {
         );
     }
 
-    const hasWeek = thisWeekEvents && thisWeekEvents.length > 0;
-    const hasMonth = thisMonthEvents && thisMonthEvents.length > 0;
-
-    if (!hasWeek && !hasMonth) {
+    if (thisWeekEvents.length === 0 && thisMonthEvents.length === 0) {
         return (
-            <Card className="relative overflow-hidden border-2 border-primary/20 bg-linear-to-br from-primary/5 via-transparent to-transparent shadow-sm">
+            <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-2xl mb-2">
+                    <CardTitle className="flex items-center gap-2 text-2xl">
                         <Calendar className="h-6 w-6 text-primary" />
                         Upcoming Events
                     </CardTitle>
@@ -86,7 +71,6 @@ export function UpcomingEvents({ userFavourites }: UpcomingEventsProps) {
                 <CardContent>
                     <div className="text-center py-8 space-y-4">
                         <p className="text-muted-foreground">No upcoming events at the moment.</p>
-                        <p className="text-sm text-muted-foreground">Check back soon for new events!</p>
                         <Button asChild className="mt-4 hover-lift group">
                             <Link href="/events">
                                 Browse All Events
@@ -101,9 +85,9 @@ export function UpcomingEvents({ userFavourites }: UpcomingEventsProps) {
 
     return (
         <div className="space-y-6">
-            {hasWeek && (
+            {thisWeekEvents.length > 0 && (
                 <EventCarousel
-                    events={thisWeekEvents!}
+                    events={thisWeekEvents}
                     userFavourites={userFavourites}
                     title="This Week"
                     icon={<Calendar className="h-6 w-6 text-primary" />}
@@ -116,9 +100,9 @@ export function UpcomingEvents({ userFavourites }: UpcomingEventsProps) {
                 />
             )}
 
-            {hasMonth && (
+            {thisMonthEvents.length > 0 && (
                 <EventCarousel
-                    events={thisMonthEvents!}
+                    events={thisMonthEvents}
                     userFavourites={userFavourites}
                     title="Coming This Month"
                     icon={<Calendar className="h-6 w-6 text-primary" />}
