@@ -1,7 +1,6 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Only load .env.local if not in CI environment
 if (!process.env.CI) {
   dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 }
@@ -30,26 +29,30 @@ async function main() {
   try {
     await connectDB();
 
-    // Archive past events
+    // Step 1: Archive past events
     console.log('Step 1: Archiving past events...\n');
     const archiveStats = await archivePastEvents();
     console.log('');
 
-    // Scrape new events
+    // Step 2: Scrape new events
     console.log('Step 2: Scraping new events...\n');
     const { events, results } = await scrapeAll({
       verbose: true,
-      sources: ['ticketmaster', 'marriner', 'whatson'],
+      sources: ['ticketmaster', 'marriner', 'whatson', 'feverup'],
       marrinerOptions: {
-        maxShows: 20,
-        maxDetailFetches: 20,
+        maxShows: 200,
+        maxDetailFetches: 200,
         usePuppeteer: true,
       },
       whatsonOptions: {
         categories: ['theatre', 'music', 'comedy', 'sport', 'arts', 'film', 'family-and-kids', 'festival'],
-        maxPages: 1,
-        maxEventsPerCategory: 5,
+        maxPages: 20,
+        maxEventsPerCategory: 300,
         fetchDetails: true,
+        detailFetchDelay: 1500,
+      },
+      feverupOptions: {
+        maxEvents: 300,
         detailFetchDelay: 1500,
       },
     });
@@ -66,9 +69,9 @@ async function main() {
       return;
     }
 
-    // Process events with deduplication
+    // Step 3: Process events with deduplication
     console.log('\nStep 3: Processing events with deduplication...\n');
-    const scrapeStats = await processAllEvents(events);
+    const scrapeStats = await processEventsBySource(events);
 
     // Display summary
     await displaySummary(scrapeStats, events.length, results, startTime, archiveStats);
@@ -81,12 +84,20 @@ async function main() {
   }
 }
 
-async function processAllEvents(events: any[]): Promise<Stats> {
+async function processEventsBySource(events: any[]): Promise<Stats> {
   const stats: Stats = { inserted: 0, updated: 0, merged: 0, skipped: 0, notifications: 0 };
 
-  const eventsBySource = groupEventsBySource(events);
+  // Group events by source
+  const grouped = new Map<string, any[]>();
+  for (const event of events) {
+    if (!grouped.has(event.source)) {
+      grouped.set(event.source, []);
+    }
+    grouped.get(event.source)!.push(event);
+  }
 
-  for (const [source, sourceEvents] of eventsBySource) {
+  // Process each source
+  for (const [source, sourceEvents] of grouped) {
     console.log(`\nProcessing ${sourceEvents.length} events from '${source}'...`);
     const sourceStats = await processEventsWithDeduplication(sourceEvents, source);
 
@@ -98,19 +109,6 @@ async function processAllEvents(events: any[]): Promise<Stats> {
   }
 
   return stats;
-}
-
-function groupEventsBySource(events: any[]): Map<string, any[]> {
-  const grouped = new Map<string, any[]>();
-
-  for (const event of events) {
-    if (!grouped.has(event.source)) {
-      grouped.set(event.source, []);
-    }
-    grouped.get(event.source)!.push(event);
-  }
-
-  return grouped;
 }
 
 async function displaySummary(

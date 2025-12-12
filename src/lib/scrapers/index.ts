@@ -12,29 +12,20 @@ export type { WhatsOnScrapeOptions } from './whatson';
 export type { FeverUpScrapeOptions } from './feverup';
 
 interface ScrapeAllOptions {
-  /** Which sources to scrape from */
   sources?: ('ticketmaster' | 'marriner' | 'whatson' | 'feverup')[];
-  /** Enable detailed console logging */
   verbose?: boolean;
-  /** Run scrapers in parallel or sequentially */
   parallel?: boolean;
-  /** Options specific to Marriner scraper */
   marrinerOptions?: {
     maxShows?: number;
     maxDetailFetches?: number;
     usePuppeteer?: boolean;
   };
-  /** Options specific to WhatsOn scraper */
   whatsonOptions?: WhatsOnScrapeOptions;
-  /** Options specific to FeverUp scraper */
   feverupOptions?: FeverUpScrapeOptions;
 }
 
 /**
  * Orchestrates scraping from multiple event sources.
- * 
- * @param options - Configuration for scraping behaviour
- * @returns Combined events and individual scrape results
  */
 export async function scrapeAll(
   options?: ScrapeAllOptions
@@ -52,30 +43,7 @@ export async function scrapeAll(
     console.log(`[Scraper] Mode: ${parallel ? 'parallel' : 'sequential'}`);
   }
 
-  // Build task list based on selected sources
-  const tasks: { name: string; fn: () => Promise<ScrapeResult> }[] = [];
-
-  if (sources.includes('ticketmaster')) {
-    tasks.push({ name: 'ticketmaster', fn: () => scrapeTicketmaster(verbose) });
-  }
-  if (sources.includes('marriner')) {
-    tasks.push({
-      name: 'marriner',
-      fn: () => scrapeMarriner(verbose, options?.marrinerOptions),
-    });
-  }
-  if (sources.includes('whatson')) {
-    tasks.push({
-      name: 'whatson',
-      fn: () => scrapeWhatsOn(verbose, options?.whatsonOptions),
-    });
-  }
-  if (sources.includes('feverup')) {
-    tasks.push({
-      name: 'feverup',
-      fn: () => scrapeFeverUp(verbose, options?.feverupOptions),
-    });
-  }
+  const tasks = buildTasks(sources, verbose, options);
 
   // Execute tasks
   if (parallel) {
@@ -113,173 +81,95 @@ export async function scrapeAll(
   return { events: allEvents, results };
 }
 
-/**
- * Scrapes events from Ticketmaster API.
- */
-async function scrapeTicketmaster(verbose: boolean): Promise<ScrapeResult> {
-  const start = Date.now();
-  const stats = {
-    source: 'ticketmaster',
-    fetched: 0,
-    normalised: 0,
-    errors: 0,
-    duration: 0,
-  };
+function buildTasks(
+  sources: string[],
+  verbose: boolean,
+  options?: ScrapeAllOptions
+): { name: string; fn: () => Promise<ScrapeResult> }[] {
+  const tasks: { name: string; fn: () => Promise<ScrapeResult> }[] = [];
 
-  if (verbose) console.log('[Ticketmaster] Starting scrape');
-
-  try {
-    const rawEvents = await fetchAllTicketmasterEvents();
-    stats.fetched = rawEvents.length;
-
-    const events: NormalisedEvent[] = [];
-    for (const raw of rawEvents) {
-      try {
-        events.push(normaliseTicketmasterEvent(raw));
-        stats.normalised++;
-      } catch {
-        stats.errors++;
-        if (verbose) console.error(`[Ticketmaster] Failed to normalise: ${raw.name}`);
-      }
-    }
-
-    if (verbose) console.log(`[Ticketmaster] Complete: ${stats.normalised} events`);
-
-    stats.duration = Date.now() - start;
-    return { events, stats };
-  } catch (error) {
-    if (verbose) console.error('[Ticketmaster] Error:', error);
-    stats.errors++;
-    stats.duration = Date.now() - start;
-    return { events: [], stats };
+  if (sources.includes('ticketmaster')) {
+    tasks.push({ 
+      name: 'ticketmaster', 
+      fn: () => scrapeSource('ticketmaster', verbose, async () => {
+        const rawEvents = await fetchAllTicketmasterEvents();
+        return rawEvents.map(normaliseTicketmasterEvent);
+      })
+    });
   }
+
+  if (sources.includes('marriner')) {
+    tasks.push({
+      name: 'marriner',
+      fn: () => scrapeSource('marriner', verbose, () => 
+        scrapeMarrinerGroup({
+          maxShows: options?.marrinerOptions?.maxShows ?? 100,
+          maxDetailFetches: options?.marrinerOptions?.maxDetailFetches ?? 100,
+          usePuppeteer: options?.marrinerOptions?.usePuppeteer ?? true,
+        })
+      )
+    });
+  }
+
+  if (sources.includes('whatson')) {
+    tasks.push({
+      name: 'whatson',
+      fn: () => scrapeSource('whatson', verbose, () =>
+        scrapeWhatsOnMelbourne({
+          categories: ['theatre', 'music'],
+          maxPages: 5,
+          maxEventsPerCategory: 50,
+          fetchDetails: true,
+          detailFetchDelay: 1000,
+          ...options?.whatsonOptions,
+        })
+      )
+    });
+  }
+
+  if (sources.includes('feverup')) {
+    tasks.push({
+      name: 'feverup',
+      fn: () => scrapeSource('feverup', verbose, () =>
+        scrapeFeverUpMelbourne({
+          maxEvents: 50,
+          detailFetchDelay: 1500,
+          ...options?.feverupOptions,
+        })
+      )
+    });
+  }
+
+  return tasks;
 }
 
-/**
- * Scrapes events from Marriner Group website.
- */
-async function scrapeMarriner(
+async function scrapeSource(
+  source: string,
   verbose: boolean,
-  options?: { maxShows?: number; maxDetailFetches?: number; usePuppeteer?: boolean }
+  scrapeFn: () => Promise<NormalisedEvent[]>
 ): Promise<ScrapeResult> {
   const start = Date.now();
   const stats = {
-    source: 'marriner',
+    source,
     fetched: 0,
     normalised: 0,
     errors: 0,
     duration: 0,
   };
 
-  if (verbose) console.log('[Marriner] Starting scrape');
+  if (verbose) console.log(`[${source}] Starting scrape`);
 
   try {
-    const events = await scrapeMarrinerGroup({
-      maxShows: options?.maxShows ?? 100,
-      maxDetailFetches: options?.maxDetailFetches ?? 100,
-      usePuppeteer: options?.usePuppeteer ?? true,
-    });
-
+    const events = await scrapeFn();
     stats.fetched = events.length;
     stats.normalised = events.length;
 
-    if (verbose) console.log(`[Marriner] Complete: ${stats.normalised} events`);
+    if (verbose) console.log(`[${source}] Complete: ${stats.normalised} events`);
 
     stats.duration = Date.now() - start;
     return { events, stats };
   } catch (error) {
-    if (verbose) console.error('[Marriner] Error:', error);
-    stats.errors++;
-    stats.duration = Date.now() - start;
-    return { events: [], stats };
-  }
-}
-
-/**
- * Scrapes events from What's On Melbourne website.
- */
-async function scrapeWhatsOn(
-  verbose: boolean,
-  options?: WhatsOnScrapeOptions
-): Promise<ScrapeResult> {
-  const start = Date.now();
-  const stats = {
-    source: 'whatson',
-    fetched: 0,
-    normalised: 0,
-    errors: 0,
-    duration: 0,
-  };
-
-  if (verbose) console.log('[WhatsOn] Starting scrape');
-
-  try {
-    const defaultOptions: WhatsOnScrapeOptions = {
-      categories: ['theatre', 'music'],
-      maxPages: 5,
-      maxEventsPerCategory: 50,
-      fetchDetails: true,
-      detailFetchDelay: 1000,
-    };
-
-    const events = await scrapeWhatsOnMelbourne({
-      ...defaultOptions,
-      ...options,
-    });
-
-    stats.fetched = events.length;
-    stats.normalised = events.length;
-
-    if (verbose) console.log(`[WhatsOn] Complete: ${stats.normalised} events`);
-
-    stats.duration = Date.now() - start;
-    return { events, stats };
-  } catch (error) {
-    if (verbose) console.error('[WhatsOn] Error:', error);
-    stats.errors++;
-    stats.duration = Date.now() - start;
-    return { events: [], stats };
-  }
-}
-
-/**
- * Scrapes events from FeverUp Melbourne website.
- */
-async function scrapeFeverUp(
-  verbose: boolean,
-  options?: FeverUpScrapeOptions
-): Promise<ScrapeResult> {
-  const start = Date.now();
-  const stats = {
-    source: 'feverup',
-    fetched: 0,
-    normalised: 0,
-    errors: 0,
-    duration: 0,
-  };
-
-  if (verbose) console.log('[FeverUp] Starting scrape');
-
-  try {
-    const defaultOptions: FeverUpScrapeOptions = {
-      maxEvents: 50,
-      detailFetchDelay: 1500,
-    };
-
-    const events = await scrapeFeverUpMelbourne({
-      ...defaultOptions,
-      ...options,
-    });
-
-    stats.fetched = events.length;
-    stats.normalised = events.length;
-
-    if (verbose) console.log(`[FeverUp] Complete: ${stats.normalised} events`);
-
-    stats.duration = Date.now() - start;
-    return { events, stats };
-  } catch (error) {
-    if (verbose) console.error('[FeverUp] Error:', error);
+    if (verbose) console.error(`[${source}] Error:`, error);
     stats.errors++;
     stats.duration = Date.now() - start;
     return { events: [], stats };
