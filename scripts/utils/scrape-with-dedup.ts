@@ -22,12 +22,13 @@ interface EventChanges {
 interface ProcessContext {
   existing: any[];
   bySourceId: Map<string, any>;
+  byNameVenue: Map<string, any>;
   existingDedup: (EventForDedup & { _id: string })[];
   batchInserted: (EventForDedup & { _id: string })[];
   sourceName: string;
 }
 
-const PRICE_CHANGE_THRESHOLD = 5; // Minimum $ change to trigger notifications
+const PRICE_CHANGE_THRESHOLD = 5;
 const SIGNIFICANT_KEYWORDS = [
   'cancelled', 'postponed', 'rescheduled', 'sold out',
   'extra show', 'additional show', 'new date', 'date change'
@@ -40,8 +41,10 @@ const SIGNIFICANT_KEYWORDS = [
  * 1. Load all existing events from database
  * 2. For each new event:
  *    a) Check if exact source match exists (same source + sourceId)
- *       - If yes: update existing event (always refresh lastUpdated)
- *    b) If no exact match, run fuzzy deduplication
+ *       - If yes: update existing event, keep earliest start date
+ *    b) Check if name+venue match exists (for Ticketmaster migration)
+ *       - If yes: update existing event and migrate sourceId
+ *    c) If no exact match, run fuzzy deduplication
  *       - If confident match found: merge into existing event
  *       - If no match: insert as new event
  * 3. Send notifications for price drops and significant changes
@@ -60,6 +63,7 @@ export async function processEventsWithDeduplication(
   const context: ProcessContext = {
     existing,
     bySourceId: buildSourceIdMap(existing),
+    byNameVenue: buildNameVenueMap(existing, sourceName),
     existingDedup: mapToEventForDedup(existing),
     batchInserted: [],
     sourceName
@@ -85,13 +89,12 @@ export async function processEventsWithDeduplication(
 
 /**
  * Processes a single event through the deduplication pipeline.
- * Returns the action taken and notification count.
  */
 async function processEvent(
   event: NormalisedEvent,
   context: ProcessContext
 ): Promise<{ action: 'updated' | 'merged' | 'inserted' | 'skipped'; notifications: number; data?: any }> {
-  const { existing, bySourceId, existingDedup, batchInserted } = context;
+  const { existing, bySourceId, byNameVenue, existingDedup, batchInserted } = context;
 
   // Check for exact source match
   const sourceKey = `${event.source}:${event.sourceId}`;
@@ -100,6 +103,21 @@ async function processEvent(
   if (sameSource) {
     const notifications = await updateExistingEvent(sameSource, event);
     return { action: 'updated', notifications: Math.max(0, notifications) };
+  }
+
+  // Check for name+venue match (for Ticketmaster sourceId migration)
+  if (event.source === 'ticketmaster') {
+    const nameVenueKey = createNameVenueKey(event);
+    const nameVenueMatch = byNameVenue.get(nameVenueKey);
+
+    if (nameVenueMatch) {
+      const notifications = await updateAndMigrateSourceId(nameVenueMatch, event);
+      return {
+        action: 'updated',
+        notifications: Math.max(0, notifications),
+        data: { reason: 'migrated sourceId' }
+      };
+    }
   }
 
   // Prepare event for fuzzy deduplication
@@ -150,7 +168,7 @@ async function processEvent(
 
 /**
  * Updates an existing event from the same source.
- * Always refreshes lastUpdated, sets lastContentChange only when content changes.
+ * Always keeps the earliest start date and latest end date.
  */
 async function updateExistingEvent(existing: any, newEvent: NormalisedEvent): Promise<number> {
   const changes = detectAllChanges(existing, newEvent);
@@ -160,12 +178,23 @@ async function updateExistingEvent(existing: any, newEvent: NormalisedEvent): Pr
     subcategories.push(newEvent.subcategory);
   }
 
+  // Keep earliest start date, latest end date
+  const finalStartDate = new Date(existing.startDate) < new Date(newEvent.startDate)
+    ? existing.startDate
+    : newEvent.startDate;
+
+  const existingEnd = existing.endDate ? new Date(existing.endDate) : null;
+  const newEnd = newEvent.endDate ? new Date(newEvent.endDate) : null;
+  const finalEndDate = existingEnd && newEnd
+    ? (existingEnd > newEnd ? existing.endDate : newEvent.endDate)
+    : (existingEnd || newEnd || newEvent.endDate);
+
   const updateFields: any = {
     title: newEvent.title,
     description: newEvent.description,
     category: newEvent.category,
-    startDate: newEvent.startDate,
-    endDate: newEvent.endDate,
+    startDate: finalStartDate,
+    endDate: finalEndDate,
     venue: newEvent.venue,
     priceMin: newEvent.priceMin,
     priceMax: newEvent.priceMax,
@@ -206,8 +235,79 @@ async function updateExistingEvent(existing: any, newEvent: NormalisedEvent): Pr
 }
 
 /**
+ * Updates an existing event and migrates its sourceId to the new stable format.
+ * Used during transition from old Ticketmaster IDs to stable hash-based IDs.
+ */
+async function updateAndMigrateSourceId(existing: any, newEvent: NormalisedEvent): Promise<number> {
+  const changes = detectAllChanges(existing, newEvent);
+
+  const subcategories = [...(newEvent.subcategories || [])];
+  if (newEvent.subcategory && !subcategories.includes(newEvent.subcategory)) {
+    subcategories.push(newEvent.subcategory);
+  }
+
+  // Keep earliest start date, latest end date
+  const finalStartDate = new Date(existing.startDate) < new Date(newEvent.startDate)
+    ? existing.startDate
+    : newEvent.startDate;
+
+  const existingEnd = existing.endDate ? new Date(existing.endDate) : null;
+  const newEnd = newEvent.endDate ? new Date(newEvent.endDate) : null;
+  const finalEndDate = existingEnd && newEnd
+    ? (existingEnd > newEnd ? existing.endDate : newEvent.endDate)
+    : (existingEnd || newEnd || newEvent.endDate);
+
+  const updateFields: any = {
+    title: newEvent.title,
+    description: newEvent.description,
+    category: newEvent.category,
+    startDate: finalStartDate,
+    endDate: finalEndDate,
+    venue: newEvent.venue,
+    priceMin: newEvent.priceMin,
+    priceMax: newEvent.priceMax,
+    priceDetails: newEvent.priceDetails,
+    isFree: newEvent.isFree,
+    bookingUrl: newEvent.bookingUrl,
+    imageUrl: newEvent.imageUrl,
+    videoUrl: newEvent.videoUrl,
+    accessibility: newEvent.accessibility,
+    ageRestriction: newEvent.ageRestriction,
+    duration: newEvent.duration,
+    lastUpdated: new Date(),
+    [`sourceIds.${newEvent.source}`]: newEvent.sourceId, // Migrate to new sourceId
+  };
+
+  if (changes.hasContentChanges) {
+    updateFields.lastContentChange = new Date();
+  }
+
+  const result = await Event.updateOne(
+    { _id: existing._id },
+    {
+      $set: updateFields,
+      $addToSet: { subcategories: { $each: subcategories } },
+    }
+  );
+
+  if (result.matchedCount === 0) {
+    console.error(`[Dedup] Update failed: Event ${existing._id} not found`);
+    return 0;
+  }
+
+  console.log(`[Dedup] Migrated sourceId for "${existing.title}": ${getSourceId(existing, newEvent.source)} → ${newEvent.sourceId}`);
+
+  // Send notifications for significant changes
+  if (changes.priceDropped || changes.significantUpdate) {
+    return await notifyFavouritedUsers(existing._id, changes);
+  }
+
+  return 0;
+}
+
+/**
  * Merges a new event into an existing event from a different source.
- * Always performs merge if this is a new source.
+ * Always keeps earliest start date and latest end date.
  */
 async function mergeIntoExisting(
   existingId: any,
@@ -234,11 +334,22 @@ async function mergeIntoExisting(
 
   const merged = mergeEvents(existing, newEvent);
 
+  // Keep earliest start date, latest end date
+  const existingStart = new Date(fullExistingEvent.startDate);
+  const newStart = new Date(newEvent.startDate);
+  const finalStartDate = existingStart < newStart ? fullExistingEvent.startDate : newEvent.startDate;
+
+  const existingEnd = fullExistingEvent.endDate ? new Date(fullExistingEvent.endDate) : null;
+  const newEnd = newEvent.endDate ? new Date(newEvent.endDate) : null;
+  const finalEndDate = existingEnd && newEnd
+    ? (existingEnd > newEnd ? fullExistingEvent.endDate : newEvent.endDate)
+    : (existingEnd || newEnd || newEvent.endDate);
+
   const updateFields: any = {
     description: merged.description,
     category: merged.category,
-    startDate: merged.startDate,
-    endDate: merged.endDate,
+    startDate: finalStartDate,
+    endDate: finalEndDate,
     venue: merged.venue,
     priceMin: merged.priceMin,
     priceMax: merged.priceMax,
@@ -322,7 +433,6 @@ async function insertNewEvent(event: NormalisedEvent) {
 
 /**
  * Detects all changes between existing and new event data.
- * Separates user-facing content changes from technical changes.
  */
 function detectAllChanges(existing: any, newEvent: NormalisedEvent): EventChanges {
   const changes: EventChanges = { hasChanges: false, hasContentChanges: false };
@@ -435,6 +545,47 @@ function buildSourceIdMap(events: any[]): Map<string, any> {
   }
 
   return map;
+}
+
+/**
+ * Builds a map of name+venue → event for Ticketmaster sourceId migration.
+ * This allows matching events with old sourceIds to new stable sourceIds.
+ */
+function buildNameVenueMap(events: any[], sourceName: string): Map<string, any> {
+  const map = new Map<string, any>();
+
+  // Only build this map for ticketmaster events
+  if (sourceName !== 'ticketmaster') return map;
+
+  for (const e of events) {
+    // Only map ticketmaster events
+    if (e.primarySource === 'ticketmaster') {
+      const key = createNameVenueKey({
+        title: e.title,
+        venue: e.venue,
+        source: e.primarySource,
+      });
+
+      if (!map.has(key)) {
+        map.set(key, e);
+      }
+    }
+  }
+
+  return map;
+}
+
+/**
+ * Creates a name+venue key for matching events.
+ */
+function createNameVenueKey(event: { title: string; venue: any; source: string }): string {
+  const name = event.title
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '')
+    .trim()
+    .replace(/\s+/g, '-');
+  const venue = event.venue?.name?.toLowerCase().replace(/[^\w\s]/g, '').trim() || 'unknown';
+  return `${event.source}:${name}::${venue}`;
 }
 
 /** Converts database events to EventForDedup format */

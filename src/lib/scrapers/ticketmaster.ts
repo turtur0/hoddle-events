@@ -8,10 +8,6 @@ const RADIUS = '50';
 
 /**
  * Fetches a single page of events from Ticketmaster API.
- * 
- * @param page - Zero-based page number
- * @param size - Number of events per page (max 100)
- * @returns Array of raw Ticketmaster events
  */
 export async function fetchTicketmasterEvents(
   page = 0,
@@ -46,24 +42,22 @@ export async function fetchTicketmasterEvents(
 
 /**
  * Fetches all available events from Ticketmaster API with pagination.
- * Deduplicates events that appear multiple times due to multiple dates.
- * 
- * @returns Array of unique Ticketmaster events
+ * Deduplicates events by name and venue (not by event ID).
  */
 export async function fetchAllTicketmasterEvents(): Promise<TicketmasterEvent[]> {
   const uniqueEventsMap = new Map<string, TicketmasterEvent>();
   let page = 0;
   let hasMore = true;
-  const maxPages = 100; // Safety limit to prevent infinite loops
+  const maxPages = 100;
 
-  console.log('[Ticketmaster] Fetching events (unlimited mode)');
+  console.log('[Ticketmaster] Fetching events');
 
   while (hasMore && page < maxPages) {
     try {
-      const events = await fetchTicketmasterEvents(page, 200); // Increased from 100
+      const events = await fetchTicketmasterEvents(page, 200);
 
       if (events.length === 0) {
-        console.log('[Ticketmaster] No more events found, stopping');
+        console.log('[Ticketmaster] No more events found');
         hasMore = false;
         break;
       }
@@ -74,6 +68,7 @@ export async function fetchAllTicketmasterEvents(): Promise<TicketmasterEvent[]>
         if (!uniqueEventsMap.has(key)) {
           uniqueEventsMap.set(key, event);
         } else {
+          // Merge dates - keep earliest start, latest end
           const existing = uniqueEventsMap.get(key)!;
           uniqueEventsMap.set(key, mergeEventDates(existing, event));
         }
@@ -89,14 +84,12 @@ export async function fetchAllTicketmasterEvents(): Promise<TicketmasterEvent[]>
     }
   }
 
-  console.log(`[Ticketmaster] Total: ${Array.from(uniqueEventsMap.values()).length} events`);
+  console.log(`[Ticketmaster] Total: ${uniqueEventsMap.size} events`);
   return Array.from(uniqueEventsMap.values());
 }
+
 /**
  * Normalises a Ticketmaster event to the standard event format.
- * 
- * @param event - Raw Ticketmaster event data
- * @returns Normalised event object
  */
 export function normaliseTicketmasterEvent(event: TicketmasterEvent): NormalisedEvent {
   const classification = event.classifications?.[0];
@@ -123,9 +116,12 @@ export function normaliseTicketmasterEvent(event: TicketmasterEvent): Normalised
   const { priceMin, priceMax, isFree } = extractPriceInfo(event);
   const imageUrl = event.images?.sort((a, b) => b.width - a.width)[0]?.url;
 
+  // Create a stable sourceId based on event name and venue
+  const stableSourceId = createStableSourceId(event);
+
   return {
     title: event.name,
-    description: event.description || 'No description available',
+    description: event.description || event.info || event.pleaseNote || 'No description available',
     category,
     subcategory,
     startDate,
@@ -141,7 +137,7 @@ export function normaliseTicketmasterEvent(event: TicketmasterEvent): Normalised
     bookingUrl: event.url || `https://www.ticketmaster.com.au/event/${event.id}`,
     imageUrl,
     source: 'ticketmaster',
-    sourceId: event.id,
+    sourceId: stableSourceId,
     scrapedAt: new Date(),
     lastUpdated: new Date(),
   };
@@ -149,6 +145,7 @@ export function normaliseTicketmasterEvent(event: TicketmasterEvent): Normalised
 
 /**
  * Creates a unique key for deduplication based on event name and venue.
+ * This ensures multi-day events are treated as one event.
  */
 function createEventKey(event: TicketmasterEvent): string {
   const venue = event._embedded?.venues?.[0]?.name || 'unknown';
@@ -161,33 +158,60 @@ function createEventKey(event: TicketmasterEvent): string {
 }
 
 /**
+ * Creates a stable sourceId that remains consistent across scrapes.
+ * Uses event name + venue instead of Ticketmaster's event ID which changes.
+ */
+function createStableSourceId(event: TicketmasterEvent): string {
+  const venue = event._embedded?.venues?.[0]?.name || 'unknown';
+  const name = event.name
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '')
+    .trim()
+    .replace(/\s+/g, '-');
+
+  // Create a short hash-like identifier
+  const combined = `${name}-${venue}`;
+  const hash = combined
+    .split('')
+    .reduce((acc, char) => ((acc << 5) - acc + char.charCodeAt(0)) | 0, 0)
+    .toString(36)
+    .replace('-', '0');
+
+  return `tm-${hash}`;
+}
+
+/**
  * Merges date ranges when the same event appears multiple times.
- * Keeps the earliest start date and latest end date.
+ * Always keeps the earliest start date and latest end date.
  */
 function mergeEventDates(
   existing: TicketmasterEvent,
   incoming: TicketmasterEvent
 ): TicketmasterEvent {
-  const existingDate = new Date(existing.dates.start.localDate);
-  const incomingDate = new Date(incoming.dates.start.localDate);
+  const existingStart = new Date(existing.dates.start.localDate);
+  const incomingStart = new Date(incoming.dates.start.localDate);
 
-  if (incomingDate < existingDate) {
-    return {
-      ...incoming,
-      dates: {
-        ...incoming.dates,
-        end: existing.dates.end || { localDate: existing.dates.start.localDate },
-      },
-    };
-  }
+  const existingEnd = existing.dates.end?.localDate
+    ? new Date(existing.dates.end.localDate)
+    : existingStart;
+  const incomingEnd = incoming.dates.end?.localDate
+    ? new Date(incoming.dates.end.localDate)
+    : incomingStart;
+
+  // Use earliest start date
+  const finalStart = existingStart < incomingStart ? existing.dates.start : incoming.dates.start;
+
+  // Use latest end date
+  const finalEndDate = existingEnd > incomingEnd
+    ? existing.dates.end?.localDate
+    : incoming.dates.end?.localDate;
 
   return {
     ...existing,
     dates: {
       ...existing.dates,
-      end: {
-        localDate: incoming.dates.end?.localDate || incoming.dates.start.localDate,
-      },
+      start: finalStart,
+      end: finalEndDate ? { localDate: finalEndDate } : undefined,
     },
   };
 }
