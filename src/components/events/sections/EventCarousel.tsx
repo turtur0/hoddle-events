@@ -158,7 +158,7 @@ export function EventCarousel({
     if (totalEvents === 0) return null;
 
     return (
-        <Card className={`relative overflow-hidden border-2 ${borderClass} bg-gradient-to-br ${gradientClass} via-transparent to-transparent shadow-sm hover:shadow-md hover:border-opacity-50 transition-all`}>
+        <Card className={`relative overflow-hidden border-2 ${borderClass} bg-linear-to-br ${gradientClass} via-transparent to-transparent shadow-sm hover:shadow-md hover:border-opacity-50 transition-all`}>
             <CardHeader>
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex-1 min-w-0">

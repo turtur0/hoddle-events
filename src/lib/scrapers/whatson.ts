@@ -3,6 +3,7 @@ import type { Element } from 'domhandler';
 import { NormalisedEvent } from './types';
 import { mapWhatsOnCategory } from '../utils/category-mapper';
 import { canScrape } from '../utils/robots-checker';
+import { normalisePrice } from '../utils/price-utils';
 
 const BASE_URL = 'https://whatson.melbourne.vic.gov.au';
 

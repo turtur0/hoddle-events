@@ -121,7 +121,7 @@ EventSchema.index({ lastContentChange: 1 });
 const Event: Model<IEvent> = mongoose.models.Event || mongoose.model<IEvent>('Event', EventSchema);
 export default Event;
 
-export interface SerializedEvent extends Omit<IEvent, 'startDate' | 'endDate' | 'scrapedAt' | 'lastUpdated' | 'lastContentChange' | 'archivedAt'> {
+export interface SerialisedEvent extends Omit<IEvent, 'startDate' | 'endDate' | 'scrapedAt' | 'lastUpdated' | 'lastContentChange' | 'archivedAt'> {
   _id: string;
   startDate: string;
   endDate?: string;

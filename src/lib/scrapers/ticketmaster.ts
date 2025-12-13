@@ -1,5 +1,6 @@
 import { TicketmasterEvent, NormalisedEvent } from './types';
 import { mapTicketmasterCategory } from '../utils/category-mapper';
+import { normalisePrice } from '../utils/price-utils';
 
 const TICKETMASTER_BASE_URL = 'https://app.ticketmaster.com/discovery/v2';
 const MELBOURNE_LAT = '-37.8136';
@@ -42,10 +43,10 @@ export async function fetchTicketmasterEvents(
 
 /**
  * Fetches all available events from Ticketmaster API with pagination.
- * Deduplicates events by name and venue (not by event ID).
+ * Groups events by their ID to handle multi-day events properly.
  */
 export async function fetchAllTicketmasterEvents(): Promise<TicketmasterEvent[]> {
-  const uniqueEventsMap = new Map<string, TicketmasterEvent>();
+  const eventsByIdMap = new Map<string, TicketmasterEvent>();
   let page = 0;
   let hasMore = true;
   const maxPages = 100;
@@ -57,24 +58,23 @@ export async function fetchAllTicketmasterEvents(): Promise<TicketmasterEvent[]>
       const events = await fetchTicketmasterEvents(page, 200);
 
       if (events.length === 0) {
-        console.log('[Ticketmaster] No more events found');
+        console.log('[Ticketmaster] No more events found, stopping');
         hasMore = false;
         break;
       }
 
+      // Group by event ID - this is the key fix
       events.forEach(event => {
-        const key = createEventKey(event);
-
-        if (!uniqueEventsMap.has(key)) {
-          uniqueEventsMap.set(key, event);
+        if (!eventsByIdMap.has(event.id)) {
+          eventsByIdMap.set(event.id, event);
         } else {
-          // Merge dates - keep earliest start, latest end
-          const existing = uniqueEventsMap.get(key)!;
-          uniqueEventsMap.set(key, mergeEventDates(existing, event));
+          // Event already exists - merge the dates
+          const existing = eventsByIdMap.get(event.id)!;
+          eventsByIdMap.set(event.id, mergeEventDates(existing, event));
         }
       });
 
-      console.log(`[Ticketmaster] Page ${page + 1}: ${uniqueEventsMap.size} unique events`);
+      console.log(`[Ticketmaster] Page ${page + 1}: ${eventsByIdMap.size} unique events`);
       page++;
 
       await delay(200);
@@ -84,8 +84,9 @@ export async function fetchAllTicketmasterEvents(): Promise<TicketmasterEvent[]>
     }
   }
 
-  console.log(`[Ticketmaster] Total: ${uniqueEventsMap.size} events`);
-  return Array.from(uniqueEventsMap.values());
+  const uniqueEvents = Array.from(eventsByIdMap.values());
+  console.log(`[Ticketmaster] Total: ${uniqueEvents.length} unique events`);
+  return uniqueEvents;
 }
 
 /**
@@ -116,12 +117,9 @@ export function normaliseTicketmasterEvent(event: TicketmasterEvent): Normalised
   const { priceMin, priceMax, isFree } = extractPriceInfo(event);
   const imageUrl = event.images?.sort((a, b) => b.width - a.width)[0]?.url;
 
-  // Create a stable sourceId based on event name and venue
-  const stableSourceId = createStableSourceId(event);
-
   return {
     title: event.name,
-    description: event.description || event.info || event.pleaseNote || 'No description available',
+    description: event.description || 'No description available',
     category,
     subcategory,
     startDate,
@@ -137,52 +135,15 @@ export function normaliseTicketmasterEvent(event: TicketmasterEvent): Normalised
     bookingUrl: event.url || `https://www.ticketmaster.com.au/event/${event.id}`,
     imageUrl,
     source: 'ticketmaster',
-    sourceId: stableSourceId,
+    sourceId: event.id,
     scrapedAt: new Date(),
     lastUpdated: new Date(),
   };
 }
 
 /**
- * Creates a unique key for deduplication based on event name and venue.
- * This ensures multi-day events are treated as one event.
- */
-function createEventKey(event: TicketmasterEvent): string {
-  const venue = event._embedded?.venues?.[0]?.name || 'unknown';
-  const name = event.name
-    .toLowerCase()
-    .replace(/[^\w\s]/g, '')
-    .trim()
-    .replace(/\s+/g, '-');
-  return `${name}::${venue}`;
-}
-
-/**
- * Creates a stable sourceId that remains consistent across scrapes.
- * Uses event name + venue instead of Ticketmaster's event ID which changes.
- */
-function createStableSourceId(event: TicketmasterEvent): string {
-  const venue = event._embedded?.venues?.[0]?.name || 'unknown';
-  const name = event.name
-    .toLowerCase()
-    .replace(/[^\w\s]/g, '')
-    .trim()
-    .replace(/\s+/g, '-');
-
-  // Create a short hash-like identifier
-  const combined = `${name}-${venue}`;
-  const hash = combined
-    .split('')
-    .reduce((acc, char) => ((acc << 5) - acc + char.charCodeAt(0)) | 0, 0)
-    .toString(36)
-    .replace('-', '0');
-
-  return `tm-${hash}`;
-}
-
-/**
- * Merges date ranges when the same event appears multiple times.
- * Always keeps the earliest start date and latest end date.
+ * Merges date ranges when the same event (by ID) appears multiple times.
+ * Keeps the earliest start date and latest end date.
  */
 function mergeEventDates(
   existing: TicketmasterEvent,
@@ -194,24 +155,29 @@ function mergeEventDates(
   const existingEnd = existing.dates.end?.localDate
     ? new Date(existing.dates.end.localDate)
     : existingStart;
+
   const incomingEnd = incoming.dates.end?.localDate
     ? new Date(incoming.dates.end.localDate)
     : incomingStart;
 
-  // Use earliest start date
-  const finalStart = existingStart < incomingStart ? existing.dates.start : incoming.dates.start;
+  // Find earliest start and latest end
+  const finalStart = existingStart < incomingStart ? existingStart : incomingStart;
+  const finalEnd = existingEnd > incomingEnd ? existingEnd : incomingEnd;
 
-  // Use latest end date
-  const finalEndDate = existingEnd > incomingEnd
-    ? existing.dates.end?.localDate
-    : incoming.dates.end?.localDate;
-
+  // Use the existing event as base, update dates
   return {
     ...existing,
     dates: {
       ...existing.dates,
-      start: finalStart,
-      end: finalEndDate ? { localDate: finalEndDate } : undefined,
+      start: {
+        ...existing.dates.start,
+        localDate: finalStart.toISOString().split('T')[0],
+      },
+      end: finalStart.getTime() !== finalEnd.getTime()
+        ? {
+          localDate: finalEnd.toISOString().split('T')[0],
+        }
+        : undefined,
     },
   };
 }
@@ -236,8 +202,8 @@ function extractPriceInfo(event: TicketmasterEvent): {
     .map(r => r.max)
     .filter((n): n is number => n != null && !isNaN(n));
 
-  const priceMin = mins.length > 0 ? Math.round(Math.min(...mins)) : undefined;
-  const priceMax = maxs.length > 0 ? Math.round(Math.max(...maxs)) : undefined;
+  const priceMin = mins.length > 0 ? normalisePrice(Math.min(...mins)) : undefined;
+  const priceMax = maxs.length > 0 ? normalisePrice(Math.max(...maxs)) : undefined;
 
   return {
     priceMin: priceMin && priceMin > 0 ? priceMin : undefined,

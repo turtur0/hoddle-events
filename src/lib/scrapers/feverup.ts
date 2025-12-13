@@ -1,5 +1,6 @@
 import { load } from 'cheerio';
 import type { NormalisedEvent } from './types';
+import { normalisePrice } from '../utils/price-utils';
 import { canScrape } from '../utils/robots-checker';
 
 const BASE_URL = 'https://feverup.com';
@@ -266,10 +267,10 @@ function extractPricing(data: any) {
   }
 
   return {
-    priceMin: prices.length > 0 ? Math.min(...prices) : undefined,
-    priceMax: prices.length > 1 ? Math.max(...prices) : undefined,
+    priceMin: prices.length > 0 ? normalisePrice(Math.min(...prices)) : undefined,
+    priceMax: prices.length > 1 ? normalisePrice(Math.max(...prices)) : undefined,
     priceDetails: tickets.length > 0
-      ? tickets.map(t => `${t.name}: $${t.price.toFixed(2)}`).join('; ')
+      ? tickets.map(t => `${t.name}: $${normalisePrice(t.price)?.toFixed(2)}`).join('; ')
       : undefined,
   };
 }

@@ -35,7 +35,7 @@ const mapToObject = (map: any) => {
     return map;
 };
 
-const formatEventDate = (startDate: string, endDate?: string) => {
+const formatEventDate = (startDate: string, endDate?: string): string => {
     try {
         const start = new Date(startDate);
         if (!endDate) return format(start, 'EEEE, MMMM d, yyyy');
@@ -50,7 +50,7 @@ const formatEventDate = (startDate: string, endDate?: string) => {
     }
 };
 
-const formatEventTime = (startDate: string, hasEndDate: boolean) => {
+const formatEventTime = (startDate: string, hasEndDate: boolean): string => {
     try {
         const start = new Date(startDate);
         const startTime = format(start, 'h:mm a');
@@ -60,10 +60,19 @@ const formatEventTime = (startDate: string, hasEndDate: boolean) => {
     }
 };
 
-const formatEventPrice = (isFree: boolean, priceMin?: number, priceMax?: number) => {
+const formatEventPrice = (isFree: boolean, priceMin?: number, priceMax?: number): string => {
     if (isFree) return 'Free Entry';
-    if (priceMin && priceMax) return `$${priceMin} - $${priceMax}`;
-    if (priceMin) return `From $${priceMin}`;
+
+    const normalizePrice = (price?: number): string | null => {
+        if (price == null || isNaN(price)) return null;
+        return price.toFixed(2);
+    };
+
+    const min = normalizePrice(priceMin);
+    const max = normalizePrice(priceMax);
+
+    if (min && max) return `$${min} - $${max}`;
+    if (min) return `From $${min}`;
     return 'Check booking link for pricing';
 };
 

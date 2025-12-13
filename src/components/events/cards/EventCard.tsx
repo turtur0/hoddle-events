@@ -5,25 +5,34 @@ import { Card, CardContent, CardFooter } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { FavouriteButton } from './FavouriteButton';
 import { EventBadge } from './EventBadge';
-import { SerializedEvent } from '@/lib/models/Event';
+import { SerialisedEvent } from '@/lib/models/Event';
 import { format, isSameDay, isSameMonth } from 'date-fns';
 import { getCategoryLabel } from '@/lib/constants/categories';
 
 interface EventCardProps {
-  event: SerializedEvent;
+  event: SerialisedEvent;
   source?: 'search' | 'recommendation' | 'category_browse' | 'homepage' | 'direct' | 'similar_events';
   initialFavourited?: boolean;
 }
 
 export function EventCard({ event, source = 'direct', initialFavourited = false }: EventCardProps) {
-  const formatPrice = () => {
+  const formatPrice = (): string => {
     if (event.isFree) return 'Free';
-    if (event.priceMin && event.priceMax) return `$${event.priceMin} - $${event.priceMax}`;
-    if (event.priceMin) return `From $${event.priceMin}`;
+
+    const normalizePrice = (price?: number): string | null => {
+      if (price == null || isNaN(price)) return null;
+      return price.toFixed(2);
+    };
+
+    const min = normalizePrice(event.priceMin);
+    const max = normalizePrice(event.priceMax);
+
+    if (min && max) return `$${min} - $${max}`;
+    if (min) return `From $${min}`;
     return 'Check website';
   };
 
-  const formatDate = () => {
+  const formatDate = (): string => {
     try {
       const start = new Date(event.startDate);
       if (!event.endDate) return format(start, 'EEE, MMM d, yyyy');
@@ -38,12 +47,13 @@ export function EventCard({ event, source = 'direct', initialFavourited = false 
   };
 
   const displaySubcategories = event.subcategories?.slice(0, 2) || [];
-  const hasMoreSubcategories = event.subcategories && event.subcategories.length > 2;
+  const hasMoreSubcategories = (event.subcategories?.length || 0) > 2;
+  const additionalCount = hasMoreSubcategories ? event.subcategories!.length - 2 : 0;
 
   return (
     <Card className="group overflow-hidden border-2 border-border/50 hover:border-primary/50 hover:shadow-[0_0_20px_rgba(var(--primary-rgb),0.15)] transition-all duration-300 hover:-translate-y-1">
       <Link href={`/events/${event._id}`}>
-        {/* Event Image */}
+        {/* Image Section */}
         <div className="relative h-48 w-full bg-muted overflow-hidden">
           {event.imageUrl ? (
             <Image
@@ -59,26 +69,20 @@ export function EventCard({ event, source = 'direct', initialFavourited = false 
             </div>
           )}
 
-          {/* Favourite Button */}
+          {/* Favourite Button - Top Left */}
           <div className="absolute top-2 left-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10">
-            <FavouriteButton
-              eventId={event._id}
-              initialFavourited={initialFavourited}
-              source={source}
-            />
+            <FavouriteButton eventId={event._id} initialFavourited={initialFavourited} source={source} />
           </div>
 
-          {/* Top Right Badges */}
+          {/* Badges - Top Right */}
           <div className="absolute top-2 right-2 flex flex-col gap-1">
-            {event.endDate && (
-              <EventBadge type="multiday" label="Multi-day" />
-            )}
+            {event.endDate && <EventBadge type="multiday" label="Multi-day" />}
             {event.sources && event.sources.length > 1 && (
               <EventBadge type="sources" label={`${event.sources.length} sources`} />
             )}
           </div>
 
-          {/* Age Restriction Badge */}
+          {/* Age Restriction - Bottom Left */}
           {event.ageRestriction && (
             <div className="absolute bottom-2 left-2">
               <EventBadge type="age" label={event.ageRestriction} />
@@ -86,8 +90,9 @@ export function EventCard({ event, source = 'direct', initialFavourited = false 
           )}
         </div>
 
+        {/* Content Section */}
         <CardContent className="p-4">
-          {/* Category & Subcategory Badges */}
+          {/* Category Badges */}
           <div className="flex gap-2 mb-2 flex-wrap">
             <EventBadge
               type="category"
@@ -96,18 +101,9 @@ export function EventCard({ event, source = 'direct', initialFavourited = false 
               href={`/category/${event.category}`}
             />
             {displaySubcategories.map((subcategory) => (
-              <EventBadge
-                key={subcategory}
-                type="subcategory"
-                label={subcategory}
-              />
+              <EventBadge key={subcategory} type="subcategory" label={subcategory} />
             ))}
-            {hasMoreSubcategories && (
-              <EventBadge
-                type="outline"
-                label={`+${event.subcategories!.length - 2}`}
-              />
-            )}
+            {hasMoreSubcategories && <EventBadge type="outline" label={`+${additionalCount}`} />}
           </div>
 
           {/* Title */}
@@ -154,6 +150,7 @@ export function EventCard({ event, source = 'direct', initialFavourited = false 
         </CardContent>
       </Link>
 
+      {/* Footer */}
       <CardFooter className="p-4 pt-0">
         <Button
           asChild
