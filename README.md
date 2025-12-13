@@ -71,7 +71,6 @@ Daily/weekly scraping jobs collect events from all sources. Implements ethical s
 - Quick character-overlap filter rejects 50-70% of pairs before expensive string comparison
 - Weighted scoring: title similarity (50%, Sørensen-Dice), date overlap (30%), venue match (20%)
 - Threshold: 78% combined score flags duplicates, merges to most complete data
-- Handles ~10K events in ~500ms, 50K events in ~5-10s
 - **Ethical scraping**: Respects robots.txt, implements exponential backoff rate limiting, and uses official APIs wherever available
 
 ---

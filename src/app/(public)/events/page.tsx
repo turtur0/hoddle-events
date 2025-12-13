@@ -7,7 +7,7 @@ import { EventsPageLayout } from '@/components/layout/EventsPageLayout';
 import { EventsGrid, EventsGridSkeleton } from '@/components/events/sections/EventsGrid';
 import { SearchBar } from '@/components/events/filters/SearchBar';
 import { EventFilters } from '@/components/events/filters/EventFilters';
-import { SerializedEvent } from "@/lib/models/Event";
+import { SerialisedEvent } from "@/lib/models/Event";
 import { getUserFavourites } from "@/lib/actions/interactions";
 
 export const metadata: Metadata = {
@@ -76,7 +76,7 @@ async function EventsGridWrapper(props: EventsGridWrapperProps) {
   if (props.sortOption) params.set('sort', props.sortOption);
 
   const data = await fetchEvents(params);
-  const events: SerializedEvent[] = data.events;
+  const events: SerialisedEvent[] = data.events;
   const { totalEvents, totalPages } = data.pagination;
 
   const source = props.searchQuery ? 'search' : props.category ? 'category_browse' : 'direct';
