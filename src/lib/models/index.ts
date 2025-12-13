@@ -2,7 +2,7 @@
 // EVENT MODEL
 // ============================================
 export { default as Event } from './Event';
-export type { IEvent, SerializedEvent } from './Event';
+export type { IEvent, SerialisedEvent } from './Event';
 
 // ============================================
 // USER MODEL
