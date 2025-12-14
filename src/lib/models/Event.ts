@@ -42,6 +42,17 @@ export interface IEvent {
   isArchived: boolean;
   archivedAt?: Date;
 
+  // External popularity data
+  externalPopularity?: {
+    spotify?: {
+      artistId: string;
+      artistName: string;
+      popularity: number; // 0-100
+      followers: number;
+      lastFetched: Date;
+    };
+  };
+
   stats: {
     viewCount: number;
     favouriteCount: number;
@@ -98,6 +109,17 @@ const EventSchema = new Schema<IEvent>({
   isArchived: { type: Boolean, default: false, index: true },
   archivedAt: Date,
 
+  // External popularity data
+  externalPopularity: {
+    spotify: {
+      artistId: String,
+      artistName: String,
+      popularity: Number,
+      followers: Number,
+      lastFetched: Date,
+    },
+  },
+
   stats: {
     viewCount: { type: Number, default: 0 },
     favouriteCount: { type: Number, default: 0 },
@@ -117,6 +139,7 @@ EventSchema.index({ sources: 1 });
 EventSchema.index({ primarySource: 1, 'sourceIds.$**': 1 });
 EventSchema.index({ 'stats.categoryPopularityPercentile': 1 });
 EventSchema.index({ lastContentChange: 1 });
+EventSchema.index({ 'externalPopularity.spotify.lastFetched': 1 }); // For batch processing
 
 const Event: Model<IEvent> = mongoose.models.Event || mongoose.model<IEvent>('Event', EventSchema);
 export default Event;

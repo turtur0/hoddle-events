@@ -7,7 +7,7 @@ if (!process.env.CI) {
 }
 
 import { connectDB, disconnectDB } from '@/lib/db';
-import { updateCategoryPopularityPercentiles } from '@/lib/ml';
+import { updateCategoryPopularityPercentiles, enrichWithSpotifyData } from '@/lib/ml';
 
 async function main() {
   console.log('Starting popularity update job');
@@ -16,6 +16,13 @@ async function main() {
     await connectDB();
     console.log('Connected to database');
 
+    // Step 1: Enrich music events with Spotify data (50 events per day)
+    console.log('Enriching music events with Spotify data...');
+    const enrichedCount = await enrichWithSpotifyData(50);
+    console.log(`Enriched ${enrichedCount} music events with Spotify data`);
+
+    // Step 2: Update popularity percentiles for all categories
+    console.log('Updating popularity percentiles...');
     await updateCategoryPopularityPercentiles();
     console.log('Popularity percentiles updated successfully');
 

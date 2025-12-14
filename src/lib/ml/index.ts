@@ -8,7 +8,17 @@ export {
     getHiddenGems,
     getColdStartPopularityScore,
     compareToCategory,
+    enrichWithSpotifyData,
 } from './popularity-service';
+
+// ============================================
+// SPOTIFY SERVICE
+// ============================================
+export {
+    searchSpotifyArtist,
+    extractArtistName,
+    calculateSpotifyScore,
+} from './spotify-service';
 
 // ============================================
 // RECOMMENDATION SERVICE
@@ -57,6 +67,7 @@ export type {
 // DEFAULT EXPORT (Main ML Service Interface)
 // ============================================
 import * as popularityService from './popularity-service';
+import * as spotifyService from './spotify-service';
 import * as recommendationService from './recommendation-service';
 import * as userProfileService from './user-profile-service';
 import * as vectorService from './vector-service';
@@ -69,6 +80,12 @@ export default {
     getHiddenGems: popularityService.getHiddenGems,
     getColdStartPopularityScore: popularityService.getColdStartPopularityScore,
     compareToCategory: popularityService.compareToCategory,
+    enrichWithSpotifyData: popularityService.enrichWithSpotifyData,
+
+    // Spotify
+    searchSpotifyArtist: spotifyService.searchSpotifyArtist,
+    extractArtistName: spotifyService.extractArtistName,
+    calculateSpotifyScore: spotifyService.calculateSpotifyScore,
 
     // Recommendations
     getTrendingEvents: recommendationService.getTrendingEvents,

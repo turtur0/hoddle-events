@@ -1,11 +1,8 @@
 import { CATEGORIES } from '../constants/categories';
 import { Event, type IEvent } from '@/lib/models';
+import { searchSpotifyArtist, extractArtistName, calculateSpotifyScore } from './spotify-service';
 
-// ============================================
-// CONFIGURATION
-// ============================================
-
-/** Venue capacity mapping for popularity scoring */
+// Venue capacity mapping for popularity scoring
 const VENUE_CAPACITIES: Record<string, number> = {
     'Marvel Stadium': 56000,
     'Melbourne Cricket Ground': 100000,
@@ -30,33 +27,26 @@ const VENUE_CAPACITIES: Record<string, number> = {
 
 /** 
  * Weights for popularity calculation components
- * Higher weights = stronger signal for popularity
+ * Rebalanced to include Spotify data (40% user engagement, 40% external, 20% metadata)
  */
 const POPULARITY_WEIGHTS = {
-    favourites: 5.0,       // Strongest: explicit user interest
-    clickthroughs: 3.0,    // Medium: booking intent
-    views: 0.5,            // Weakest: passive browsing
-    venueCapacity: 2.0,    // Proxy for event scale/demand
-    priceSignal: 1.0,      // High price may indicate demand
-    multiSource: 1.5,      // Multiple sources = well-known
+    // User engagement (40% total weight)
+    favourites: 5.0,
+    clickthroughs: 3.0,
+    views: 0.5,
+
+    // External popularity (40% total weight)
+    spotifyPopularity: 3.0, // Spotify's 0-100 score
+
+    // Event metadata (20% total weight)
+    venueCapacity: 2.0,
+    priceSignal: 1.0,
+    multiSource: 1.5,
 } as const;
 
-// ============================================
-// CORE FUNCTIONS
-// ============================================
-
 /**
- * Calculate raw popularity score combining multiple signals
- * 
- * Scoring components:
- * 1. User engagement (views, favourites, clickthroughs) - most important
- * 2. Venue capacity - proxy for event scale
- * 3. Price - high price can indicate high demand
- * 4. Multi-source presence - appears on multiple platforms
- * 5. Time decay - newer events with same engagement rank higher
- * 
- * @param event - Event to score
- * @returns Raw popularity score (unbounded, typically 0-100)
+ * Calculate raw popularity score combining multiple signals.
+ * Now includes Spotify popularity for music events.
  */
 export function calculateRawPopularityScore(event: IEvent): number {
     const { viewCount = 0, favouriteCount = 0, clickthroughCount = 0 } = event.stats || {};
@@ -67,31 +57,34 @@ export function calculateRawPopularityScore(event: IEvent): number {
         clickthroughCount * POPULARITY_WEIGHTS.clickthroughs +
         viewCount * POPULARITY_WEIGHTS.views;
 
-    // 2. Venue capacity (log scale to prevent domination)
+    // 2. Spotify popularity (for music events)
+    if (event.externalPopularity?.spotify) {
+        const spotifyScore = calculateSpotifyScore(event.externalPopularity.spotify.popularity);
+        score += spotifyScore * POPULARITY_WEIGHTS.spotifyPopularity;
+    }
+
+    // 3. Venue capacity (log scale)
     const venueCapacity = VENUE_CAPACITIES[event.venue.name] || estimateVenueCapacity(event.venue.name);
     score += Math.log10(venueCapacity + 1) * POPULARITY_WEIGHTS.venueCapacity;
 
-    // 3. Price signal (log scale, only for higher-priced events)
+    // 4. Price signal (log scale, high-priced events only)
     if (event.priceMax && event.priceMax > 100) {
         score += Math.log10(event.priceMax) * POPULARITY_WEIGHTS.priceSignal;
     }
 
-    // 4. Multi-source bonus
+    // 5. Multi-source bonus
     if (event.sources?.length > 1) {
         score += event.sources.length * POPULARITY_WEIGHTS.multiSource;
     }
 
-    // 5. Time decay (30-day half-life)
+    // 6. Time decay (30-day half-life)
     const daysSinceListed = (Date.now() - event.scrapedAt.getTime()) / (1000 * 60 * 60 * 24);
     const recencyBoost = 1 / (1 + daysSinceListed / 30);
 
     return score * recencyBoost;
 }
 
-/**
- * Estimate venue capacity using name heuristics
- * Fallback for venues not in VENUE_CAPACITIES mapping
- */
+/** Estimate venue capacity using name heuristics */
 function estimateVenueCapacity(venueName: string): number {
     const name = venueName.toLowerCase();
 
@@ -104,20 +97,84 @@ function estimateVenueCapacity(venueName: string): number {
 }
 
 /**
- * Update category-relative popularity percentiles for all events
- * 
- * Process:
- * 1. Calculate raw scores for all events in each category
- * 2. Rank events within their category
- * 3. Assign percentiles (0.0 = least popular, 1.0 = most popular)
- * 
- * Should be run as a daily cron job to keep percentiles fresh
+ * Enrich music events with Spotify data.
+ * Fetches artist popularity in batches to respect rate limits.
+ */
+export async function enrichWithSpotifyData(batchSize: number = 50): Promise<number> {
+    console.log('[Spotify] Starting enrichment batch...');
+
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    // Find music events that need Spotify data
+    const events = await Event.find({
+        category: 'music',
+        startDate: { $gte: new Date() }, // Only upcoming events
+        $or: [
+            { 'externalPopularity.spotify': { $exists: false } },
+            { 'externalPopularity.spotify.lastFetched': { $lt: sevenDaysAgo } },
+        ],
+    })
+        .sort({ startDate: 1 }) // Prioritise upcoming events
+        .limit(batchSize)
+        .lean();
+
+    console.log(`[Spotify] Processing ${events.length} music events`);
+
+    let enriched = 0;
+    let failed = 0;
+
+    for (const event of events) {
+        try {
+            const artistName = extractArtistName(event.title);
+            if (!artistName) {
+                failed++;
+                continue;
+            }
+
+            const spotifyArtist = await searchSpotifyArtist(artistName);
+
+            if (spotifyArtist) {
+                await Event.updateOne(
+                    { _id: event._id },
+                    {
+                        $set: {
+                            'externalPopularity.spotify': {
+                                artistId: spotifyArtist.id,
+                                artistName: spotifyArtist.name,
+                                popularity: spotifyArtist.popularity,
+                                followers: spotifyArtist.followers.total,
+                                lastFetched: new Date(),
+                            },
+                        },
+                    }
+                );
+                enriched++;
+                console.log(`[Spotify] ✓ ${event.title} → ${spotifyArtist.name} (${spotifyArtist.popularity}/100)`);
+            } else {
+                failed++;
+            }
+
+            // Rate limiting: 10 requests/second
+            await delay(100);
+        } catch (error) {
+            console.error(`[Spotify] Error for "${event.title}":`, error);
+            failed++;
+        }
+    }
+
+    console.log(`[Spotify] Complete: ${enriched} enriched, ${failed} failed`);
+    return enriched;
+}
+
+/**
+ * Update category-relative popularity percentiles for all events.
+ * Should be run as a daily cron job.
  */
 export async function updateCategoryPopularityPercentiles(): Promise<void> {
     console.log('[PopularityService] Starting category popularity update...');
 
     for (const category of CATEGORIES.map(cat => cat.value)) {
-        const events = await Event.find({ category }).lean();
+        const events = await Event.find({ category, isArchived: { $ne: true } }).lean();
         if (events.length === 0) continue;
 
         console.log(`[PopularityService] Processing ${events.length} events in ${category}`);
@@ -147,13 +204,7 @@ export async function updateCategoryPopularityPercentiles(): Promise<void> {
     console.log('[PopularityService] Category popularity update complete!');
 }
 
-/**
- * Get popular events within a category
- * 
- * @param category - Category to filter by
- * @param options.minPercentile - Minimum popularity percentile (0.7 = top 30%)
- * @param options.limit - Maximum events to return
- */
+/** Get popular events within a category */
 export async function getPopularEventsInCategory(
     category: string,
     options: { minPercentile?: number; limit?: number } = {}
@@ -164,18 +215,14 @@ export async function getPopularEventsInCategory(
         category,
         'stats.categoryPopularityPercentile': { $gte: minPercentile },
         startDate: { $gte: new Date() },
+        isArchived: { $ne: true },
     })
         .sort({ 'stats.categoryPopularityPercentile': -1, startDate: 1 })
         .limit(limit)
         .lean();
 }
 
-/**
- * Get "hidden gems" - mid-tier popularity with proven engagement
- * 
- * Target: Events in 40-70th percentile with at least 5 favourites
- * These are quality events that haven't hit mainstream yet
- */
+/** Get "hidden gems" - mid-tier popularity with proven engagement */
 export async function getHiddenGems(
     category?: string,
     options: { limit?: number } = {}
@@ -186,6 +233,7 @@ export async function getHiddenGems(
         'stats.categoryPopularityPercentile': { $gte: 0.4, $lte: 0.7 },
         'stats.favouriteCount': { $gte: 5 },
         startDate: { $gte: new Date() },
+        isArchived: { $ne: true },
     };
 
     if (category) query.category = category;
@@ -196,12 +244,7 @@ export async function getHiddenGems(
         .lean();
 }
 
-/**
- * Get cold start popularity score for new events (no user engagement yet)
- * 
- * Uses venue capacity, price, and multi-source presence
- * to provide initial ranking before user engagement data accumulates
- */
+/** Get cold start popularity score for new events */
 export function getColdStartPopularityScore(event: IEvent): number {
     let score = 0;
 
@@ -216,14 +259,15 @@ export function getColdStartPopularityScore(event: IEvent): number {
         score += event.sources.length * 2;
     }
 
+    // Add Spotify data if available
+    if (event.externalPopularity?.spotify) {
+        score += calculateSpotifyScore(event.externalPopularity.spotify.popularity);
+    }
+
     return score;
 }
 
-/**
- * Compare event popularity to category average
- * 
- * @returns Object with percentile, comparison label, and category average
- */
+/** Compare event popularity to category average */
 export async function compareToCategory(eventId: string): Promise<{
     percentile: number;
     comparedToAvg: 'below' | 'average' | 'above';
@@ -234,7 +278,11 @@ export async function compareToCategory(eventId: string): Promise<{
 
     const percentile = event.stats?.categoryPopularityPercentile || 0.5;
 
-    const categoryEvents = await Event.find({ category: event.category });
+    const categoryEvents = await Event.find({
+        category: event.category,
+        isArchived: { $ne: true },
+    });
+
     const categoryAvg = categoryEvents.reduce(
         (sum, e) => sum + (e.stats?.categoryPopularityPercentile || 0),
         0
@@ -246,6 +294,11 @@ export async function compareToCategory(eventId: string): Promise<{
     else comparedToAvg = 'average';
 
     return { percentile, comparedToAvg, categoryAvg };
+}
+
+/** Simple delay utility for rate limiting */
+function delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 export { IEvent };
