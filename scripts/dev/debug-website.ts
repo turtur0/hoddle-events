@@ -242,7 +242,7 @@ function generateRecommendations($: any, feasibility: any, structuredData: any[]
   const recs: string[] = [];
 
   recs.push('SCRAPING STRATEGY');
-  recs.push('─'.repeat(70));
+  recs.push('-'.repeat(70));
   recs.push(feasibility.recommendation);
   recs.push('');
 
@@ -273,7 +273,7 @@ function generateRecommendations($: any, feasibility: any, structuredData: any[]
 
   recs.push('');
   recs.push('RATE LIMITING');
-  recs.push('─'.repeat(70));
+  recs.push('-'.repeat(70));
   recs.push('  - Add 1-2 second delays between requests');
   recs.push('  - Respect robots.txt crawl-delay if specified');
   recs.push('  - Limit concurrent requests to 1-2 maximum');
@@ -282,7 +282,7 @@ function generateRecommendations($: any, feasibility: any, structuredData: any[]
 
   recs.push('');
   recs.push('BEST PRACTICES');
-  recs.push('─'.repeat(70));
+  recs.push('-'.repeat(70));
   recs.push('  - Always check robots.txt before scraping');
   recs.push('  - Implement exponential backoff for errors');
   recs.push('  - Cache results to minimise requests');

@@ -23,7 +23,7 @@ async function main() {
   const startTime = Date.now();
 
   console.log('========================================================');
-  console.log('Melbourne Events Aggregator — Full Scrape');
+  console.log('Melbourne Events Aggregator - Full Scrape');
   console.log('========================================================\n');
 
   try {

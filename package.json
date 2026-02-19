@@ -19,7 +19,8 @@
     "scrape:feverup": "tsx scripts/jobs/scrape-feverup.ts",
     "debug:website": "tsx scripts/dev/debug-website.ts",
     "test:website": "tsx scripts/dev/test-website.ts",
-    "test-email": "tsx scripts/dev/test-email"
+    "test-email": "tsx scripts/dev/test-email",
+    "merge-duplicates": "tsx scripts/dev/merge-existing-duplicates.ts"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.3.3",

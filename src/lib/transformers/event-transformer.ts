@@ -56,10 +56,6 @@ export interface RecommendationResponse extends EventResponse {
     };
 }
 
-/**
- * THE ONLY TRANSFORMER YOU NEED
- * Handles all database → API transformations in one place
- */
 export function transformEvent(event: any): EventResponse {
     // Safe date conversion
     const toISOString = (date: any): string => {
