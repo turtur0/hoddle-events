@@ -351,7 +351,7 @@ export default async function EventPage({ params }: EventPageProps) {
             </section>
 
             {/* Analytics & Recommendations */}
-            <section className="bg-muted/30">
+            <section>
                 <div className="container-page py-12 sm:py-16">
                     {!event.isFree && (
                         <div className="mb-12">

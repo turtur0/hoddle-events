@@ -164,7 +164,8 @@ export function AuthModal({ isOpen, onClose, defaultView = 'signin' }: AuthModal
 
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
-            <DialogContent className="sm:max-w-md animate-in fade-in-0 zoom-in-95 duration-200">
+            <DialogContent className="sm:max-w-md animate-none!">
+
                 <DialogHeader>
                     <DialogTitle className="text-2xl font-bold">
                         {view === 'signin' ? 'Welcome Back' : 'Create Account'}

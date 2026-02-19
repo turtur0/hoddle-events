@@ -14,18 +14,14 @@ export function ChartWrapper({ icon: Icon, title, description, children }: Chart
     return (
         <div className="bg-card rounded-xl border-2 shadow-sm overflow-hidden transition-all hover:shadow-md">
             {/* Header */}
-            <div className="px-4 sm:px-6 py-4 border-b bg-muted/30">
-                <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-primary/10 p-2">
-                        <Icon className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                        <h3 className="font-semibold text-base sm:text-lg">{title}</h3>
-                        {description && (
-                            <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
-                        )}
-                    </div>
-                </div>
+            <div className="px-4 sm:px-6 py-4 border-b">
+                <h3 className="flex items-center gap-2 text-xl sm:text-2xl font-semibold mb-2">
+                    <Icon className="h-6 w-6 text-primary" />
+                    {title}
+                </h3>
+                {description && (
+                    <p className="text-sm text-muted-foreground">{description}</p>
+                )}
             </div>
 
             {/* Content */}

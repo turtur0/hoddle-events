@@ -76,7 +76,7 @@ export default async function HomePage() {
   return (
     <div className="w-full">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-linear-to-b from-background via-orange-50/30 to-background dark:via-orange-950/5">
+      <section className="relative overflow-hidden">
         <div className="container-page section-spacing">
           <div className="max-w-3xl mx-auto text-center">
             {/* Badge */}
@@ -96,7 +96,7 @@ export default async function HomePage() {
 
             {/* Description */}
             <p className="text-lg sm:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
-              Search {totalEvents.toLocaleString()}+ events from across Melbourne. Set custom alerts for what matters to you. Compare pricing and discover trends.
+              Search {totalEvents.toLocaleString()}+ events from across Melbourne.
             </p>
 
             {/* Search Bar */}
@@ -157,7 +157,7 @@ export default async function HomePage() {
 
       {/* Personalised Recommendations */}
       {isLoggedIn && (
-        <section className="section-bg-orange">
+        <section>
           <div className="container-page section-spacing">
             <Suspense fallback={<CarouselSkeleton />}>
               <ForYouSection userFavourites={userFavourites} />
@@ -167,7 +167,7 @@ export default async function HomePage() {
       )}
 
       {/* Trending Events */}
-      <section className="section-bg-teal">
+      <section>
         <div className="container-page section-spacing">
           <Suspense fallback={<CarouselSkeleton />}>
             <TrendingSection userFavourites={userFavourites} />
