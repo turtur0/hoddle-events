@@ -9,11 +9,12 @@ const RADIUS = '50';
 
 /**
  * Fetches a single page of events from Ticketmaster API.
+ * Returns both the events and total page count from the API response.
  */
 export async function fetchTicketmasterEvents(
   page = 0,
   size = 100
-): Promise<TicketmasterEvent[]> {
+): Promise<{ events: TicketmasterEvent[]; totalPages: number }> {
   const API_KEY = process.env.TICKETMASTER_API_KEY;
   if (!API_KEY) {
     throw new Error('TICKETMASTER_API_KEY not found in environment variables');
@@ -38,24 +39,29 @@ export async function fetchTicketmasterEvents(
   }
 
   const data = await response.json();
-  return data._embedded?.events || [];
+  return {
+    events: data._embedded?.events || [],
+    totalPages: data.page?.totalPages ?? 0,
+  };
 }
 
 /**
  * Fetches all available events from Ticketmaster API with pagination.
  * Groups events by their ID to handle multi-day events properly.
+ * Capped at TM_MAX_PAGE — the API hard-limits to pages 0–4 regardless of
+ * what totalPages reports, and returns 400 for any page beyond that.
  */
 export async function fetchAllTicketmasterEvents(): Promise<TicketmasterEvent[]> {
   const eventsByIdMap = new Map<string, TicketmasterEvent>();
   let page = 0;
   let hasMore = true;
-  const maxPages = 100;
+  const TM_MAX_PAGE = 4; // API hard limit — totalPages is unreliable
 
   console.log('[Ticketmaster] Fetching events');
 
-  while (hasMore && page < maxPages) {
+  while (hasMore && page <= TM_MAX_PAGE) {
     try {
-      const events = await fetchTicketmasterEvents(page, 200);
+      const { events, totalPages } = await fetchTicketmasterEvents(page, 200);
 
       if (events.length === 0) {
         console.log('[Ticketmaster] No more events found, stopping');
@@ -74,7 +80,7 @@ export async function fetchAllTicketmasterEvents(): Promise<TicketmasterEvent[]>
         }
       });
 
-      console.log(`[Ticketmaster] Page ${page + 1}: ${eventsByIdMap.size} unique events`);
+      console.log(`[Ticketmaster] Page ${page + 1} of ${Math.min(totalPages, TM_MAX_PAGE + 1)}: ${eventsByIdMap.size} unique events`);
       page++;
 
       await delay(200);
