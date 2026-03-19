@@ -1,37 +1,69 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { Metadata } from "next";
-import { ArrowRight, Music, Theater, Trophy, Palette, Users, Sparkles, Zap } from "lucide-react";
+import {
+  ArrowRight,
+  Music,
+  Theater,
+  Trophy,
+  Palette,
+  Users,
+  Sparkles,
+  Zap
+} from "lucide-react";
 import { getServerSession } from "next-auth";
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
-import { SearchBar } from '@/components/events/filters/SearchBar';
-import { ForYouSection } from '@/components/recommendations/ForYouSection';
-import { TrendingSection } from '@/components/recommendations/TrendingSection';
-import { UpcomingEvents } from '@/components/events/sections/UpcomingEvents';
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { SearchBar } from "@/components/events/filters/SearchBar";
+import { ForYouSection } from "@/components/recommendations/ForYouSection";
+import { TrendingSection } from "@/components/recommendations/TrendingSection";
+import { UpcomingEvents } from "@/components/events/sections/UpcomingEvents";
 import { connectDB } from "@/lib/db";
 import { authOptions } from "@/lib/auth";
 import { getUserFavourites } from "@/lib/actions/interactions";
-import { Event } from '@/lib/models';
+import { Event } from "@/lib/models";
+import { HoddleGrid } from "@/components/effects/HoddleGrid";
 
 export const metadata: Metadata = {
   title: "Hoddle | Every Melbourne Event in One Place",
-  description: "Discover events across Melbourne. Search concerts, theatre, sports, festivals and more. Set custom alerts, compare pricing and explore trends. Updated daily.",
+  description:
+    "Discover events across Melbourne. Search concerts, theatre, sports, festivals and more. Set custom alerts, compare pricing and explore trends. Updated daily.",
   openGraph: {
     title: "Hoddle | Every Melbourne Event in One Place",
-    description: "Discover events across Melbourne. Search concerts, theatre, sports, festivals and more.",
-    type: "website",
-  },
+    description:
+      "Discover events across Melbourne. Search concerts, theatre, sports, festivals and more.",
+    type: "website"
+  }
 };
 
 const CATEGORIES = [
   { label: "Music", slug: "music", icon: Music, className: "category-music" },
-  { label: "Theatre", slug: "theatre", icon: Theater, className: "category-theatre" },
-  { label: "Sports", slug: "sports", icon: Trophy, className: "category-sports" },
-  { label: "Arts & Culture", slug: "arts", icon: Palette, className: "category-arts" },
-  { label: "Family", slug: "family", icon: Users, className: "category-family" },
-  { label: "Other", slug: "other", icon: Sparkles, className: "category-other" },
+  {
+    label: "Theatre",
+    slug: "theatre",
+    icon: Theater,
+    className: "category-theatre"
+  },
+  {
+    label: "Sports",
+    slug: "sports",
+    icon: Trophy,
+    className: "category-sports"
+  },
+  {
+    label: "Arts & Culture",
+    slug: "arts",
+    icon: Palette,
+    className: "category-arts"
+  },
+  {
+    label: "Family",
+    slug: "family",
+    icon: Users,
+    className: "category-family"
+  },
+  { label: "Other", slug: "other", icon: Sparkles, className: "category-other" }
 ];
 
 async function getEventStats() {
@@ -40,7 +72,7 @@ async function getEventStats() {
     startDate: { $gte: new Date() },
     isArchived: { $ne: true }
   });
-  const sources = await Event.distinct('primarySource');
+  const sources = await Event.distinct("primarySource");
   return { totalEvents, sourceCount: sources.length };
 }
 
@@ -51,7 +83,10 @@ function CarouselSkeleton() {
         <div className="h-8 w-48 bg-muted rounded animate-pulse mb-6" />
         <div className="flex gap-6 overflow-hidden">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="flex-none w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)]">
+            <div
+              key={i}
+              className="flex-none w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)]"
+            >
               <div className="h-80 bg-muted rounded-lg animate-pulse" />
             </div>
           ))}
@@ -96,19 +131,28 @@ export default async function HomePage() {
 
             {/* Description */}
             <p className="text-lg sm:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
-              Search {totalEvents.toLocaleString()}+ events from across Melbourne.
+              Search {totalEvents.toLocaleString()}+ events from across
+              Melbourne.
             </p>
 
             {/* Search Bar */}
             <div className="max-w-2xl mx-auto mb-8">
-              <Suspense fallback={<div className="h-14 bg-muted animate-pulse rounded-lg" />}>
+              <Suspense
+                fallback={
+                  <div className="h-14 bg-muted animate-pulse rounded-lg" />
+                }
+              >
                 <SearchBar />
               </Suspense>
             </div>
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <Button asChild size="lg" className="group touch-manipulation active:scale-95 transition-transform">
+              <Button
+                asChild
+                size="lg"
+                className="group touch-manipulation active:scale-95 transition-transform"
+              >
                 <Link href="/events">
                   Browse All Events
                   <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1 group-active:translate-x-2" />
@@ -131,27 +175,16 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Categories Section */}
-      <section className="container-page section-spacing">
-        <div className="mb-10">
-          <h2 className="text-3xl font-bold mb-2">Browse by Category</h2>
-          <p className="text-muted-foreground text-lg">Find what you're looking for</p>
+      {/* Categories Section — Hoddle Grid */}
+      <section className="section-spacing">
+        <div className="container-page mb-6 lg:mb-8">
+          <h2 className="text-3xl font-bold mb-1">Browse by Category</h2>
+          <p className="text-muted-foreground">
+            Hover to explore · Click to browse
+          </p>
         </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          {CATEGORIES.map((category) => {
-            const Icon = category.icon;
-            return (
-              <Link
-                key={category.slug}
-                href={`/category/${category.slug}`}
-                className={`flex flex-col items-center justify-center p-6 rounded-xl transition-all hover:scale-105 active:scale-100 touch-manipulation ${category.className}`}
-              >
-                <Icon className="h-8 w-8 mb-3" />
-                <span className="font-medium text-center text-sm">{category.label}</span>
-              </Link>
-            );
-          })}
+        <div className="container-page flex">
+          <HoddleGrid />
         </div>
       </section>
 
