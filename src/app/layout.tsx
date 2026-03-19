@@ -6,6 +6,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { cn } from "@/lib/utils";
 import { SessionProviderWrapper } from "./providers";
+import { MouseTrailLoader } from "@/components/effects/MouseTrailLoader";
 
 const nunito = Nunito({
   subsets: ["latin"],
@@ -15,10 +16,12 @@ const nunito = Nunito({
 
 export const metadata: Metadata = {
   title: "Hoddle | Every Melbourne Event in One Place",
-  description: "Like the Hoddle Grid organised Melbourne's streets, we've organised its events. Search concerts, theatre, sports and festivals from across Melbourne, updated daily.",
+  description:
+    "Like the Hoddle Grid organised Melbourne's streets, we've organised its events. Search concerts, theatre, sports and festivals from across Melbourne, updated daily.",
   openGraph: {
     title: "Hoddle | Every Melbourne Event in One Place",
-    description: "Every Melbourne event, perfectly organised. Search concerts, shows, sports and festivals in one place.",
+    description:
+      "Every Melbourne event, perfectly organised. Search concerts, shows, sports and festivals in one place.",
     type: "website",
     siteName: "Hoddle",
   },
@@ -31,13 +34,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      {/* Nunito is the global font now */}
       <body
         className={cn(
           nunito.variable,
           "min-h-screen bg-background antialiased font-sans"
         )}
       >
+        {/* Canvas at z-index 1 — below all page content */}
+        <MouseTrailLoader />
+
         <SessionProviderWrapper>
           <ThemeProvider
             attribute="class"
@@ -45,7 +50,7 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <div className="relative flex min-h-screen flex-col">
+            <div className="relative z-10 flex min-h-screen flex-col">
               <Header />
               <main className="flex-1 w-full">{children}</main>
               <Footer />
