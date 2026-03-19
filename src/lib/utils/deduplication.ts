@@ -264,8 +264,12 @@ function comparePairs(
       }
 
       if (venueThreshold) {
-        const venue = venueSimilarity(e1.venue.name, e2.venue.name);
-        if (venue < venueThreshold) continue;
+        const title = titleSimilarity(e1.title, e2.title);
+        // If title is near-identical, don't block on venue for same-source matches
+        if (title < 0.95) {
+          const venue = venueSimilarity(e1.venue.name, e2.venue.name);
+          if (venue < venueThreshold) continue;
+        }
       }
 
       const { score, breakdown } = matchScore(e1, e2);

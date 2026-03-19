@@ -23,7 +23,7 @@ jobs:
   daily-scrape:
     name: Daily Ticketmaster Update
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     if: |
       (github.event.schedule == '0 17 * * *') ||
       (github.event_name == 'workflow_dispatch' && inputs.scrape_type == 'daily')
@@ -63,7 +63,7 @@ jobs:
   weekly-scrape:
     name: Weekly Full Scrape
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 59
     if: |
       (github.event.schedule == '0 16 * * 0') ||
       (github.event_name == 'workflow_dispatch' && inputs.scrape_type == 'weekly')

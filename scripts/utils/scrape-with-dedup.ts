@@ -28,12 +28,21 @@ interface EventChanges {
   hasContentChanges?: boolean;
 }
 
+interface Decision {
+  action: "insert" | "update" | "update-migrate" | "merge" | "skip";
+  event: NormalisedEvent;
+  existingId?: string;
+  reason?: string;
+  changes?: EventChanges;
+  fullExisting?: any;
+}
+
 interface ProcessContext {
   existing: any[];
   bySourceId: Map<string, any>;
   byNameVenue: Map<string, any>;
   existingDedup: (EventForDedup & { _id: string })[];
-  batchInserted: (EventForDedup & { _id: string })[];
+  batchDecided: (EventForDedup & { _id: string })[];
   sourceName: string;
 }
 
@@ -54,35 +63,17 @@ const SIGNIFICANT_KEYWORDS = [
  *
  * Algorithm:
  * 1. Load all existing events from database
- * 2. For each new event:
- *    a) Check if exact source match exists (same source + sourceId)
- *       - If yes: update existing event, keep earliest start date
- *    b) Check if name+venue match exists (for Ticketmaster sourceId migration)
- *       - If yes: update existing event and migrate sourceId
- *    c) Check for same-source duplicates (e.g. Ticketmaster multi-tier listings)
- *       - If yes: update canonical record or skip the duplicate
- *    d) Run cross-source fuzzy deduplication
- *       - If confident match: merge into existing event
- *       - If no match: insert as new event
- * 3. Send notifications for price drops and significant changes
+ * 2. Decide action for each event (pure in-memory, no DB writes)
+ * 3. Execute all decisions in a single bulkWrite
+ * 4. Send notifications for inserts, price drops, and significant changes
  */
 export async function processEventsWithDeduplication(
   newEvents: NormalisedEvent[],
   sourceName: string
 ): Promise<Stats> {
-  console.log(
-    `\n[Dedup] Processing ${newEvents.length} events from '${sourceName}'`
-  );
+  console.log(`\n[Dedup] Processing ${newEvents.length} events from '${sourceName}'`);
 
-  const stats: Stats = {
-    inserted: 0,
-    updated: 0,
-    merged: 0,
-    skipped: 0,
-    notifications: 0
-  };
-
-  const existing = await Event.find({}).lean();
+  const existing = await Event.find({ isArchived: { $ne: true } }).lean();
   console.log(`[Dedup] Found ${existing.length} existing events in database`);
 
   const context: ProcessContext = {
@@ -90,360 +81,324 @@ export async function processEventsWithDeduplication(
     bySourceId: buildSourceIdMap(existing),
     byNameVenue: buildNameVenueMap(existing, sourceName),
     existingDedup: mapToEventForDedup(existing),
-    batchInserted: [],
+    batchDecided: [],
     sourceName
   };
 
+  // Phase 1: Decide what to do with each event (pure in-memory)
+  const decisions: Decision[] = [];
   for (const event of newEvents) {
-    try {
-      const result = await processEvent(event, context);
-      updateStats(stats, result);
-      if (result.action !== "skipped") logResult(result, event.title);
-    } catch (error: any) {
-      handleProcessingError(error, event.title, stats);
+    const decision = decide(event, context);
+    decisions.push(decision);
+
+    // Track inserted/merged events so later events in the batch can deduplicate against them
+    if (decision.action === "insert") {
+      const tempId = `temp:${event.sourceId}`;
+      context.batchDecided.push({
+        _id: tempId,
+        ...event,
+        subcategories: event.subcategories || (event.subcategory ? [event.subcategory] : [])
+      });
     }
   }
 
+  // Phase 2: Execute all decisions in one bulkWrite
+  const stats = await executeBulk(decisions, existing);
+
   console.log(
     `[Dedup] Complete: ${stats.inserted} inserted, ${stats.updated} updated, ` +
-      `${stats.merged} merged, ${stats.notifications} notifications\n`
+    `${stats.merged} merged, ${stats.skipped} skipped, ${stats.notifications} notifications\n`
   );
 
   return stats;
 }
 
 /**
- * Processes a single event through the full deduplication pipeline.
+ * Decides what action to take for a single event without touching the database.
+ *
+ * Priority order:
+ * 1. Exact source + sourceId match → update
+ * 2. Name + venue match (Ticketmaster sourceId migration) → update + migrate
+ * 3. Same-source duplicate (e.g. multi-tier listings) → update canonical or skip
+ * 4. Cross-source fuzzy match → merge
+ * 5. No match → insert
  */
-async function processEvent(
-  event: NormalisedEvent,
-  context: ProcessContext
-): Promise<{
-  action: "updated" | "merged" | "inserted" | "skipped";
-  notifications: number;
-  data?: any;
-}> {
-  const { existing, bySourceId, byNameVenue, existingDedup, batchInserted } =
-    context;
+function decide(event: NormalisedEvent, context: ProcessContext): Decision {
+  const { existing, bySourceId, byNameVenue, existingDedup, batchDecided } = context;
 
   // Step 1: Exact source + sourceId match
   const sameSource = bySourceId.get(`${event.source}:${event.sourceId}`);
   if (sameSource) {
-    const notifications = await updateExistingEvent(sameSource, event);
-    return { action: "updated", notifications: Math.max(0, notifications) };
+    return {
+      action: "update",
+      event,
+      existingId: sameSource._id.toString(),
+      changes: detectAllChanges(sameSource, event),
+      fullExisting: sameSource
+    };
   }
 
   // Step 2: Name + venue match for Ticketmaster sourceId migration
   if (event.source === "ticketmaster") {
     const nameVenueMatch = byNameVenue.get(createNameVenueKey(event));
     if (nameVenueMatch) {
-      const notifications = await updateAndMigrateSourceId(
-        nameVenueMatch,
-        event
-      );
       return {
-        action: "updated",
-        notifications: Math.max(0, notifications),
-        data: { reason: "migrated sourceId" }
+        action: "update-migrate",
+        event,
+        existingId: nameVenueMatch._id.toString(),
+        changes: detectAllChanges(nameVenueMatch, event),
+        fullExisting: nameVenueMatch,
+        reason: "migrated sourceId"
       };
     }
   }
 
-  // Build a dedup record for this incoming event
   const tempId = `temp:${event.sourceId}`;
   const eventDedup: EventForDedup & { _id: string } = {
     _id: tempId,
     ...event,
-    subcategories:
-      event.subcategories || (event.subcategory ? [event.subcategory] : [])
+    subcategories: event.subcategories || (event.subcategory ? [event.subcategory] : [])
   };
 
   // Step 3: Same-source duplicate check (e.g. Ticketmaster multi-tier listings)
-  // Only compare against events from the same source to keep this focused
-  const sameSourcePool = [
-    ...existingDedup,
-    ...batchInserted,
-    eventDedup
-  ].filter((e) => e.source === event.source);
-
-  const sameSourceMatch = findBestMatch(
-    tempId,
-    findSameSourceDuplicates(sameSourcePool)
-  );
+  const sameSourcePool = [...existingDedup, ...batchDecided, eventDedup]
+    .filter(e => e.source === event.source);
+  const sameSourceMatch = findBestMatch(tempId, findSameSourceDuplicates(sameSourcePool));
 
   if (sameSourceMatch) {
     const matchId = getMatchId(tempId, sameSourceMatch);
-    const dbMatch = existing.find((e) => e._id.toString() === matchId);
+    const dbMatch = existing.find(e => e._id.toString() === matchId);
 
     if (dbMatch) {
-      // Update the canonical record with any new data from this duplicate
-      const notifications = await updateExistingEvent(dbMatch, event);
       return {
-        action: "updated",
-        notifications: Math.max(0, notifications),
-        data: { reason: sameSourceMatch.reason }
+        action: "update",
+        event,
+        existingId: matchId,
+        changes: detectAllChanges(dbMatch, event),
+        fullExisting: dbMatch,
+        reason: sameSourceMatch.reason
       };
     }
 
-    // Match is in batchInserted - skip entirely to avoid inserting a second copy
-    return { action: "skipped", notifications: 0 };
+    // Match is in batchDecided — skip to avoid inserting a duplicate
+    return { action: "skip", event };
   }
 
   // Step 4: Cross-source fuzzy deduplication
-  const pool = [...existingDedup, ...batchInserted, eventDedup];
+  const pool = [...existingDedup, ...batchDecided, eventDedup];
   const crossSourceMatch = findBestMatch(tempId, findDuplicates(pool));
 
   if (crossSourceMatch) {
     const matchId = getMatchId(tempId, crossSourceMatch);
-    const dbMatch = existing.find((e) => e._id.toString() === matchId);
-    const batchMatch = batchInserted.find((e) => e._id === matchId);
+    const dbMatch = existing.find(e => e._id.toString() === matchId);
+    const batchMatch = batchDecided.find(e => e._id === matchId);
 
     if (dbMatch || batchMatch) {
-      const targetDedup = dbMatch
-        ? mapToEventForDedup([dbMatch])[0]
-        : batchMatch!;
-      const notifications = await mergeIntoExisting(
-        matchId,
-        targetDedup,
-        event,
-        dbMatch
-      );
+      const targetDedup = dbMatch ? mapToEventForDedup([dbMatch])[0] : batchMatch!;
+      const changes = detectAllChanges(targetDedup, event);
+      const existingSources = dbMatch?.sources || [];
+      const isNewSource = !existingSources.includes(event.source);
+
+      // Skip if nothing new to contribute
+      if (!changes.hasChanges && !isNewSource) return { action: "skip", event };
 
       return {
-        action: notifications === -1 ? "skipped" : "merged",
-        notifications: Math.max(0, notifications),
-        data: { reason: crossSourceMatch.reason }
+        action: "merge",
+        event,
+        existingId: matchId,
+        changes,
+        fullExisting: dbMatch,
+        reason: crossSourceMatch.reason
       };
     }
   }
 
-  // Step 5: No match found - insert as a new event
-  const created = await insertNewEvent(event);
-  batchInserted.push({
-    _id: created._id.toString(),
-    ...event,
-    subcategories:
-      event.subcategories || (event.subcategory ? [event.subcategory] : [])
-  });
-
-  const notifications = await processNewEventNotifications(created);
-  return { action: "inserted", notifications };
-}
-
-// Database Operations
-
-/**
- * Updates an existing event from the same source.
- * Always keeps the earliest start date and latest end date.
- */
-async function updateExistingEvent(
-  existing: any,
-  newEvent: NormalisedEvent
-): Promise<number> {
-  const changes = detectAllChanges(existing, newEvent);
-  const { finalStartDate, finalEndDate } = resolveDates(existing, newEvent);
-  const subcategories = mergeSubcategories(newEvent);
-
-  const updateFields: any = {
-    title: newEvent.title,
-    description: newEvent.description,
-    category: newEvent.category,
-    startDate: finalStartDate,
-    endDate: finalEndDate,
-    venue: newEvent.venue,
-    priceMin: newEvent.priceMin,
-    priceMax: newEvent.priceMax,
-    priceDetails: newEvent.priceDetails,
-    isFree: newEvent.isFree,
-    bookingUrl: newEvent.bookingUrl,
-    imageUrl: newEvent.imageUrl,
-    videoUrl: newEvent.videoUrl,
-    accessibility: newEvent.accessibility,
-    ageRestriction: newEvent.ageRestriction,
-    duration: newEvent.duration,
-    lastUpdated: new Date(),
-    ...(changes.hasContentChanges && { lastContentChange: new Date() })
-  };
-
-  const result = await Event.updateOne(
-    { _id: existing._id },
-    {
-      $set: updateFields,
-      $addToSet: { subcategories: { $each: subcategories } }
-    }
-  );
-
-  if (result.matchedCount === 0) {
-    console.error(`[Dedup] Update failed: Event ${existing._id} not found`);
-    return 0;
-  }
-
-  return changes.priceDropped || changes.significantUpdate
-    ? notifyFavouritedUsers(existing._id, changes)
-    : 0;
+  // Step 5: No match — insert as new
+  return { action: "insert", event };
 }
 
 /**
- * Updates an existing event and migrates its sourceId to the new stable format.
- * Used during transition from old Ticketmaster IDs to stable hash-based IDs.
+ * Executes all decisions in a single bulkWrite, then sends notifications.
  */
-async function updateAndMigrateSourceId(
-  existing: any,
-  newEvent: NormalisedEvent
-): Promise<number> {
-  const changes = detectAllChanges(existing, newEvent);
-  const { finalStartDate, finalEndDate } = resolveDates(existing, newEvent);
-  const subcategories = mergeSubcategories(newEvent);
-
-  const updateFields: any = {
-    title: newEvent.title,
-    description: newEvent.description,
-    category: newEvent.category,
-    startDate: finalStartDate,
-    endDate: finalEndDate,
-    venue: newEvent.venue,
-    priceMin: newEvent.priceMin,
-    priceMax: newEvent.priceMax,
-    priceDetails: newEvent.priceDetails,
-    isFree: newEvent.isFree,
-    bookingUrl: newEvent.bookingUrl,
-    imageUrl: newEvent.imageUrl,
-    videoUrl: newEvent.videoUrl,
-    accessibility: newEvent.accessibility,
-    ageRestriction: newEvent.ageRestriction,
-    duration: newEvent.duration,
-    lastUpdated: new Date(),
-    [`sourceIds.${newEvent.source}`]: newEvent.sourceId,
-    ...(changes.hasContentChanges && { lastContentChange: new Date() })
-  };
-
-  const result = await Event.updateOne(
-    { _id: existing._id },
-    {
-      $set: updateFields,
-      $addToSet: { subcategories: { $each: subcategories } }
-    }
-  );
-
-  if (result.matchedCount === 0) {
-    console.error(`[Dedup] Update failed: Event ${existing._id} not found`);
-    return 0;
-  }
-
-  console.log(
-    `[Dedup] Migrated sourceId for "${existing.title}": ${getSourceId(existing, newEvent.source)} -> ${newEvent.sourceId}`
-  );
-
-  return changes.priceDropped || changes.significantUpdate
-    ? notifyFavouritedUsers(existing._id, changes)
-    : 0;
-}
-
-/**
- * Merges a new event into an existing event from a different source.
- * Always keeps the earliest start date and latest end date.
- */
-async function mergeIntoExisting(
-  existingId: any,
-  existing: any,
-  newEvent: NormalisedEvent,
-  fullExistingEvent?: any
-): Promise<number> {
-  if (!fullExistingEvent) {
-    fullExistingEvent = await Event.findById(existingId).lean();
-    if (!fullExistingEvent) {
-      console.error(`[Dedup] Could not find event ${existingId} in database`);
-      return -1;
-    }
-  }
-
-  const existingSources = fullExistingEvent.sources || [];
-  const isNewSource = !existingSources.includes(newEvent.source);
-  const changes = detectAllChanges(existing, newEvent);
-
-  // Skip if no new source and no data changes
-  if (!changes.hasChanges && !isNewSource) return -1;
-
-  const merged = mergeEvents(existing, newEvent);
-  const { finalStartDate, finalEndDate } = resolveDates(
-    fullExistingEvent,
-    newEvent
-  );
-
-  const updateFields: any = {
-    description: merged.description,
-    category: merged.category,
-    startDate: finalStartDate,
-    endDate: finalEndDate,
-    venue: merged.venue,
-    priceMin: merged.priceMin,
-    priceMax: merged.priceMax,
-    priceDetails: merged.priceDetails,
-    imageUrl: merged.imageUrl,
-    videoUrl: merged.videoUrl,
-    accessibility: merged.accessibility,
-    ageRestriction: merged.ageRestriction,
-    duration: merged.duration,
-    isFree: merged.isFree,
-    lastUpdated: new Date(),
-    [`bookingUrls.${newEvent.source}`]: newEvent.bookingUrl,
-    [`sourceIds.${newEvent.source}`]: newEvent.sourceId,
-    ...(changes.hasContentChanges && { lastContentChange: new Date() })
-  };
-
-  const result = await Event.updateOne(
-    { _id: existingId },
-    {
-      $set: updateFields,
-      $addToSet: {
-        sources: newEvent.source,
-        subcategories: { $each: merged.subcategories || [] },
-        mergedFrom: `${newEvent.source}:${newEvent.sourceId}`
-      }
-    }
-  );
-
-  if (result.matchedCount === 0) {
-    console.error(`[Dedup] Merge failed: Event ${existingId} not found`);
-    return -1;
-  }
-
-  return changes.priceDropped || changes.significantUpdate
-    ? notifyFavouritedUsers(existingId, changes)
-    : 0;
-}
-
-/** Inserts a new event into the database. */
-async function insertNewEvent(event: NormalisedEvent) {
-  const subcategories = mergeSubcategories(event);
+async function executeBulk(decisions: Decision[], existing: any[]): Promise<Stats> {
+  const stats: Stats = { inserted: 0, updated: 0, merged: 0, skipped: 0, notifications: 0 };
   const now = new Date();
+  const bulkOps: any[] = [];
 
-  return Event.create({
-    title: event.title,
-    description: event.description,
-    category: event.category,
-    subcategories: [...new Set(subcategories)],
-    startDate: event.startDate,
-    endDate: event.endDate,
-    venue: event.venue,
-    priceMin: event.priceMin,
-    priceMax: event.priceMax,
-    priceDetails: event.priceDetails,
-    isFree: event.isFree,
-    bookingUrl: event.bookingUrl,
-    bookingUrls: { [event.source]: event.bookingUrl },
-    imageUrl: event.imageUrl,
-    videoUrl: event.videoUrl,
-    sources: [event.source],
-    primarySource: event.source,
-    sourceIds: { [event.source]: event.sourceId },
-    accessibility: event.accessibility,
-    ageRestriction: event.ageRestriction,
-    duration: event.duration,
-    scrapedAt: now,
-    lastUpdated: now,
-    lastContentChange: now
-  });
+  // Pending notifications — collected during bulk build, sent after writes
+  const pendingNotifications: { existingId: string; changes: EventChanges }[] = [];
+  const pendingInserts: NormalisedEvent[] = [];
+
+  for (const decision of decisions) {
+    const { action, event, existingId, changes, fullExisting, reason } = decision;
+
+    if (action === "skip") {
+      stats.skipped++;
+      continue;
+    }
+
+    if (action === "insert") {
+      const subcategories = mergeSubcategories(event);
+      bulkOps.push({
+        insertOne: {
+          document: {
+            title: event.title,
+            description: event.description,
+            category: event.category,
+            subcategories: [...new Set(subcategories)],
+            startDate: event.startDate,
+            endDate: event.endDate,
+            venue: event.venue,
+            priceMin: event.priceMin,
+            priceMax: event.priceMax,
+            priceDetails: event.priceDetails,
+            isFree: event.isFree,
+            bookingUrl: event.bookingUrl,
+            bookingUrls: { [event.source]: event.bookingUrl },
+            imageUrl: event.imageUrl,
+            videoUrl: event.videoUrl,
+            sources: [event.source],
+            primarySource: event.source,
+            sourceIds: { [event.source]: event.sourceId },
+            accessibility: event.accessibility,
+            ageRestriction: event.ageRestriction,
+            duration: event.duration,
+            scrapedAt: now,
+            lastUpdated: now,
+            lastContentChange: now
+          }
+        }
+      });
+      pendingInserts.push(event);
+      stats.inserted++;
+      continue;
+    }
+
+    if (action === "update" || action === "update-migrate") {
+      const { finalStartDate, finalEndDate } = resolveDates(fullExisting, event);
+      const subcategories = mergeSubcategories(event);
+
+      const updateFields: any = {
+        title: event.title,
+        description: event.description,
+        category: event.category,
+        startDate: finalStartDate,
+        endDate: finalEndDate,
+        venue: event.venue,
+        priceMin: event.priceMin,
+        priceMax: event.priceMax,
+        priceDetails: event.priceDetails,
+        isFree: event.isFree,
+        bookingUrl: event.bookingUrl,
+        imageUrl: event.imageUrl,
+        videoUrl: event.videoUrl,
+        accessibility: event.accessibility,
+        ageRestriction: event.ageRestriction,
+        duration: event.duration,
+        lastUpdated: now,
+        ...(changes?.hasContentChanges && { lastContentChange: now }),
+        ...(action === "update-migrate" && { [`sourceIds.${event.source}`]: event.sourceId })
+      };
+
+      bulkOps.push({
+        updateOne: {
+          filter: { _id: existingId },
+          update: {
+            $set: updateFields,
+            $addToSet: { subcategories: { $each: subcategories } }
+          }
+        }
+      });
+
+      if (action === "update-migrate") {
+        console.log(`[Dedup] Updated: ${event.title} (${reason})`);
+      }
+
+      if (changes?.priceDropped || changes?.significantUpdate) {
+        pendingNotifications.push({ existingId: existingId!, changes });
+      }
+
+      stats.updated++;
+      continue;
+    }
+
+    if (action === "merge") {
+      const merged = mergeEvents(fullExisting || decision.event, event);
+      const { finalStartDate, finalEndDate } = resolveDates(fullExisting || {}, event);
+      const subcategories = mergeSubcategories(event);
+
+      bulkOps.push({
+        updateOne: {
+          filter: { _id: existingId },
+          update: {
+            $set: {
+              description: merged.description,
+              category: merged.category,
+              startDate: finalStartDate,
+              endDate: finalEndDate,
+              venue: merged.venue,
+              priceMin: merged.priceMin,
+              priceMax: merged.priceMax,
+              priceDetails: merged.priceDetails,
+              imageUrl: merged.imageUrl,
+              videoUrl: merged.videoUrl,
+              accessibility: merged.accessibility,
+              ageRestriction: merged.ageRestriction,
+              duration: merged.duration,
+              isFree: merged.isFree,
+              lastUpdated: now,
+              [`bookingUrls.${event.source}`]: event.bookingUrl,
+              [`sourceIds.${event.source}`]: event.sourceId,
+              ...(changes?.hasContentChanges && { lastContentChange: now })
+            },
+            $addToSet: {
+              sources: event.source,
+              subcategories: { $each: subcategories },
+              mergedFrom: `${event.source}:${event.sourceId}`
+            }
+          }
+        }
+      });
+
+      if (changes?.priceDropped || changes?.significantUpdate) {
+        pendingNotifications.push({ existingId: existingId!, changes });
+      }
+
+      stats.merged++;
+    }
+  }
+
+  // Execute all writes in one round trip
+  if (bulkOps.length > 0) {
+    await Event.bulkWrite(bulkOps, { ordered: false });
+  }
+
+  // Send notifications after writes complete
+  const notificationResults = await Promise.all([
+    ...pendingNotifications.map(async ({ existingId, changes }) => {
+      const updated = await Event.findById(existingId).lean();
+      if (!updated) return 0;
+      return processFavouritedEventUpdate(updated, changes).catch(err => {
+        console.error("[Dedup] Notification error:", err);
+        return 0;
+      });
+    }),
+    ...pendingInserts.map(async event => {
+      const created = await Event.findOne({
+        source: event.source,
+        "sourceIds": { $exists: true },
+        [`sourceIds.${event.source}`]: event.sourceId
+      }).lean();
+      if (!created) return 0;
+      return processNewEventNotifications(created).catch(err => {
+        console.error("[Dedup] New event notification error:", err);
+        return 0;
+      });
+    })
+  ]);
+
+  stats.notifications = notificationResults.reduce((sum, n) => sum + n, 0);
+  return stats;
 }
 
 // Change Detection
@@ -452,10 +407,7 @@ async function insertNewEvent(event: NormalisedEvent) {
  * Detects all changes between existing and new event data.
  * Distinguishes between content changes (user-facing) and technical-only changes.
  */
-function detectAllChanges(
-  existing: any,
-  newEvent: NormalisedEvent
-): EventChanges {
+function detectAllChanges(existing: any, newEvent: NormalisedEvent): EventChanges {
   const changes: EventChanges = { hasChanges: false, hasContentChanges: false };
 
   const contentChanged =
@@ -469,17 +421,11 @@ function detectAllChanges(
 
   // More than 1 hour difference to avoid timestamp noise
   const dateChanged =
-    Math.abs(existing.startDate?.getTime() - newEvent.startDate?.getTime()) >
-      3600000 ||
-    Math.abs(
-      (existing.endDate?.getTime() || 0) - (newEvent.endDate?.getTime() || 0)
-    ) > 3600000;
+    Math.abs(existing.startDate?.getTime() - newEvent.startDate?.getTime()) > 3600000 ||
+    Math.abs((existing.endDate?.getTime() || 0) - (newEvent.endDate?.getTime() || 0)) > 3600000;
 
-  const venueChanged =
-    JSON.stringify(existing.venue) !== JSON.stringify(newEvent.venue);
-  const accessibilityChanged =
-    JSON.stringify(existing.accessibility) !==
-    JSON.stringify(newEvent.accessibility);
+  const venueChanged = JSON.stringify(existing.venue) !== JSON.stringify(newEvent.venue);
+  const accessibilityChanged = JSON.stringify(existing.accessibility) !== JSON.stringify(newEvent.accessibility);
 
   const priceChanged =
     existing.priceMin !== newEvent.priceMin ||
@@ -490,13 +436,7 @@ function detectAllChanges(
     existing.bookingUrl !== newEvent.bookingUrl ||
     existing.videoUrl !== newEvent.videoUrl;
 
-  if (
-    contentChanged ||
-    dateChanged ||
-    venueChanged ||
-    accessibilityChanged ||
-    priceChanged
-  ) {
+  if (contentChanged || dateChanged || venueChanged || accessibilityChanged || priceChanged) {
     changes.hasChanges = true;
     changes.hasContentChanges = true;
   } else if (technicalChanged) {
@@ -510,11 +450,7 @@ function detectAllChanges(
 
   if (oldPrice === 0 && newPrice > 0) {
     changes.significantUpdate = `Price now available: $${newPrice.toFixed(2)}`;
-  } else if (
-    oldPrice > 0 &&
-    newPrice > 0 &&
-    Math.abs(oldPrice - newPrice) >= PRICE_CHANGE_THRESHOLD
-  ) {
+  } else if (oldPrice > 0 && newPrice > 0 && Math.abs(oldPrice - newPrice) >= PRICE_CHANGE_THRESHOLD) {
     const change = newPrice - oldPrice;
     if (change < 0) {
       changes.priceDropped = true;
@@ -528,7 +464,6 @@ function detectAllChanges(
   if (newEvent.description && existing.description) {
     const oldDesc = existing.description.toLowerCase();
     const newDesc = newEvent.description.toLowerCase();
-
     for (const keyword of SIGNIFICANT_KEYWORDS) {
       if (!oldDesc.includes(keyword) && newDesc.includes(keyword)) {
         changes.significantUpdate = `Event status: ${keyword}`;
@@ -538,25 +473,6 @@ function detectAllChanges(
   }
 
   return changes;
-}
-
-// Notifications
-
-/** Sends notifications to users who have favourited this event. */
-async function notifyFavouritedUsers(
-  eventId: any,
-  changes: EventChanges
-): Promise<number> {
-  if (!changes.priceDropped && !changes.significantUpdate) return 0;
-
-  try {
-    const updatedEvent = await Event.findById(eventId).lean();
-    if (!updatedEvent) return 0;
-    return await processFavouritedEventUpdate(updatedEvent, changes);
-  } catch (error) {
-    console.error("[Dedup] Error sending favourite notifications:", error);
-    return 0;
-  }
 }
 
 // Utility Helpers
@@ -576,9 +492,7 @@ function resolveDates(existing: any, newEvent: NormalisedEvent) {
 
   const finalEndDate =
     existingEnd && newEnd
-      ? existingEnd > newEnd
-        ? existing.endDate
-        : newEvent.endDate
+      ? existingEnd > newEnd ? existing.endDate : newEvent.endDate
       : existingEnd || newEnd || newEvent.endDate;
 
   return { finalStartDate, finalEndDate };
@@ -596,12 +510,9 @@ function mergeSubcategories(event: NormalisedEvent): string[] {
 /** Builds a map of source:sourceId -> event for fast exact-match lookups. */
 function buildSourceIdMap(events: any[]): Map<string, any> {
   const map = new Map<string, any>();
-
   for (const e of events) {
     const sourceId = getSourceId(e, e.primarySource);
     const key = `${e.primarySource}:${sourceId}`;
-
-    // If a duplicate key exists, keep the one with the earliest start date
     if (map.has(key)) {
       const existing = map.get(key);
       if (new Date(e.startDate) < new Date(existing.startDate)) map.set(key, e);
@@ -609,7 +520,6 @@ function buildSourceIdMap(events: any[]): Map<string, any> {
       map.set(key, e);
     }
   }
-
   return map;
 }
 
@@ -617,52 +527,28 @@ function buildSourceIdMap(events: any[]): Map<string, any> {
  * Builds a name+venue map for Ticketmaster sourceId migration.
  * Allows matching events with old sourceIds to their new stable equivalents.
  */
-function buildNameVenueMap(
-  events: any[],
-  sourceName: string
-): Map<string, any> {
+function buildNameVenueMap(events: any[], sourceName: string): Map<string, any> {
   const map = new Map<string, any>();
-
   if (sourceName !== "ticketmaster") return map;
-
   for (const e of events) {
     if (e.primarySource === "ticketmaster") {
-      const key = createNameVenueKey({
-        title: e.title,
-        venue: e.venue,
-        source: e.primarySource
-      });
+      const key = createNameVenueKey({ title: e.title, venue: e.venue, source: e.primarySource });
       if (!map.has(key)) map.set(key, e);
     }
   }
-
   return map;
 }
 
 /** Creates a normalised name+venue key for event matching. */
-function createNameVenueKey(event: {
-  title: string;
-  venue: any;
-  source: string;
-}): string {
-  const name = event.title
-    .toLowerCase()
-    .replace(/[^\w\s]/g, "")
-    .trim()
-    .replace(/\s+/g, "-");
-  const venue =
-    event.venue?.name
-      ?.toLowerCase()
-      .replace(/[^\w\s]/g, "")
-      .trim() || "unknown";
+function createNameVenueKey(event: { title: string; venue: any; source: string }): string {
+  const name = event.title.toLowerCase().replace(/[^\w\s]/g, "").trim().replace(/\s+/g, "-");
+  const venue = event.venue?.name?.toLowerCase().replace(/[^\w\s]/g, "").trim() || "unknown";
   return `${event.source}:${name}::${venue}`;
 }
 
 /** Converts database events to EventForDedup format. */
-function mapToEventForDedup(
-  events: any[]
-): (EventForDedup & { _id: string })[] {
-  return events.map((e) => ({
+function mapToEventForDedup(events: any[]): (EventForDedup & { _id: string })[] {
+  return events.map(e => ({
     _id: e._id.toString(),
     title: e.title,
     startDate: e.startDate,
@@ -689,42 +575,6 @@ function mapToEventForDedup(
 /** Extracts a source ID from an event's sourceIds map or plain object. */
 function getSourceId(event: any, source: string): string {
   if (!event.sourceIds) return "";
-  if (typeof event.sourceIds.get === "function")
-    return event.sourceIds.get(source) || "";
+  if (typeof event.sourceIds.get === "function") return event.sourceIds.get(source) || "";
   return event.sourceIds[source] || "";
-}
-
-/** Updates run statistics based on a processing result. */
-function updateStats(
-  stats: Stats,
-  result: { action: string; notifications: number }
-) {
-  if (result.action === "inserted") stats.inserted++;
-  else if (result.action === "updated") stats.updated++;
-  else if (result.action === "merged") stats.merged++;
-  else if (result.action === "skipped") stats.skipped++;
-  stats.notifications += result.notifications;
-}
-
-/** Logs a processing result with optional reason and notification count. */
-function logResult(result: any, title: string) {
-  const action = result.action.charAt(0).toUpperCase() + result.action.slice(1);
-  let log = `[Dedup] ${action}: ${title}`;
-  if (result.data?.reason) log += ` (${result.data.reason})`;
-  if (result.notifications > 0)
-    log += ` [${result.notifications} notifications]`;
-  console.log(log);
-}
-
-/** Handles errors during event processing and increments the skipped count. */
-function handleProcessingError(error: any, title: string, stats: Stats) {
-  if (error?.code === 11000) {
-    console.log(`[Dedup] Duplicate key error: ${title}`);
-  } else {
-    console.error(
-      `[Dedup] Error processing ${title}:`,
-      error?.message || error
-    );
-  }
-  stats.skipped++;
 }
