@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Barlow } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { cn } from "@/lib/utils";
@@ -41,20 +40,12 @@ export default function RootLayout({
         )}
       >
         <MouseTrailLoader />
-
         <SessionProviderWrapper>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <div className="relative z-10 flex min-h-screen flex-col">
-              <Header />
-              <main className="flex-1 w-full">{children}</main>
-              <Footer />
-            </div>
-          </ThemeProvider>
+          <div className="relative z-10 flex min-h-screen flex-col">
+            <Header />
+            <main className="flex-1 w-full">{children}</main>
+            <Footer />
+          </div>
         </SessionProviderWrapper>
       </body>
     </html>

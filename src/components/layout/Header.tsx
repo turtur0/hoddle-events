@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { Search, ChevronDown, Music, Theater, Trophy, Palette, Users, Sparkles, Menu, LogOut, Settings, User, Heart, BarChart3, Archive, X } from "lucide-react";
-import { ThemeToggle } from '../other/ThemeToggle';
 import { NotificationBell } from "../notifications/NotificationBell";
 import { AuthModal } from '../auth/AuthModals';
 import { Button } from '../ui/Button';
@@ -455,9 +454,6 @@ function HeaderContent() {
 
             {/* Notification Bell */}
             {session?.user && <NotificationBell isActive={isOnNotificationsPage} />}
-
-            {/* Theme Toggle */}
-            <ThemeToggle />
 
             {/* Auth Buttons / User Menu - Desktop */}
             {status === 'loading' ? (

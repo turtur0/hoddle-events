@@ -392,8 +392,8 @@ export function HoddleGrid() {
       ctx.clearRect(0, 0, (W + TILT_PAD * 2) * dpr, (H + TILT_PAD * 2) * dpr);
       ctx.restore();
 
-      const dark   = document.documentElement.classList.contains('dark');
-      const BASE: Rgb = dark ? [255, 255, 255] : [15, 15, 15];
+      // Single colour scheme — always white nodes/edges on dark background
+      const BASE: Rgb = [255, 255, 255];
       const mx = mouse.current.x, my = mouse.current.y;
       const ns = nodes.current;
       const N  = ns.length;
@@ -537,7 +537,7 @@ export function HoddleGrid() {
       }
 
       // ── Render: edges ────────────────────────────────────────────────
-      const baseLineAlpha = dark ? 0.13 : 0.09;
+      const baseLineAlpha = 0.13;
       for (const [ai, bi] of edges.current) {
         const t = (colorT.current[ai] + colorT.current[bi]) * 0.5;
         const r = (nr[ai] + nr[bi]) * 0.5, g = (ng[ai] + ng[bi]) * 0.5, b = (nb2[ai] + nb2[bi]) * 0.5;
@@ -558,7 +558,7 @@ export function HoddleGrid() {
         ctx.beginPath();
         ctx.arc(n.x, n.y, isSubcat ? SUBCAT_R : PLAIN_R_BASE + (PLAIN_R_MAX - PLAIN_R_BASE) * t, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(${nr[i] | 0},${ng[i] | 0},${nb2[i] | 0},${
-          isSubcat ? (dark ? 0.10 : 0.07) : (dark ? 0.28 : 0.20) + t * 0.55
+          isSubcat ? 0.10 : 0.28 + t * 0.55
         })`;
         ctx.fill();
       }
