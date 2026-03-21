@@ -176,14 +176,14 @@ export default async function HomePage() {
       </section>
 
       {/* Categories Section — Hoddle Grid */}
-      <section className="section-spacing">
+      <section className="section-spacing overflow-hidden">
         <div className="container-page mb-6 lg:mb-8">
           <h2 className="text-3xl font-bold mb-1">Browse by Category</h2>
           <p className="text-muted-foreground">
             Hover to explore · Click to browse
           </p>
         </div>
-        <div className="container-page flex">
+        <div className="container-page">
           <HoddleGrid />
         </div>
       </section>
