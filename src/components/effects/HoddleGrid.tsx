@@ -598,7 +598,7 @@ export function HoddleGrid() {
 
   // ── JSX ───────────────────────────────────────────────────────────────────
   return (
-    <div ref={outerRef} className="relative w-full" style={{ height: 600 }}>
+    <div ref={outerRef} className="relative w-full" style={{ height: 600, maxHeight: '100%' }}>
       <div ref={containerRef} className="absolute inset-0">
         <canvas
           ref={canvasRef}

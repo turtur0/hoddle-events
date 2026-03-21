@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Nunito } from "next/font/google";
+import { Barlow } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { Header } from "@/components/layout/Header";
@@ -8,9 +8,9 @@ import { cn } from "@/lib/utils";
 import { SessionProviderWrapper } from "./providers";
 import { MouseTrailLoader } from "@/components/effects/MouseTrailLoader";
 
-const nunito = Nunito({
+const barlow = Barlow({
   subsets: ["latin"],
-  variable: "--font-nunito",
+  variable: "--font-barlow",
   weight: ["300", "400", "500", "600", "700", "800", "900"],
 });
 
@@ -36,11 +36,10 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         className={cn(
-          nunito.variable,
+          barlow.variable,
           "min-h-screen bg-background antialiased font-sans"
         )}
       >
-        {/* Canvas at z-index 1 — below all page content */}
         <MouseTrailLoader />
 
         <SessionProviderWrapper>
