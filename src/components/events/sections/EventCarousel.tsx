@@ -1,241 +1,266 @@
-'use client';
+"use client";
 
-import { useEffect, useState, useRef } from 'react';
-import { EventCard } from '@/components/events/cards/EventCard';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import type { EventResponse } from '@/lib/transformers/event-transformer';
-import type { EventSource } from '@/lib/types/events';
+import { useEffect, useState, useRef } from "react";
+import { EventCard } from "@/components/events/cards/EventCard";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import type { EventResponse } from "@/lib/transformers/event-transformer";
+import type { EventSource } from "@/lib/types/events";
 
 interface EventCarouselProps {
-    events: EventResponse[];
-    userFavourites: Set<string>;
-    title: string;
-    description?: string;
-    icon: React.ReactNode;
+  events: EventResponse[];
+  userFavourites: Set<string>;
+  title?: string; // optional — omit for no heading
+  description?: string;
+  icon?: React.ReactNode;
+  source?: EventSource;
+  borderClass?: string;
+  gradientClass?: string;
+  autoScroll?: boolean;
+  autoScrollInterval?: number;
+  showProgress?: boolean;
+  children?: React.ReactNode;
+  cardComponent?: React.ComponentType<{
+    event: EventResponse;
     source?: EventSource;
-    borderClass?: string;
-    gradientClass?: string;
-    autoScroll?: boolean;
-    autoScrollInterval?: number;
-    showProgress?: boolean;
-    children?: React.ReactNode;
+    initialFavourited?: boolean;
+  }>;
 }
 
 export function EventCarousel({
-    events,
-    userFavourites,
-    title,
-    description,
-    icon,
-    source = 'direct',
-    borderClass = 'border-primary/20',
-    gradientClass = 'from-primary/5',
-    autoScroll = true,
-    autoScrollInterval = 5000,
-    showProgress = true,
-    children,
+  events,
+  userFavourites,
+  title,
+  description,
+  icon,
+  source = "direct",
+  borderClass = "border-primary/20",
+  gradientClass = "from-primary/5",
+  autoScroll = true,
+  autoScrollInterval = 5000,
+  showProgress = true,
+  children,
+  cardComponent: CardComponent = EventCard
 }: EventCarouselProps) {
-    const [currentIndex, setCurrentIndex] = useState(0);
-    const [isPaused, setIsPaused] = useState(false);
-    const [visibleCards, setVisibleCards] = useState(1);
-    const scrollRef = useRef<HTMLDivElement>(null);
-    const touchStartX = useRef(0);
-    const touchStartY = useRef(0);
-    const touchEndX = useRef(0);
-    const isDragging = useRef(false);
-    const hasMoved = useRef(false);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [visibleCards, setVisibleCards] = useState(1);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const touchEndX = useRef(0);
+  const isDragging = useRef(false);
+  const hasMoved = useRef(false);
 
-    const totalEvents = events.length;
-    const infiniteEvents = totalEvents > 0 ? [...events, ...events, ...events] : [];
+  const total = events.length;
+  const infiniteEvents = total > 0 ? [...events, ...events, ...events] : [];
 
-    useEffect(() => {
-        const updateVisibleCards = () => {
-            const width = window.innerWidth;
-            if (width < 640) setVisibleCards(1);
-            else if (width < 1024) setVisibleCards(2);
-            else setVisibleCards(3);
-        };
-
-        updateVisibleCards();
-        window.addEventListener('resize', updateVisibleCards);
-        return () => window.removeEventListener('resize', updateVisibleCards);
-    }, []);
-
-    useEffect(() => {
-        if (!autoScroll || totalEvents === 0 || isPaused) return;
-
-        const timer = setInterval(() => {
-            setCurrentIndex(prev => prev + 1);
-        }, autoScrollInterval);
-
-        return () => clearInterval(timer);
-    }, [autoScroll, autoScrollInterval, totalEvents, isPaused]);
-
-    useEffect(() => {
-        if (!scrollRef.current || totalEvents === 0) return;
-
-        const container = scrollRef.current;
-        const containerWidth = container.offsetWidth;
-        const gap = 24;
-        const cardWidth = (containerWidth - (gap * (visibleCards - 1))) / visibleCards;
-        const scrollPos = currentIndex * (cardWidth + gap);
-
-        container.scrollTo({ left: scrollPos, behavior: 'smooth' });
-
-        // Seamless wrap
-        if (currentIndex >= totalEvents * 2) {
-            setTimeout(() => {
-                container.scrollTo({ left: totalEvents * (cardWidth + gap), behavior: 'auto' });
-                setCurrentIndex(totalEvents);
-            }, 500);
-        } else if (currentIndex < totalEvents) {
-            setTimeout(() => {
-                container.scrollTo({ left: (totalEvents + currentIndex) * (cardWidth + gap), behavior: 'auto' });
-                setCurrentIndex(totalEvents + currentIndex);
-            }, 500);
-        }
-    }, [currentIndex, totalEvents, visibleCards]);
-
-    const handleTouchStart = (e: React.TouchEvent | React.MouseEvent) => {
-        const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-        const clientY = 'touches' in e ? e.touches[0].clientY : 0;
-
-        touchStartX.current = clientX;
-        touchStartY.current = clientY;
-        touchEndX.current = clientX;
-        isDragging.current = false;
-        hasMoved.current = false;
-        setIsPaused(true);
+  // ── Responsive card count ────────────────────────────────────────────────
+  useEffect(() => {
+    const update = () => {
+      const w = window.innerWidth;
+      setVisibleCards(w < 640 ? 1 : w < 1024 ? 2 : 3);
     };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
-    const handleTouchMove = (e: React.TouchEvent | React.MouseEvent) => {
-        const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-        const clientY = 'touches' in e ? e.touches[0].clientY : 0;
-
-        touchEndX.current = clientX;
-
-        const deltaX = Math.abs(clientX - touchStartX.current);
-        const deltaY = Math.abs(clientY - touchStartY.current);
-
-        if (deltaX > 10 || deltaY > 10) {
-            hasMoved.current = true;
-
-            if (deltaX > deltaY) {
-                isDragging.current = true;
-                if ('touches' in e) {
-                    e.preventDefault();
-                }
-            }
-        }
-    };
-
-    const handleTouchEnd = () => {
-        if (isDragging.current && hasMoved.current) {
-            const swipeDistance = touchStartX.current - touchEndX.current;
-            const threshold = 50;
-
-            if (Math.abs(swipeDistance) > threshold) {
-                setCurrentIndex(prev => swipeDistance > 0 ? prev + 1 : prev - 1);
-            }
-        }
-
-        isDragging.current = false;
-        hasMoved.current = false;
-        setTimeout(() => setIsPaused(false), 1000);
-    };
-
-    const goToPrevious = () => setCurrentIndex(prev => prev - 1);
-    const goToNext = () => setCurrentIndex(prev => prev + 1);
-    const goToIndex = (index: number) => setCurrentIndex(totalEvents + index);
-
-    const normalizedIndex = ((currentIndex % totalEvents) + totalEvents) % totalEvents;
-
-    if (totalEvents === 0) return null;
-
-    return (
-        <Card className={`relative overflow-hidden border-2 ${borderClass} bg-linear-to-br ${gradientClass} via-transparent to-transparent shadow-sm hover:shadow-md hover:border-opacity-50 transition-all`}>
-            <CardHeader>
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex-1 min-w-0">
-                        <CardTitle className="flex items-center gap-2 text-xl sm:text-2xl mb-2">
-                            {icon}
-                            {title}
-                        </CardTitle>
-                        {description && (
-                            <p className="text-sm text-muted-foreground">{description}</p>
-                        )}
-                    </div>
-                    <div className="flex gap-2 ml-4">
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={goToPrevious}
-                            className={`h-8 w-8 sm:h-9 sm:w-9 border-2 ${borderClass} hover:border-opacity-70 transition-all hover:scale-110 active:scale-95`}
-                            aria-label="Previous event"
-                        >
-                            <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={goToNext}
-                            className={`h-8 w-8 sm:h-9 sm:w-9 border-2 ${borderClass} hover:border-opacity-70 transition-all hover:scale-110 active:scale-95`}
-                            aria-label="Next event"
-                        >
-                            <ChevronRight className="h-4 w-4" />
-                        </Button>
-                    </div>
-                </div>
-                {children}
-            </CardHeader>
-
-            <CardContent>
-                <div
-                    ref={scrollRef}
-                    className="flex gap-6 overflow-x-hidden select-none touch-pan-y"
-                    onMouseEnter={() => setIsPaused(true)}
-                    onMouseLeave={() => setIsPaused(false)}
-                    onTouchStart={handleTouchStart}
-                    onTouchMove={handleTouchMove}
-                    onTouchEnd={handleTouchEnd}
-                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                >
-                    {infiniteEvents.map((event, idx) => (
-                        <div
-                            key={`${event.id}-${idx}`}
-                            className="flex-none w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)]"
-                            style={{
-                                pointerEvents: isDragging.current ? 'none' : 'auto',
-                                touchAction: 'pan-y'
-                            }}
-                        >
-                            <EventCard
-                                event={event}
-                                source={source}
-                                initialFavourited={userFavourites.has(event.id)}
-                            />
-                        </div>
-                    ))}
-                </div>
-
-                {showProgress && totalEvents > 1 && (
-                    <div className="flex justify-center gap-2 mt-6">
-                        {events.map((_, index) => (
-                            <button
-                                key={index}
-                                onClick={() => goToIndex(index)}
-                                className={`h-1.5 rounded-full transition-all duration-300 hover:scale-125 ${index === normalizedIndex
-                                    ? 'w-8 bg-primary shadow-sm shadow-primary/50'
-                                    : 'w-1.5 bg-muted-foreground/30 hover:bg-muted-foreground/50'
-                                    }`}
-                                aria-label={`Go to event ${index + 1}`}
-                            />
-                        ))}
-                    </div>
-                )}
-            </CardContent>
-        </Card>
+  // ── Auto-scroll ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!autoScroll || total === 0 || isPaused) return;
+    const timer = setInterval(
+      () => setCurrentIndex((p) => p + 1),
+      autoScrollInterval
     );
+    return () => clearInterval(timer);
+  }, [autoScroll, autoScrollInterval, total, isPaused]);
+
+  // ── Scroll sync + seamless infinite wrap ─────────────────────────────────
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || total === 0) return;
+
+    const gap = 24;
+    const cardW = (el.offsetWidth - gap * (visibleCards - 1)) / visibleCards;
+    const scrollTo = currentIndex * (cardW + gap);
+    el.scrollTo({ left: scrollTo, behavior: "smooth" });
+
+    if (currentIndex >= total * 2) {
+      setTimeout(() => {
+        el.scrollTo({ left: total * (cardW + gap), behavior: "auto" });
+        setCurrentIndex(total);
+      }, 500);
+    } else if (currentIndex < total) {
+      setTimeout(() => {
+        el.scrollTo({
+          left: (total + currentIndex) * (cardW + gap),
+          behavior: "auto"
+        });
+        setCurrentIndex(total + currentIndex);
+      }, 500);
+    }
+  }, [currentIndex, total, visibleCards]);
+
+  // ── Touch / drag handlers ────────────────────────────────────────────────
+  const onDragStart = (e: React.TouchEvent | React.MouseEvent) => {
+    const x = "touches" in e ? e.touches[0].clientX : e.clientX;
+    const y = "touches" in e ? e.touches[0].clientY : 0;
+    touchStartX.current = x;
+    touchEndX.current = x;
+    touchStartY.current = y;
+    isDragging.current = false;
+    hasMoved.current = false;
+    setIsPaused(true);
+  };
+
+  const onDragMove = (e: React.TouchEvent | React.MouseEvent) => {
+    const x = "touches" in e ? e.touches[0].clientX : e.clientX;
+    const y = "touches" in e ? e.touches[0].clientY : 0;
+    touchEndX.current = x;
+    const dX = Math.abs(x - touchStartX.current);
+    const dY = Math.abs(y - touchStartY.current);
+    if (dX > 10 || dY > 10) {
+      hasMoved.current = true;
+      if (dX > dY) {
+        isDragging.current = true;
+      }
+    }
+  };
+
+  const onDragEnd = () => {
+    if (isDragging.current && hasMoved.current) {
+      const dist = touchStartX.current - touchEndX.current;
+      if (Math.abs(dist) > 50) setCurrentIndex((p) => p + (dist > 0 ? 1 : -1));
+    }
+    isDragging.current = false;
+    hasMoved.current = false;
+    setTimeout(() => setIsPaused(false), 1000);
+  };
+
+  const goTo = (i: number) => setCurrentIndex(total + i);
+  const prev = () => setCurrentIndex((p) => p - 1);
+  const next = () => setCurrentIndex((p) => p + 1);
+  const normalized = ((currentIndex % total) + total) % total;
+
+  if (total === 0) return null;
+
+  return (
+    <Card
+      className={`relative border-2 ${borderClass} shadow-sm hover:shadow-md transition-all`}
+      style={{
+        // Darker translucent grey — sits above the page bg without being pitch black
+        background: "rgba(20, 20, 19, 0.55)",
+        backdropFilter: "blur(8px)",
+        overflow: "visible" // never clip node corners or card lift
+      }}
+    >
+      {/* Heading — only rendered when title is provided */}
+      {(title || children) && (
+        <CardHeader>
+          {title && (
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex-1 min-w-0">
+                <CardTitle className="flex items-center gap-2 text-xl sm:text-2xl mb-1">
+                  {icon}
+                  {title}
+                </CardTitle>
+                {description && (
+                  <p className="text-sm text-muted-foreground">{description}</p>
+                )}
+              </div>
+            </div>
+          )}
+          {children}
+        </CardHeader>
+      )}
+
+      <CardContent className={!title && !children ? "pt-6" : ""}>
+        {/*
+          Track: overflow-x-hidden to prevent horizontal scroll bleed,
+          but padding gives vertical room for corner nodes (NODE_R=5px) and
+          card hover lift (~4px) so they never get clipped.
+        */}
+        <div
+          ref={scrollRef}
+          className="flex gap-6 select-none touch-pan-y"
+          style={{
+            overflowX: "hidden",
+            overflowY: "visible",
+            paddingTop: 8,
+            paddingBottom: 8,
+            scrollbarWidth: "none"
+          }}
+          onMouseEnter={() => setIsPaused(true)}
+          onMouseLeave={() => setIsPaused(false)}
+          onTouchStart={onDragStart}
+          onTouchMove={onDragMove}
+          onTouchEnd={onDragEnd}
+        >
+          {infiniteEvents.map((event, idx) => (
+            <div
+              key={`${event.id}-${idx}`}
+              className="flex-none w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)]"
+              style={{
+                touchAction: "pan-y",
+                pointerEvents: isDragging.current ? "none" : "auto"
+              }}
+            >
+              <CardComponent
+                event={event}
+                source={source}
+                initialFavourited={userFavourites.has(event.id)}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Controls — centred, arrows flanking the dot indicators */}
+        {showProgress && total > 1 && (
+          <div className="flex items-center justify-center gap-3 mt-6">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={prev}
+              className={`h-8 w-8 border-2 ${borderClass} hover:scale-110 active:scale-95 transition-all`}
+              aria-label="Previous"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+
+            {/* Dot indicators */}
+            <div className="flex items-center gap-2">
+              {events.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => goTo(i)}
+                  className="rounded-full transition-all duration-300 hover:scale-125"
+                  style={{
+                    width: i === normalized ? 24 : 6,
+                    height: 6,
+                    background:
+                      i === normalized
+                        ? "var(--primary)"
+                        : "rgba(255,255,255,0.25)"
+                  }}
+                  aria-label={`Go to ${i + 1}`}
+                />
+              ))}
+            </div>
+
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={next}
+              className={`h-8 w-8 border-2 ${borderClass} hover:scale-110 active:scale-95 transition-all`}
+              aria-label="Next"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
