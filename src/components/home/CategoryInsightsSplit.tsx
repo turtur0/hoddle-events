@@ -6,6 +6,7 @@ import { HoddleGrid } from '@/components/effects/HoddleGrid';
 import { TimelineChart } from '@/components/analytics/TimelineChart';
 import { PriceDistributionChart } from '@/components/analytics/PriceDistributionChart';
 import { PopularityScatterChart } from '@/components/analytics/PopularityScatterChart';
+
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 const TABS = [
   { id: 'timeline',   label: 'Events Timeline',    Icon: Calendar,   desc: 'Distribution over 6 months' },
@@ -209,9 +210,12 @@ export function CategoryInsightsSplit() {
     });
   }, [isDragging]);
 
-  // Expand: each button expands the OTHER panel to full screen
-  const expandBrowse   = () => setBrowsePct(0);   // expand insights → hide browse
-  const expandInsights = () => setBrowsePct(1);   // expand browse → hide insights
+  // Expand: each button hides its own panel (shows the other full screen)
+  const expandBrowse   = () => setBrowsePct(0);   // hide browse, show insights full
+  const expandInsights = () => setBrowsePct(1);   // hide insights, show browse full
+  // Restore: bring back the hidden panel to the default split
+  const restoreBrowse   = () => setBrowsePct(SNAP_BROWSE);
+  const restoreInsights = () => setBrowsePct(SNAP_INSIGHTS);
 
   const ActiveChart = () => {
     if (activeTab === 'timeline')   return <TimelineChart />;
@@ -247,7 +251,7 @@ export function CategoryInsightsSplit() {
           style={{ height: HEADER_H, borderBottom: '1px solid var(--border)', background: 'var(--background)' }}
         >
           <button
-            onClick={expandBrowse}
+            onClick={restoreBrowse}
             className="text-xs font-semibold flex items-center gap-1.5 hover:opacity-75 transition-opacity"
             style={{ color: 'var(--primary)' }}
           >
@@ -262,7 +266,7 @@ export function CategoryInsightsSplit() {
           style={{ height: HEADER_H, borderBottom: '1px solid var(--border)', background: 'var(--background)' }}
         >
           <button
-            onClick={expandInsights}
+            onClick={restoreInsights}
             className="text-xs font-semibold flex items-center gap-1.5 hover:opacity-75 transition-opacity"
             style={{ color: 'var(--primary)' }}
           >
