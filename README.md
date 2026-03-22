@@ -10,6 +10,8 @@
 
 A full-stack events aggregator that solves Melbourne's fragmented event discovery problem by combining multiple ticketing, venue and events platforms into one searchable database. It features data deduplication, ML-based recommendations, event analytics, custom automated in-app and email notifications, and a historical archive of past events.
 
+*NOTE: Website is currently undergoing a UI/UX redesign. Images and gifs in this readme may not be up to date, and website design may have some inconsistent UI as it undergoes polish. But functionality currently remains the same*
+
 ---
 
 ## Features
@@ -46,7 +48,7 @@ Interactive charts visualising price distributions, event timelines, and popular
 
 ---
 
-### Historical Archive
+### Event Archive
 
 Complete record of past Melbourne events preserved for cultural research and trend analysis. Searchable archive maintains venue histories, pricing data, and event metadata—useful for academic research, market analysis, or simply rediscovering what you might have missed.
 
@@ -133,11 +135,6 @@ Daily/weekly scraping jobs collect events from all sources. Implements ethical s
 - Mongoose (ODM)
 - NextAuth.js (Google OAuth)
 
-**ML & Analytics**
-
-- Custom vector similarity engine
-- Recharts
-
 **Data Collection**
 
 - Cheerio & Puppeteer (web scraping)
@@ -151,7 +148,8 @@ Daily/weekly scraping jobs collect events from all sources. Implements ethical s
 **Tools & Deployment**
 
 - Vercel (hosting & edge functions)
-- Jest 30 (testing framework)
+- Jest (testing framework)
+- Recharts
 
 ---
 
@@ -168,35 +166,18 @@ All data collection follows ethical practices: official APIs first, robots.txt c
 
 ---
 
-## Getting Started
+## Release History 
 
-### Prerequisites
+[1.0.1] - 18/03/2027
 
-- Node.js 18+
-- MongoDB instance
-- API keys (Ticketmaster, Google OAuth)
-
-### Installation
-
-```bash
-# Clone the repository
-git clone git@github.com:[your username]/hoddle-events.git
-cd hoddle
-
-# Install dependencies
-npm install
-
-# Set up environment variables
-cp .env.example .env.local
-# Edit .env.local with your credentials
-
-# Run development server
-npm run dev
-```
+New Features - Scraping & Deduplication Overhaul:
+- Switched from per-event DB writes to a 2-phase pipeline (in-memory decisions → single bulkWrite)
+- Reduced processing from ~O(n²) (per-event DB operation) to ~O(n) via in-memory batching + bulk writes
+- Ticketmaster (1000 events): 15+ mins (timeouts) → ~3–4 mins average
 
 ---
 
-## Future Enhancements
+## Future Features
 
 - [ ] Collaborative filtering for recommendations
 - [ ] Implement more scrapers for additional sources
