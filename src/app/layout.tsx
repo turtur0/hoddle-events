@@ -5,7 +5,6 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { cn } from "@/lib/utils";
 import { SessionProviderWrapper } from "./providers";
-import { MouseTrailLoader } from "@/components/effects/MouseTrailLoader";
 
 const barlow = Barlow({
   subsets: ["latin"],
@@ -39,7 +38,6 @@ export default function RootLayout({
           "min-h-screen bg-background antialiased font-sans"
         )}
       >
-        <MouseTrailLoader />
         <SessionProviderWrapper>
           <div className="relative z-10 flex min-h-screen flex-col">
             <Header />

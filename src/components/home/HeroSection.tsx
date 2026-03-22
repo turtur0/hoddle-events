@@ -100,12 +100,12 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 }
 
 export function HeroSection({ totalEvents, archivedEvents, sourceCount }: Props) {
-  const canvasRef  = useRef<HTMLCanvasElement>(null);
-  const sectionRef = useRef<HTMLElement>(null);
-  const nodesRef   = useRef<GraphNode[][]>([]);
-  const edgesRef   = useRef<[number, number][][]>([]);
-  const scrollY    = useRef(0);
-  const rafId      = useRef(0);
+  const canvasRef    = useRef<HTMLCanvasElement>(null);
+  const sectionRef   = useRef<HTMLElement>(null);
+  const nodesRef     = useRef<GraphNode[][]>([]);
+  const edgesRef     = useRef<[number, number][][]>([]);
+  const scrollY      = useRef(0);
+  const rafId        = useRef(0);
 
   useEffect(() => {
     const { nodes, edges } = buildGraphNodes();
@@ -128,14 +128,29 @@ export function HeroSection({ totalEvents, archivedEvents, sourceCount }: Props)
     const ro = new ResizeObserver(resize);
     ro.observe(document.documentElement);
 
+    const getProgress = () => {
+      const heroH = sectionRef.current?.offsetHeight ?? window.innerHeight;
+      return Math.min(1, window.scrollY / heroH);
+    };
+
     const onScroll = () => { scrollY.current = window.scrollY; };
     window.addEventListener('scroll', onScroll, { passive: true });
 
     const draw = (ts: number) => {
       const W = window.innerWidth, H = window.innerHeight;
       ctx.clearRect(0, 0, W, H);
-      const sy = scrollY.current;
+      const sy       = scrollY.current;
+      const progress = getProgress();
+      const waveY = progress * H * 1.85;
       const DA = 5, DS = 0.00020;
+
+      // Read primary colour from CSS variable each frame so it stays in sync
+      const primaryRgb = getComputedStyle(document.documentElement)
+        .getPropertyValue('--primary').trim();
+      // --primary is oklch — convert to a usable rgb fallback via a temp element
+      // Simpler: just use the known dark-mode rgb equivalent directly from the token
+      // oklch(0.70 0.16 42) ≈ rgb(251, 146, 60) — cached constant, matches globals.css
+      const OR = 251, OG = 146, OB = 60;
 
       nodesRef.current.forEach((clusterNodes, ci) => {
         const pos = clusterNodes.map(n => ({
@@ -143,43 +158,93 @@ export function HeroSection({ totalEvents, archivedEvents, sourceCount }: Props)
           y: n.ny * H + DA * Math.cos(ts * DS * 0.7 + n.phase + 1.3) - sy * LAYER_SPEED[n.layer],
         }));
 
-        // Edges
+        // ── Edges ──────────────────────────────────────────────────────────
         for (const [ai, bi] of edgesRef.current[ci]) {
+          const a = pos[ai], b = pos[bi];
+
+          // Always draw the base white edge
           ctx.beginPath();
-          ctx.moveTo(pos[ai].x, pos[ai].y);
-          ctx.lineTo(pos[bi].x, pos[bi].y);
+          ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
           ctx.strokeStyle = 'rgba(255,255,255,0.13)';
           ctx.lineWidth   = 0.8;
           ctx.stroke();
+
+          const topPt    = a.y <= b.y ? a : b;
+          const botPt    = a.y <= b.y ? b : a;
+          const edgeMinY = topPt.y;
+          const edgeMaxY = botPt.y;
+
+          if (waveY <= edgeMinY) continue; // wave hasn't reached top of this edge
+
+          if (waveY >= edgeMaxY) {
+            // Fully lit — entire edge orange
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+            ctx.strokeStyle = `rgba(${OR},${OG},${OB},0.60)`;
+            ctx.lineWidth   = 1.4;
+            ctx.stroke();
+          } else {
+            // Partially lit — find the point where y = waveY along the edge
+            const frac   = (waveY - topPt.y) / (botPt.y - topPt.y);
+            const headX  = topPt.x + frac * (botPt.x - topPt.x);
+            const headY  = waveY;
+
+            ctx.beginPath();
+            ctx.moveTo(topPt.x, topPt.y);
+            ctx.lineTo(headX, headY);
+            ctx.strokeStyle = `rgba(${OR},${OG},${OB},0.65)`;
+            ctx.lineWidth   = 1.5;
+            ctx.stroke();
+
+            // Glowing head at the wave front
+            ctx.beginPath();
+            ctx.arc(headX, headY, 3.5, 0, Math.PI * 2);
+            ctx.shadowBlur  = 14;
+            ctx.shadowColor = `rgba(${OR},${OG},${OB},0.95)`;
+            ctx.fillStyle   = 'rgba(255,200,100,1)';
+            ctx.fill();
+            ctx.shadowBlur  = 0;
+          }
         }
 
-        // Nodes
+        // ── Nodes ──────────────────────────────────────────────────────────
         clusterNodes.forEach((n, i) => {
           const { x, y } = pos[i];
+          const lit    = y < waveY;
+          const atWave = lit && waveY - y < 28;
+
           if (!n.tile) {
             ctx.beginPath();
-            ctx.arc(x, y, 3, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255,255,255,0.25)';
+            ctx.arc(x, y, atWave ? 5 : 3, 0, Math.PI * 2);
+            if (atWave) {
+              ctx.shadowBlur  = 14;
+              ctx.shadowColor = `rgba(${OR},${OG},${OB},0.90)`;
+              ctx.fillStyle   = 'rgba(255,200,100,1)';
+            } else {
+              ctx.shadowBlur = 0;
+              ctx.fillStyle  = lit ? `rgba(${OR},${OG},${OB},0.55)` : 'rgba(255,255,255,0.25)';
+            }
             ctx.fill();
+            ctx.shadowBlur = 0;
             return;
           }
+
           const { color, rotation, w, h } = n.tile;
           const [r, g, b] = hexToRgb(color);
           ctx.save();
-          ctx.translate(x, y);
-          ctx.rotate(rotation);
-          ctx.shadowBlur = 16; ctx.shadowColor = `rgba(${r},${g},${b},0.25)`;
-          ctx.fillStyle  = `rgba(${r},${g},${b},0.20)`;
+          ctx.translate(x, y); ctx.rotate(rotation);
+          ctx.shadowBlur  = 16; ctx.shadowColor = `rgba(${r},${g},${b},0.25)`;
+          ctx.fillStyle   = `rgba(${r},${g},${b},${lit ? 0.36 : 0.20})`;
           roundRect(ctx, -w/2, -h/2, w, h, 8); ctx.fill();
-          ctx.shadowBlur = 0;
-          ctx.strokeStyle = `rgba(${r},${g},${b},0.15)`;
+          ctx.shadowBlur  = 0;
+          ctx.strokeStyle = `rgba(${r},${g},${b},${lit ? 0.72 : 0.45})`;
+          ctx.lineWidth   = lit ? 2.0 : 1.4;
+          roundRect(ctx, -w/2, -h/2, w, h, 8); ctx.stroke();
+          ctx.strokeStyle = `rgba(${r},${g},${b},0.12)`;
           ctx.lineWidth   = 0.5;
           for (let lx = -w/2; lx < w/2; lx += 14) {
             ctx.beginPath(); ctx.moveTo(lx, -h/2); ctx.lineTo(lx + h, h/2); ctx.stroke();
           }
-          ctx.strokeStyle = `rgba(${r},${g},${b},0.45)`;
-          ctx.lineWidth   = 1.4;
-          roundRect(ctx, -w/2, -h/2, w, h, 8); ctx.stroke();
           ctx.restore();
         });
       });
@@ -260,7 +325,7 @@ export function HeroSection({ totalEvents, archivedEvents, sourceCount }: Props)
               background:             rgba(255,255,255,0.09);
               backdrop-filter:        blur(16px);
               -webkit-backdrop-filter: blur(16px);
-              border-radius:          20px;
+              border-radius:          0.75rem;
               border:                 1.5px solid var(--primary);
               opacity:                0.85;
               transition:             border-color 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
@@ -276,7 +341,7 @@ export function HeroSection({ totalEvents, archivedEvents, sourceCount }: Props)
             .hero-search-shell [class] {
               background:    transparent !important;
               border:        none !important;
-              border-radius: 20px !important;
+              border-radius: 0 !important;
               box-shadow:    none !important;
             }
             .hero-search-shell input {
@@ -289,11 +354,11 @@ export function HeroSection({ totalEvents, archivedEvents, sourceCount }: Props)
             .hero-search-shell input::placeholder {
               color: rgba(255,255,255,0.36) !important;
             }
-            /* Search submit button — styled to read "Search" with orange accent */
+            /* Search submit button */
             .hero-search-shell button[type="submit"] {
               background:    var(--primary) !important;
               color:         var(--primary-foreground) !important;
-              border-radius: 20px !important;
+              border-radius: 0.5rem !important;
               padding:       0 1.1rem !important;
               font-weight:   600 !important;
               font-size:     0.85rem !important;
@@ -304,10 +369,6 @@ export function HeroSection({ totalEvents, archivedEvents, sourceCount }: Props)
             }
             .hero-search-shell button[type="submit"]:hover {
               background: color-mix(in oklch, var(--primary) 85%, black) !important;
-            }
-            /* Replace icon-only button with text — hide any icon inside it */
-            .hero-search-shell button[type="submit"] svg {
-              display: none !important;
             }
             /* Icon buttons (clear, etc.) */
             .hero-search-shell button:not([type="submit"]) svg {

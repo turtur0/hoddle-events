@@ -133,7 +133,7 @@ export function PageBackground() {
         ctx.beginPath();
         ctx.moveTo(a.x, a.y);
         ctx.lineTo(b.x, b.y);
-        ctx.strokeStyle = 'rgba(249,115,22,0.12)';
+        ctx.strokeStyle = `rgba(251,146,60,0.12)`;
         ctx.lineWidth   = 0.6;
         ctx.stroke();
       }
@@ -143,7 +143,7 @@ export function PageBackground() {
         if (!visible(p.y)) continue;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(249,115,22,0.22)';
+        ctx.fillStyle = `rgba(251,146,60,0.22)`;
         ctx.fill();
       }
 

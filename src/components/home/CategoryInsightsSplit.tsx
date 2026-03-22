@@ -6,8 +6,6 @@ import { HoddleGrid } from '@/components/effects/HoddleGrid';
 import { TimelineChart } from '@/components/analytics/TimelineChart';
 import { PriceDistributionChart } from '@/components/analytics/PriceDistributionChart';
 import { PopularityScatterChart } from '@/components/analytics/PopularityScatterChart';
-
-
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 const TABS = [
   { id: 'timeline',   label: 'Events Timeline',    Icon: Calendar,   desc: 'Distribution over 6 months' },
@@ -15,21 +13,21 @@ const TABS = [
   { id: 'popularity', label: 'Popularity Analysis',Icon: TrendingUp, desc: 'Price vs popularity' },
 ] as const;
 type TabId = typeof TABS[number]['id'];
- 
+
 // ─── BFS constants ────────────────────────────────────────────────────────────
 const COLOR_LERP  = 0.065;
 const BFS_GAMMA   = 0.50;
 const TAB_RGB: [number, number, number] = [251, 146, 60];
- 
+
 // ─── Drag constants ───────────────────────────────────────────────────────────
 const MIN_PCT = 0;      // allow full collapse to either side
 const MAX_PCT = 1;
 const SNAP_BROWSE   = 0.60;
 const SNAP_INSIGHTS = 0.40;
 const DIVIDER_W     = 14;  // wider for easier mobile grab
- 
+
 function lerp(a: number, b: number, t: number) { return a + (b - a) * t; }
- 
+
 // ─── Component ────────────────────────────────────────────────────────────────
 export function CategoryInsightsSplit() {
   // browsePct = fraction of total width given to the browse panel
@@ -37,20 +35,20 @@ export function CategoryInsightsSplit() {
   const [activeTab, setActiveTab] = useState<TabId>('timeline');
   const [mounted,   setMounted]   = useState(false);
   const [isDragging, setIsDragging] = useState(false);
- 
+
   const containerRef = useRef<HTMLDivElement>(null);
   const animPct      = useRef(0.58);
   const [containerWidth, setContainerWidth] = useState(900); // tracks rendered width
- 
+
   // BFS tab animation
   const colorT    = useRef<Float32Array>(new Float32Array(TABS.length));
   const targetT   = useRef<Float32Array>(new Float32Array(TABS.length));
   const tabRefs   = useRef<(HTMLDivElement | null)[]>(Array(TABS.length).fill(null));
   const lineRefs  = useRef<(HTMLDivElement | null)[]>(Array(TABS.length - 1).fill(null));
   const rafId     = useRef(0);
- 
+
   useEffect(() => { setMounted(true); }, []);
- 
+
   // Track container width so we can compute the graph's layout height
   useEffect(() => {
     const el = containerRef.current;
@@ -62,25 +60,29 @@ export function CategoryInsightsSplit() {
     setContainerWidth(el.getBoundingClientRect().width);
     return () => ro.disconnect();
   }, []);
- 
-  // Given the browse panel's pixel width, return the graph's natural height
+
   function graphHeightForWidth(w: number): number {
     if (w >= 800) return 600;
     if (w >= 520) return 740;
     return 920;
   }
- 
-  // Container height: when browse is dominant, grow to fit the full graph.
-  // browseWidth = available width for the graph panel.
-  const browseWidth   = containerWidth * browsePct;
-  const graphHeight   = graphHeightForWidth(browseWidth);
-  const HEADER_H      = 52;
-  const GRAPH_PAD     = 48;  // extra breathing room above/below the graph
-  const INSIGHTS_CAP  = 780;
-  const containerH = Math.round(
-    lerp(INSIGHTS_CAP, graphHeight + HEADER_H + GRAPH_PAD, Math.max(0, browsePct * 2 - 1))
+
+  const browseWidth    = containerWidth * browsePct;
+  const graphHeight    = graphHeightForWidth(browseWidth);
+  const HEADER_H       = 52;
+  const GRAPH_PAD      = 48;
+  // Insights panel natural height — tallest chart (PriceDistribution) ~560px + padding
+  const INSIGHTS_MIN_H = 640;
+
+  const browseFullH   = graphHeight + HEADER_H + GRAPH_PAD;
+  const insightsFullH = INSIGHTS_MIN_H + HEADER_H;
+  // Interpolate between both panels' full heights; container is always at least
+  // as tall as whichever is currently dominant
+  const containerH = Math.max(
+    Math.round(lerp(insightsFullH, browseFullH, browsePct)),
+    600  // hard floor
   );
- 
+
   // ── BFS target update ───────────────────────────────────────────────────
   const updateTargets = useCallback((id: TabId) => {
     const sel = TABS.findIndex(t => t.id === id);
@@ -91,18 +93,18 @@ export function CategoryInsightsSplit() {
         : Math.max(0, 1 - dist / TABS.length) ** BFS_GAMMA;
     }
   }, []);
- 
+
   useEffect(() => { updateTargets(activeTab); }, [activeTab, updateTargets]);
- 
+
   // ── RAF: BFS tab DOM writes + animPct lerp → CSS var ───────────────────
   useEffect(() => {
     const [r, g, b] = TAB_RGB;
- 
+
     const draw = () => {
       // Lerp display split fraction
       animPct.current += (browsePct - animPct.current) * 0.10;
       const pct = animPct.current;
- 
+
       // Write to container CSS var so both panels react
       const container = containerRef.current;
       if (container) {
@@ -114,16 +116,16 @@ export function CategoryInsightsSplit() {
         container.style.setProperty('--browse-opacity',  String(browseOpacity));
         container.style.setProperty('--insight-opacity', String(insightOpacity));
       }
- 
+
       // BFS tab lerps
       for (let i = 0; i < TABS.length; i++) {
         colorT.current[i] += (targetT.current[i] - colorT.current[i]) * COLOR_LERP;
         const t  = colorT.current[i];
         const el = tabRefs.current[i];
         if (!el) continue;
- 
+
         const isSelected = t > 0.92;
- 
+
         const dot = el.querySelector<HTMLElement>('.tab-dot');
         if (dot) {
           if (isSelected) {
@@ -141,14 +143,14 @@ export function CategoryInsightsSplit() {
             dot.style.transform   = 'scale(1)';
           }
         }
- 
+
         const icon = el.querySelector<HTMLElement>('.tab-icon');
         if (icon) {
           // Icon always orange, brighter when selected
           icon.style.color   = `rgba(${r},${g},${b},${0.45 + t * 0.55})`;
           icon.style.opacity = String(0.55 + t * 0.45);
         }
- 
+
         const label = el.querySelector<HTMLElement>('.tab-label');
         if (label) {
           if (isSelected) {
@@ -162,7 +164,7 @@ export function CategoryInsightsSplit() {
           label.style.opacity = String(0.5 + t * 0.5);
         }
       }
- 
+
       // Line segments
       for (let i = 0; i < TABS.length - 1; i++) {
         const avgT = (colorT.current[i] + colorT.current[i + 1]) * 0.5;
@@ -172,14 +174,14 @@ export function CategoryInsightsSplit() {
           seg.style.width      = `${1 + avgT * 1.5}px`;
         }
       }
- 
+
       rafId.current = requestAnimationFrame(draw);
     };
- 
+
     rafId.current = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(rafId.current);
   }, [browsePct]);
- 
+
   // ── Drag logic ──────────────────────────────────────────────────────────
   const onDividerPointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
@@ -187,14 +189,14 @@ export function CategoryInsightsSplit() {
     const target = e.currentTarget as HTMLElement;
     target.setPointerCapture(e.pointerId);
   }, []);
- 
+
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     if (!isDragging || !containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const raw  = (e.clientX - rect.left) / rect.width;
     setBrowsePct(Math.min(MAX_PCT, Math.max(MIN_PCT, raw)));
   }, [isDragging]);
- 
+
   const onPointerUp = useCallback((e: React.PointerEvent) => {
     if (!isDragging) return;
     setIsDragging(false);
@@ -206,20 +208,20 @@ export function CategoryInsightsSplit() {
       return prev;
     });
   }, [isDragging]);
- 
-  // Expand buttons snap to preset positions
-  const expandBrowse   = () => setBrowsePct(1);
-  const expandInsights = () => setBrowsePct(0);
- 
+
+  // Expand: each button expands the OTHER panel to full screen
+  const expandBrowse   = () => setBrowsePct(0);   // expand insights → hide browse
+  const expandInsights = () => setBrowsePct(1);   // expand browse → hide insights
+
   const ActiveChart = () => {
     if (activeTab === 'timeline')   return <TimelineChart />;
     if (activeTab === 'price')      return <PriceDistributionChart />;
     if (activeTab === 'popularity') return <PopularityScatterChart />;
     return null;
   };
- 
+
   const browseFocused = browsePct >= 0.50;
- 
+
   return (
     <div
       ref={containerRef}
@@ -269,7 +271,7 @@ export function CategoryInsightsSplit() {
           </button>
         </div>
       )}
- 
+
       {/* Single continuous header border — spans full width, never broken */}
       <div
         aria-hidden="true"
@@ -284,7 +286,7 @@ export function CategoryInsightsSplit() {
           pointerEvents: 'none',
         }}
       />
- 
+
       {/* ── Browse panel ──────────────────────────────────────────────── */}
       <div
         className="flex flex-col transition-opacity duration-300"
@@ -315,13 +317,13 @@ export function CategoryInsightsSplit() {
             </button>
           )}
         </div>
- 
+
         {/* HoddleGrid — centred in available space */}
         <div className="flex-1 overflow-hidden flex items-center justify-center" style={{ minHeight: 0 }}>
           <HoddleGrid />
         </div>
       </div>
- 
+
       {/* ── Draggable divider — always rendered, wide hit area ────── */}
       <div
         onPointerDown={onDividerPointerDown}
@@ -366,7 +368,7 @@ export function CategoryInsightsSplit() {
           ))}
         </div>
       </div>
- 
+
       {/* ── Insights panel ────────────────────────────────────────────── */}
       <div
         className="flex flex-col transition-opacity duration-300"
@@ -397,10 +399,10 @@ export function CategoryInsightsSplit() {
             <TrendingUp className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--primary)' }} />
           </div>
         </div>
- 
+
         {/* Tab nav + chart */}
         <div className="flex flex-1 min-h-0 overflow-hidden">
- 
+
           {/* ── BFS vertical tab rail ───────────────────────────────── */}
           <div
             className="flex flex-col justify-center items-center py-6 flex-shrink-0"
@@ -435,7 +437,7 @@ export function CategoryInsightsSplit() {
                       style={{ width: 13, height: 13, transition: 'none' }}
                     />
                   </div>
- 
+
                   {/* Label */}
                   <span
                     className="tab-label text-center leading-tight"
@@ -444,7 +446,7 @@ export function CategoryInsightsSplit() {
                     {tab.label}
                   </span>
                 </div>
- 
+
                 {/* Connecting line */}
                 {i < TABS.length - 1 && (
                   <div
@@ -461,7 +463,7 @@ export function CategoryInsightsSplit() {
               </div>
             ))}
           </div>
- 
+
           {/* ── Active chart ────────────────────────────────────────── */}
           <div className="flex-1 overflow-y-auto overflow-x-hidden p-4" style={{ minWidth: 0 }}>
             {mounted && (
