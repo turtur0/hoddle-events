@@ -10,7 +10,7 @@
 
 A full-stack events aggregator that solves Melbourne's fragmented event discovery problem by combining multiple ticketing, venue and events platforms into one searchable database. It features data deduplication, ML-based recommendations, event analytics, custom automated in-app and email notifications, and a historical archive of past events.
 
-*NOTE: Website is currently undergoing a UI/UX redesign. Images and gifs in this readme may not be up to date, and website design may have some inconsistent UI as it undergoes polish. But functionality currently remains the same*
+**NOTE: Website is currently undergoing a UI/UX redesign. Images and gifs in docs may not be up to date, and current website may have some inconsistent UI as it undergoes changes and polish. But functionality currently remains the same**
 
 ---
 
