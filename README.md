@@ -2,9 +2,7 @@
 
 ![Hoddle Homepage](docs/homepage.png)
 
-**Discover Melbourne's events in one place**
-
-[Live Demo](https://www.hoddleevents.com.au/) | [Features](#features) | [Tech Stack](#tech-stack)
+Link: https://www.hoddleevents.com.au
 
 ---
 
@@ -159,8 +157,6 @@ Daily/weekly scraping jobs collect events from all sources. Implements ethical s
 - **Fever**: Immersive exhibitions, experiences and live entertainment via the Fever platform
 - **Marriner Group**: Premium venues (Regent, Princess, Comedy Theatre, Forum, Plaza)
 - **What's On Melbourne**: Community festivals and cultural events from the City of Melbourne
-
-Sources fall into three categories: **Ticketing** (platforms that sell tickets directly), **Venue** (direct venue operators), and **Curated** (editorial or government-curated listings).
 
 All data collection follows ethical practices: official APIs first, robots.txt compliance, rate limiting, and direct attribution to sources.
 
